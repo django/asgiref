@@ -1,13 +1,16 @@
-asgi-inmemory
-=============
+asgiref
+=======
 
-An ASGI channel layer that works purely in memory, intended when multiple
-ASGI applications or protocol servers are run in the same process in
-separate threads.
+Contains various reference ASGI implementations, including:
+
+* An in-memory channel layer, ``asgiref.inmemory``
+* WSGI-to-ASGI and ASGI-to-WSGI adapters, in ``asgiref.wsgi``
 
 
-Usage
------
+In-memory Channel Layer
+-----------------------
 
-Simply point your ASGI code to use ``asgi_inmemory.channel_layer`` as its
-channel layer. No configuration is required.
+Simply instantiate ``asgiref.inmemory.ChannelLayer``, or use the pre-made
+``asgiref.inmemory.channel_layer`` for easy use. Implements the ``group``
+extension, and is designed to support running multiple ASGI programs
+in separate threads within one process (the channel layer is threadsafe).

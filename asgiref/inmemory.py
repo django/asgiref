@@ -7,6 +7,8 @@ import time
 from collections import deque
 
 
+# TODO: Ensure thread safety
+
 class ChannelLayer(object):
     """
     In memory channel layer object; a single one is instantiated as
@@ -35,7 +37,7 @@ class ChannelLayer(object):
         # Add it to a deque for the appropriate channel name
         self._channels.setdefault(channel, deque()).append((time.time(), message))
 
-    def receive_many(self, channels):
+    def receive_many(self, channels, block=False):
         # Shuffle channel names to ensure approximate global ordering
         channels = list(channels)
         random.shuffle(channels)
