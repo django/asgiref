@@ -10,7 +10,7 @@ readme_path = os.path.join(os.path.dirname(__file__), "README.rst")
 
 setup(
     name='asgiref',
-    version="0.8",
+    version=__version__,
     url='http://github.com/andrewgodwin/asgiref/',
     author='Andrew Godwin',
     author_email='andrew@aeracode.org',
