@@ -15,16 +15,15 @@ class ChannelLayer(object):
     "channel_layer" for easy shared use.
     """
 
-    # Message expiry time, in seconds
-    message_expiry = 60
-
-    # Storage for state
-    _channels = {}
-    _groups = {}
+    def __init__(self, expiry=60):
+        self.expiry = expiry
+        # Storage for state
+        self._channels = {}
+        self._groups = {}
 
     ### ASGI API ###
 
-    extensions = ["groups"]
+    extensions = ["groups", "flush"]
 
     class MessageTooLarge(Exception):
         pass
@@ -33,7 +32,7 @@ class ChannelLayer(object):
         # Make sure the message is a dict at least (no deep inspection)
         assert isinstance(message, dict), "message is not a dict"
         # Channel name should be bytes
-        assert isinstance(channel, six.binary_type), "%s is not bytes" % channel
+        assert isinstance(channel, six.text_type), "%s is not bytes" % channel
         # Add it to a deque for the appropriate channel name
         self._channels.setdefault(channel, deque()).append((time.time(), message))
 
@@ -43,13 +42,13 @@ class ChannelLayer(object):
         random.shuffle(channels)
         # Go through channels and see if a message is available:
         for channel in channels:
-            assert isinstance(channel, six.binary_type), "%s is not bytes" % channel
+            assert isinstance(channel, six.text_type), "%s is not bytes" % channel
             # Loop through messages until one isn't expired or there are none
             while True:
                 try:
                     created, message = self._channels[channel].popleft()
                     # Did it expire?
-                    if (time.time() - created) > self.message_expiry:
+                    if (time.time() - created) > self.expiry:
                         continue
                     # Is the channel now empty and needs deleting?
                     if not self._channels[channel]:
@@ -62,7 +61,7 @@ class ChannelLayer(object):
         return None, None
 
     def new_channel(self, pattern):
-        assert isinstance(pattern, six.binary_type)
+        assert isinstance(pattern, six.text_type)
         # Keep making channel names till one isn't present.
         while True:
             random_string = b"".join(random.choice(string.ascii_letters.encode("ascii")) for i in range(8))
@@ -83,6 +82,12 @@ class ChannelLayer(object):
 
     def send_group(self, group, message):
         raise NotImplementedError()
+
+    ### ASGI Flush API ###
+
+    def flush(self):
+        self._channels = {}
+        self._groups = {}
 
 
 # Global single instance for easy use
