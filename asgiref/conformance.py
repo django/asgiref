@@ -141,11 +141,6 @@ def make_tests(channel_layer, expiry_delay):
             self.assertIs(channel, None)
             self.assertIs(message, None)
 
-        @unittest.skipIf("groups" not in channel_layer.extensions, "No groups extension")
-        def test_group_expiry(self):
-            # TODO: Test group expiry mechanism
-            pass
-
         @unittest.skipIf("flush" not in channel_layer.extensions, "No flush extension")
         def test_flush(self):
             """
