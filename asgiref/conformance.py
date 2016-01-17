@@ -4,7 +4,7 @@ ASGI spec conformance test suite.
 Calling the functions with an ASGI channel layer instance will return you a
 single TestCase instance that checks for conformity on that instance.
 
-You MUST also pass along an expiry value to some sets of tests, to allow the
+You MUST also pass along an expiry value to the sets of tests, to allow the
 suite to wait correctly for expiry. It's suggested you configure the layer
 for 1-second expiry during tests, and use a 1.1 second expiry delay.
 
@@ -19,9 +19,9 @@ import time
 import unittest
 
 
-def core_tests(channel_layer, expiry_delay):
+def make_tests(channel_layer, expiry_delay):
 
-    class CoreTestCase(unittest.TestCase):
+    class LayerTestCase(unittest.TestCase):
         """
         Tests that core ASGI functionality is maintained.
         """
@@ -49,6 +49,16 @@ def core_tests(channel_layer, expiry_delay):
             channel, message = channel_layer.receive_many(["sr_test", "sr_test2"])
             self.assertEqual(channel, "sr_test2")
             self.assertEqual(message, {"value": "red"})
+
+        def test_unicode_channel_name(self):
+            """
+            Makes sure channel names can handle unicode
+            """
+            channel_layer.send("\u00a3_test", {"value": "blue"})
+            # Get just one first
+            channel, message = channel_layer.receive_many(["\u00a3_test"])
+            self.assertEqual(channel, "\u00a3_test")
+            self.assertEqual(message, {"value": "blue"})
 
         def test_message_expiry(self):
             """
@@ -108,4 +118,55 @@ def core_tests(channel_layer, expiry_delay):
             self.assertEqual(received["values"]["emoji"], message["values"]["emoji"])
             self.assertEqual(received["values"]["control"], message["values"]["control"])
 
-    return CoreTestCase
+        @unittest.skipIf("groups" not in channel_layer.extensions, "No groups extension")
+        def test_groups(self):
+            """
+            Tests that basic group addition and send works
+            """
+            # Make a group and send to it
+            channel_layer.group_add("tgroup", "tg_test")
+            channel_layer.group_add("tgroup", "tg_test2")
+            channel_layer.group_add("tgroup", "tg_test3")
+            channel_layer.group_discard("tgroup", "tg_test3")
+            channel_layer.send_group("tgroup", {"value": "orange"})
+            # Receive from the two channels in the group and ensure messages
+            channel, message = channel_layer.receive_many(["tg_test"])
+            self.assertEqual(channel, "tg_test")
+            self.assertEqual(message, {"value": "orange"})
+            channel, message = channel_layer.receive_many(["tg_test2"])
+            self.assertEqual(channel, "tg_test2")
+            self.assertEqual(message, {"value": "orange"})
+            # Make sure another channel does not get a message
+            channel, message = channel_layer.receive_many(["tg_test3"])
+            self.assertIs(channel, None)
+            self.assertIs(message, None)
+
+        @unittest.skipIf("groups" not in channel_layer.extensions, "No groups extension")
+        def test_group_expiry(self):
+            # TODO: Test group expiry mechanism
+            pass
+
+        @unittest.skipIf("flush" not in channel_layer.extensions, "No flush extension")
+        def test_flush(self):
+            """
+            Tests that messages go away after a flush.
+            """
+            channel_layer.send("fl_test", {"value": "blue"})
+            channel_layer.flush()
+            channel, message = channel_layer.receive_many(["fl_test"])
+            self.assertIs(channel, None)
+            self.assertIs(message, None)
+
+        @unittest.skipIf("flush" not in channel_layer.extensions, "No flush extension")
+        @unittest.skipIf("groups" not in channel_layer.extensions, "No groups extension")
+        def test_flush_groups(self):
+            """
+            Tests that groups go away after a flush.
+            """
+            channel_layer.send("fl_test", {"value": "blue"})
+            channel_layer.flush()
+            channel, message = channel_layer.receive_many(["fl_test"])
+            self.assertIs(channel, None)
+            self.assertIs(message, None)
+
+    return LayerTestCase
