@@ -31,32 +31,25 @@ class ChannelLayer(object):
     def send(self, channel, message):
         # Make sure the message is a dict at least (no deep inspection)
         assert isinstance(message, dict), "message is not a dict"
-        # Channel name should be bytes
-        assert isinstance(channel, six.text_type), "%s is not bytes" % channel
+        # Channel name should be text
+        assert isinstance(channel, six.text_type), "%s is not text" % channel
         # Add it to a deque for the appropriate channel name
-        self._channels.setdefault(channel, deque()).append((time.time(), message))
+        self._channels.setdefault(channel, deque()).append((
+            time.time() + self.expiry,
+            message,
+        ))
 
     def receive_many(self, channels, block=False):
         # Shuffle channel names to ensure approximate global ordering
         channels = list(channels)
         random.shuffle(channels)
+        # Expire old messages
+        self._clean_expired()
         # Go through channels and see if a message is available:
         for channel in channels:
-            assert isinstance(channel, six.text_type), "%s is not bytes" % channel
-            # Loop through messages until one isn't expired or there are none
-            while True:
-                try:
-                    created, message = self._channels[channel].popleft()
-                    # Did it expire?
-                    if (time.time() - created) > self.expiry:
-                        continue
-                    # Is the channel now empty and needs deleting?
-                    if not self._channels[channel]:
-                        del self._channels[channel]
-                    # Return retrieved message
-                    return channel, message
-                except (IndexError, KeyError):
-                    break
+            if self._channels.get(channel, None):
+                _, message = self._channels[channel].popleft()
+                return channel, message
         # No message available
         return None, None
 
@@ -72,16 +65,30 @@ class ChannelLayer(object):
 
     ### ASGI Group API ###
 
-    group_expiry = 120
-
     def group_add(self, group, channel):
-        raise NotImplementedError()
+        # Both should be text
+        assert isinstance(group, six.text_type), "%s is not text" % group
+        assert isinstance(channel, six.text_type), "%s is not text" % channel
+        # Add to group set
+        self._groups[group] = self._groups.get(group, set()).union({channel})
 
     def group_discard(self, group, channel):
-        raise NotImplementedError()
+        # Both should be text
+        assert isinstance(group, six.text_type), "%s is not text" % group
+        assert isinstance(channel, six.text_type), "%s is not text" % channel
+        # Remove from group set
+        if group in self._groups:
+            self._groups[group].discard(channel)
+            if not self._groups[group]:
+                del self._groups[group]
 
     def send_group(self, group, message):
-        raise NotImplementedError()
+        # Check types
+        assert isinstance(message, dict), "message is not a dict"
+        assert isinstance(group, six.text_type), "%s is not text" % group
+        # Send to each channel
+        for channel in self._groups.get(group, set()):
+            self.send(channel, message)
 
     ### ASGI Flush API ###
 
@@ -89,6 +96,32 @@ class ChannelLayer(object):
         self._channels = {}
         self._groups = {}
 
+    ### Expire cleanup ###
+
+    def _clean_expired(self):
+        """
+        Goes through all messages and removes those that are expired.
+        Any channel with an expired message is removed from all groups.
+        """
+        for channel, queue in list(self._channels.items()):
+            remove = False
+            # See if it's expired
+            while queue and queue[0][0] < time.time():
+                queue.popleft()
+                remove = True
+            # Any removal prompts group discard
+            if remove:
+                self._remove_from_groups(channel)
+            # Is the channel now empty and needs deleting?
+            if not queue:
+                del self._channels[channel]
+
+    def _remove_from_groups(self, channel):
+        """
+        Removes a channel from all groups. Used when a message on it expires.
+        """
+        for  channels in self._groups.values():
+            channels.discard(channel)
 
 # Global single instance for easy use
 channel_layer = ChannelLayer()
