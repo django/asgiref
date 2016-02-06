@@ -1,6 +1,9 @@
 asgiref
 =======
 
+.. image:: https://api.travis-ci.org/andrewgodwin/asgiref.svg
+    :target: https://travis-ci.org/andrewgodwin/asgiref
+
 Contains various reference ASGI implementations, including:
 
 * An in-memory channel layer, ``asgiref.inmemory``

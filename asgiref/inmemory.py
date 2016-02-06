@@ -57,8 +57,8 @@ class ChannelLayer(object):
         assert isinstance(pattern, six.text_type)
         # Keep making channel names till one isn't present.
         while True:
-            random_string = b"".join(random.choice(string.ascii_letters.encode("ascii")) for i in range(8))
-            new_name = pattern.replace(b"?", random_string)
+            random_string = "".join(random.choice(string.ascii_letters) for i in range(8))
+            new_name = pattern.replace("?", random_string)
             # Basic check for existence
             if new_name not in self._channels:
                 return new_name

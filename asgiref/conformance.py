@@ -76,6 +76,7 @@ def make_tests(channel_layer, expiry_delay):
             """
             pattern = "test.?.foo.?"
             name1 = channel_layer.new_channel(pattern)
+            self.assertIsInstance(name1, six.text_type)
             # Send a message and make sure new_channel on second pass changes
             channel_layer.send(name1, {"value": "blue"})
             name2 = channel_layer.new_channel(pattern)
