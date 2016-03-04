@@ -4,6 +4,7 @@ import random
 import six
 import string
 import time
+import threading
 from collections import deque
 
 
@@ -17,6 +18,7 @@ class ChannelLayer(object):
 
     def __init__(self, expiry=60):
         self.expiry = expiry
+        self.thread_lock = threading.Lock()
         # Storage for state
         self._channels = {}
         self._groups = {}
@@ -34,10 +36,11 @@ class ChannelLayer(object):
         # Channel name should be text
         assert isinstance(channel, six.text_type), "%s is not text" % channel
         # Add it to a deque for the appropriate channel name
-        self._channels.setdefault(channel, deque()).append((
-            time.time() + self.expiry,
-            message,
-        ))
+        with self.thread_lock:
+            self._channels.setdefault(channel, deque()).append((
+                time.time() + self.expiry,
+                message,
+            ))
 
     def receive_many(self, channels, block=False):
         # Shuffle channel names to ensure approximate global ordering
@@ -46,10 +49,11 @@ class ChannelLayer(object):
         # Expire old messages
         self._clean_expired()
         # Go through channels and see if a message is available:
-        for channel in channels:
-            if self._channels.get(channel, None):
-                _, message = self._channels[channel].popleft()
-                return channel, message
+        with self.thread_lock:
+            for channel in channels:
+                if self._channels.get(channel, None):
+                    _, message = self._channels[channel].popleft()
+                    return channel, message
         # No message available
         return None, None
 
@@ -103,18 +107,19 @@ class ChannelLayer(object):
         Goes through all messages and removes those that are expired.
         Any channel with an expired message is removed from all groups.
         """
-        for channel, queue in list(self._channels.items()):
-            remove = False
-            # See if it's expired
-            while queue and queue[0][0] < time.time():
-                queue.popleft()
-                remove = True
-            # Any removal prompts group discard
-            if remove:
-                self._remove_from_groups(channel)
-            # Is the channel now empty and needs deleting?
-            if not queue:
-                del self._channels[channel]
+        with self.thread_lock:
+            for channel, queue in list(self._channels.items()):
+                remove = False
+                # See if it's expired
+                while queue and queue[0][0] < time.time():
+                    queue.popleft()
+                    remove = True
+                # Any removal prompts group discard
+                if remove:
+                    self._remove_from_groups(channel)
+                # Is the channel now empty and needs deleting?
+                if not queue:
+                    del self._channels[channel]
 
     def _remove_from_groups(self, channel):
         """
