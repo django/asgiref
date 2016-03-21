@@ -32,7 +32,7 @@ class WsgiToAsgiAdapter(object):
         """
         Overrideable for tests, where you want a fixed reply channel.
         """
-        return self.channel_layer.new_channel("!http.response.?")
+        return self.channel_layer.new_channel("http.response!")
 
     def __call__(self, environ, start_response):
         # Translate the environ into an ASGI-style request

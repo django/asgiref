@@ -59,10 +59,11 @@ class ChannelLayer(object):
 
     def new_channel(self, pattern):
         assert isinstance(pattern, six.text_type)
+        assert pattern.endswith("!"), "New channel pattern must end with !"
         # Keep making channel names till one isn't present.
         while True:
             random_string = "".join(random.choice(string.ascii_letters) for i in range(8))
-            new_name = pattern.replace("?", random_string)
+            new_name = pattern + random_string
             # Basic check for existence
             if new_name not in self._channels:
                 return new_name

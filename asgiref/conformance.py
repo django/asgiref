@@ -74,19 +74,24 @@ def make_tests(channel_layer, expiry_delay):
             """
             Tests that new channel names are made correctly.
             """
-            pattern = "test.?.foo.?"
+            pattern = "test.foo!"
             name1 = channel_layer.new_channel(pattern)
+            self.assertFalse(name1.endswith("!"))
+            self.assertTrue("!" in name1)
+            self.assertEqual(name1.find("!"), name1.rfind("!"))
             self.assertIsInstance(name1, six.text_type)
             # Send a message and make sure new_channel on second pass changes
             channel_layer.send(name1, {"value": "blue"})
             name2 = channel_layer.new_channel(pattern)
-            # Make sure the two ?s are replaced by the same string
-            bits = name2.split(".")
-            self.assertEqual(bits[1], bits[3], "New channel random strings don't match")
             # Make sure we can consume off of that new channel
             channel, message = channel_layer.receive_many([name1, name2])
             self.assertEqual(channel, name1)
             self.assertEqual(message, {"value": "blue"})
+            # Make sure that new_channel rejects bad patterns
+            with self.assertRaises(Exception):
+                channel_layer.new_channel("test!foo")
+            with self.assertRaises(Exception):
+                channel_layer.new_channel("test.foo")
 
         def test_strings(self):
             """
