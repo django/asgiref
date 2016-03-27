@@ -16,8 +16,9 @@ class ChannelLayer(object):
     "channel_layer" for easy shared use.
     """
 
-    def __init__(self, expiry=60):
+    def __init__(self, expiry=60, group_expiry=86400):
         self.expiry = expiry
+        self.group_expiry = group_expiry
         self.thread_lock = threading.Lock()
         # Storage for state
         self._channels = {}
@@ -74,23 +75,29 @@ class ChannelLayer(object):
         # Both should be text
         assert isinstance(group, six.text_type), "%s is not text" % group
         assert isinstance(channel, six.text_type), "%s is not text" % channel
-        # Add to group set
-        self._groups[group] = self._groups.get(group, set()).union({channel})
+        # Add to group dict
+        with self.thread_lock:
+            self._groups.setdefault(group, {})
+            self._groups[group][channel] = time.time()
 
     def group_discard(self, group, channel):
         # Both should be text
         assert isinstance(group, six.text_type), "%s is not text" % group
         assert isinstance(channel, six.text_type), "%s is not text" % channel
         # Remove from group set
-        if group in self._groups:
-            self._groups[group].discard(channel)
-            if not self._groups[group]:
-                del self._groups[group]
+        with self.thread_lock:
+            if group in self._groups:
+                if channel in self._groups[group]:
+                    del self._groups[group][channel]
+                if not self._groups[group]:
+                    del self._groups[group]
 
     def send_group(self, group, message):
         # Check types
         assert isinstance(message, dict), "message is not a dict"
         assert isinstance(group, six.text_type), "%s is not text" % group
+        # Run clean
+        self._clean_expired()
         # Send to each channel
         for channel in self._groups.get(group, set()):
             self.send(channel, message)
@@ -105,10 +112,11 @@ class ChannelLayer(object):
 
     def _clean_expired(self):
         """
-        Goes through all messages and removes those that are expired.
+        Goes through all messages and groups and removes those that are expired.
         Any channel with an expired message is removed from all groups.
         """
         with self.thread_lock:
+            # Channel cleanup
             for channel, queue in list(self._channels.items()):
                 remove = False
                 # See if it's expired
@@ -121,6 +129,13 @@ class ChannelLayer(object):
                 # Is the channel now empty and needs deleting?
                 if not queue:
                     del self._channels[channel]
+            # Group cleanup
+            for group, channels in list(self._groups.items()):
+                for channel, added in list(channels.items()):
+                    if added < (time.time() - self.group_expiry):
+                        del self._groups[group][channel]
+                        if not self._groups[group]:
+                            del self._groups[group]
 
     def _remove_from_groups(self, channel):
         """
