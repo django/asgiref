@@ -28,9 +28,22 @@ class ConformanceTestCase(unittest.TestCase):
     expiry_delay = None
 
     @classmethod
+    def raiseSkip(cls, message):
+        """
+        Picks the right skip class based on what version of unittest we're using.
+        """ 
+        try:
+            import unittest2
+            SkipTest = unittest2.SkipTest
+        except ImportError:
+            SkipTest = unittest.SkipTest
+        raise SkipTest(message)
+
+    @classmethod
     def setUpClass(cls):
+        # Don't let this actual class run, it's abstract
         if cls is ConformanceTestCase:
-            raise unittest.SkipTest("Skipping base class tests")
+            cls.raiseSkip("Skipping base class tests")
 
     def setUp(self):
         if self.channel_layer is None:
@@ -39,6 +52,14 @@ class ConformanceTestCase(unittest.TestCase):
             raise ValueError("You must define 'expiry_delay' when subclassing the conformance tests.")
         if "flush" in self.channel_layer.extensions:
             self.channel_layer.flush()
+
+    def skip_if_no_extension(self, extension):
+        """
+        Handy function for skipping things without an extension.
+        We can't use the decorators, as we need access to self.
+        """
+        if extension not in self.channel_layer.extensions:
+            self.raiseSkip("No %s extension" % extension)
 
     def test_send_recv(self):
         """
@@ -138,9 +159,7 @@ class ConformanceTestCase(unittest.TestCase):
         """
         Tests that basic group addition and send works
         """
-        # Do skipping here as we need self
-        if "groups" not in self.channel_layer.extensions:
-            raise unittest.SkipTest("No groups extension")
+        self.skip_if_no_extension("groups")
         # Make a group and send to it
         self.channel_layer.group_add("tgroup", "tg_test")
         self.channel_layer.group_add("tgroup", "tg_test2")
@@ -163,9 +182,7 @@ class ConformanceTestCase(unittest.TestCase):
         """
         Tests that messages go away after a flush.
         """
-        # Do skipping here as we need self
-        if "flush" not in self.channel_layer.extensions:
-            raise unittest.SkipTest("No flush extension")
+        self.skip_if_no_extension("flush")
         # Send something to flush
         self.channel_layer.send("fl_test", {"value": "blue"})
         self.channel_layer.flush()
@@ -177,11 +194,8 @@ class ConformanceTestCase(unittest.TestCase):
         """
         Tests that groups go away after a flush.
         """
-        # Do skipping here as we need self
-        if "flush" not in self.channel_layer.extensions:
-            raise unittest.SkipTest("No flush extension")
-        if "groups" not in self.channel_layer.extensions:
-            raise unittest.SkipTest("No groups extension")
+        self.skip_if_no_extension("groups")
+        self.skip_if_no_extension("flush")
         # Add things to a group and send to it
         self.channel_layer.group_add("tfg_group", "tfg_test")
         self.channel_layer.send_group("tfg_group", {"value": "blue"})
@@ -195,9 +209,7 @@ class ConformanceTestCase(unittest.TestCase):
         Tests that group expiry is provided, and test it if it's less than
         20 seconds.
         """
-        # Do skipping here as we need self
-        if "groups" not in self.channel_layer.extensions:
-            raise unittest.SkipTest("No groups extension")
+        self.skip_if_no_extension("groups")
         # Check group expiry is provided, and see if we can continue
         expiry = getattr(self.channel_layer, "group_expiry", None)
         if expiry is None:
