@@ -141,8 +141,9 @@ class ChannelLayer(object):
         """
         Removes a channel from all groups. Used when a message on it expires.
         """
-        for  channels in self._groups.values():
-            channels.discard(channel)
+        for channels in self._groups.values():
+            if channel in channels:
+                del channels[channel]
 
 # Global single instance for easy use
 channel_layer = ChannelLayer()
