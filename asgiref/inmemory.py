@@ -36,6 +36,8 @@ class ChannelLayer(object):
         assert isinstance(message, dict), "message is not a dict"
         # Channel name should be text
         assert isinstance(channel, six.text_type), "%s is not text" % channel
+        # This key is mandatory
+        assert "text" in message, "message dict must contain key 'text'"
         # Add it to a deque for the appropriate channel name
         with self.thread_lock:
             self._channels.setdefault(channel, deque()).append((
