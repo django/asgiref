@@ -13,11 +13,12 @@ from collections import deque
 class ChannelLayer(object):
     """
     In memory channel layer object; a single one is instantiated as
-    "channel_layer" for easy shared use.
+    "channel_layer" for easy shared use. Only allows global capacity config.
     """
 
-    def __init__(self, expiry=60, group_expiry=86400):
+    def __init__(self, expiry=60, group_expiry=86400, capacity=100):
         self.expiry = expiry
+        self.capacity = capacity
         self.group_expiry = group_expiry
         self.thread_lock = threading.Lock()
         # Storage for state
@@ -27,6 +28,9 @@ class ChannelLayer(object):
     ### ASGI API ###
 
     extensions = ["groups", "flush"]
+
+    class ChannelFull(Exception):
+        pass
 
     class MessageTooLarge(Exception):
         pass
@@ -38,7 +42,10 @@ class ChannelLayer(object):
         assert isinstance(channel, six.text_type), "%s is not text" % channel
         # Add it to a deque for the appropriate channel name
         with self.thread_lock:
-            self._channels.setdefault(channel, deque()).append((
+            queue = self._channels.setdefault(channel, deque())
+            if len(queue) >= self.capacity:
+                raise self.ChannelFull(channel)
+            queue.append((
                 time.time() + self.expiry,
                 message,
             ))
@@ -100,7 +107,10 @@ class ChannelLayer(object):
         self._clean_expired()
         # Send to each channel
         for channel in self._groups.get(group, set()):
-            self.send(channel, message)
+            try:
+                self.send(channel, message)
+            except self.ChannelFull:
+                pass
 
     ### ASGI Flush API ###
 

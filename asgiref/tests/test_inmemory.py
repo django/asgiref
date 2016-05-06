@@ -5,8 +5,9 @@ from asgiref.conformance import ConformanceTestCase
 
 
 class InMemoryLayerTests(ConformanceTestCase):
-    channel_layer = ChannelLayer(expiry=1, group_expiry=2)
+    channel_layer = ChannelLayer(expiry=1, group_expiry=2, capacity=5)
     expiry_delay = 1.1
+    capacity_limit = 5
 
     def test_group_message_eviction(self):
         """

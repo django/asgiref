@@ -26,6 +26,7 @@ class ConformanceTestCase(unittest.TestCase):
 
     channel_layer = None
     expiry_delay = None
+    capacity_limit = None
 
     @classmethod
     def raiseSkip(cls, message):
@@ -225,3 +226,15 @@ class ConformanceTestCase(unittest.TestCase):
         channel, message = self.channel_layer.receive_many(["tge_test"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
+
+    def test_capacity(self):
+        """
+        Tests that the capacity limiter on send() raises ChannelFull
+        after the right number of messages. Only runs if capacity_limit is set.
+        """
+        if self.capacity_limit is None:
+            self.raiseSkip("No test capacity specified")
+        for _ in range(self.capacity_limit):
+            self.channel_layer.send("cap_test", {"hey": "there"})
+        with self.assertRaises(self.channel_layer.ChannelFull):
+            self.channel_layer.send("cap_test", {"hey": "there"})
