@@ -238,3 +238,10 @@ class ConformanceTestCase(unittest.TestCase):
             self.channel_layer.send("cap_test", {"hey": "there"})
         with self.assertRaises(self.channel_layer.ChannelFull):
             self.channel_layer.send("cap_test", {"hey": "there"})
+
+    def test_exceptions(self):
+        """
+        Tests that the two exception classes exist on the channel layer
+        """
+        self.assertTrue(hasattr(self.channel_layer, "MessageTooLarge"))
+        self.assertTrue(hasattr(self.channel_layer, "ChannelFull"))
