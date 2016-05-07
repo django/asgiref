@@ -3,6 +3,9 @@ asgiref
 
 .. image:: https://api.travis-ci.org/andrewgodwin/asgiref.svg
     :target: https://travis-ci.org/andrewgodwin/asgiref
+    
+.. image:: https://img.shields.io/pypi/v/asgiref.svg
+    :target: https://pypi.python.org/pypi/asgiref
 
 Contains various reference ASGI implementations, including:
 
