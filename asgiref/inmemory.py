@@ -7,19 +7,22 @@ import time
 import threading
 from collections import deque
 
+from .base_layer import BaseChannelLayer
 
-# TODO: Ensure thread safety
 
-class ChannelLayer(object):
+class ChannelLayer(BaseChannelLayer):
     """
     In memory channel layer object; a single one is instantiated as
     "channel_layer" for easy shared use. Only allows global capacity config.
     """
 
-    def __init__(self, expiry=60, group_expiry=86400, capacity=100):
-        self.expiry = expiry
-        self.capacity = capacity
-        self.group_expiry = group_expiry
+    def __init__(self, expiry=60, group_expiry=86400, capacity=10, channel_capacity=None):
+        super(ChannelLayer, self).__init__(
+            expiry=expiry,
+            group_expiry=group_expiry,
+            capacity=capacity,
+            channel_capacity=channel_capacity,
+        )
         self.thread_lock = threading.Lock()
         # Storage for state
         self._channels = {}
