@@ -82,16 +82,6 @@ class ConformanceTestCase(unittest.TestCase):
         self.assertEqual(channel, "sr_test2")
         self.assertEqual(message, {"value": "red"})
 
-    def test_unicode_channel_name(self):
-        """
-        Makes sure channel names can handle unicode
-        """
-        self.channel_layer.send("\u00a3_test", {"value": "blue"})
-        # Get just one first
-        channel, message = self.channel_layer.receive_many(["\u00a3_test"])
-        self.assertEqual(channel, "\u00a3_test")
-        self.assertEqual(message, {"value": "blue"})
-
     def test_message_expiry(self):
         """
         Tests that messages expire correctly.
