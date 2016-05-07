@@ -6,8 +6,20 @@ asgiref
 
 Contains various reference ASGI implementations, including:
 
+* A base channel layer, ``asgiref.base_layer``
 * An in-memory channel layer, ``asgiref.inmemory``
 * WSGI-to-ASGI and ASGI-to-WSGI adapters, in ``asgiref.wsgi``
+
+
+Base Channel Layer
+------------------
+
+Provides an optional template to start ASGI channel layers from with the two
+exceptions you need provided and all API functions stubbed out.
+
+Also comes with logic for doing per-channel capacities using channel names and
+globbing; use ``self.get_capacity`` and pass the arguments through to the base
+``__init__`` if you want to use it.
 
 
 In-memory Channel Layer
