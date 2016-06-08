@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import fnmatch
 import re
+import six
 
 
 class BaseChannelLayer(object):
@@ -80,3 +81,22 @@ class BaseChannelLayer(object):
             if pattern.match(channel):
                 return capacity
         return self.capacity
+
+    ### Name validation functions
+
+    channel_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+((\?|\!)[\d\w\-_.]+)?$")
+    group_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+$")
+
+    def valid_channel_name(self, name):
+        if len(name) > 100:
+            return False
+        if not isinstance(name, six.text_type):
+            return False
+        return bool(self.channel_name_regex.match(name))
+
+    def valid_group_name(self, name):
+        if len(name) > 100:
+            return False
+        if not isinstance(name, six.text_type):
+            return False
+        return bool(self.group_name_regex.match(name))
