@@ -12,7 +12,7 @@ class TestWsgiToAsgiAdapter(WsgiToAsgiAdapter):
     """
 
     def get_reply_channel(self):
-        return "!http.response.testtest"
+        return "http.response!testtest"
 
 
 class WsgiToAsgiTests(TestCase):
@@ -25,10 +25,10 @@ class WsgiToAsgiTests(TestCase):
         Make an in memory channel layer for testing
         """
         self.channel_layer = ChannelLayer()
-        self.reply_channel = "!http.response.testtest"
+        self.reply_channel = "http.response!testtest"
         self.start_response_value = None
         self.application = TestWsgiToAsgiAdapter(self.channel_layer)
-    
+
     def native_string(self, value):
         """
         Makes sure that the passed in string value comes out as a PEP3333

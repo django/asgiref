@@ -92,7 +92,25 @@ class ConformanceTestCase(unittest.TestCase):
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
-    def test_new_channel(self):
+    def test_new_channel_single_reader(self):
+        """
+        Tests that new channel names are made correctly.
+        """
+        pattern = "test.foo?"
+        name1 = self.channel_layer.new_channel(pattern)
+        self.assertFalse(name1.endswith("?"))
+        self.assertTrue("?" in name1)
+        self.assertEqual(name1.find("?"), name1.rfind("?"))
+        self.assertIsInstance(name1, six.text_type)
+        # Send a message and make sure new_channel on second pass changes
+        self.channel_layer.send(name1, {"value": "blue"})
+        name2 = self.channel_layer.new_channel(pattern)
+        # Make sure we can consume off of that new channel
+        channel, message = self.channel_layer.receive_many([name1, name2])
+        self.assertEqual(channel, name1)
+        self.assertEqual(message, {"value": "blue"})
+
+    def test_new_channel_single_process(self):
         """
         Tests that new channel names are made correctly.
         """
@@ -109,7 +127,11 @@ class ConformanceTestCase(unittest.TestCase):
         channel, message = self.channel_layer.receive_many([name1, name2])
         self.assertEqual(channel, name1)
         self.assertEqual(message, {"value": "blue"})
-        # Make sure that new_channel rejects bad patterns
+
+    def test_new_channel_failures(self):
+        """
+        Tests that we don't allow bad new channel names.
+        """
         with self.assertRaises(Exception):
             self.channel_layer.new_channel("test!foo")
         with self.assertRaises(Exception):
