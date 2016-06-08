@@ -40,9 +40,9 @@ class ChannelLayer(BaseChannelLayer):
 
     def send(self, channel, message):
         # Make sure the message is a dict at least (no deep inspection)
-        assert isinstance(message, dict), "message is not a dict"
+        assert isinstance(message, dict), "Message is not a dict"
         # Channel name should be text
-        assert isinstance(channel, six.text_type), "%s is not text" % channel
+        assert self.valid_channel_name(channel), "Channel name not valid"
         # Add it to a deque for the appropriate channel name
         with self.thread_lock:
             queue = self._channels.setdefault(channel, deque())
@@ -54,6 +54,8 @@ class ChannelLayer(BaseChannelLayer):
             ))
 
     def receive_many(self, channels, block=False):
+        # Check channel names
+        assert all(self.valid_channel_name(channel) for channel in channels), "One or more channel names invalid"
         # Shuffle channel names to ensure approximate global ordering
         channels = list(channels)
         random.shuffle(channels)
@@ -70,7 +72,7 @@ class ChannelLayer(BaseChannelLayer):
 
     def new_channel(self, pattern):
         assert isinstance(pattern, six.text_type)
-        assert pattern.endswith("!"), "New channel pattern must end with !"
+        assert pattern.endswith("!") or pattern.endswith("?"), "New channel pattern must end with !"
         # Keep making channel names till one isn't present.
         while True:
             random_string = "".join(random.choice(string.ascii_letters) for i in range(8))
@@ -82,18 +84,18 @@ class ChannelLayer(BaseChannelLayer):
     ### ASGI Group API ###
 
     def group_add(self, group, channel):
-        # Both should be text
-        assert isinstance(group, six.text_type), "%s is not text" % group
-        assert isinstance(channel, six.text_type), "%s is not text" % channel
+        # Both should be text and valid
+        assert self.valid_channel_name(channel), "Invalid channel name"
+        assert self.valid_group_name(group), "Invalid group name"
         # Add to group dict
         with self.thread_lock:
             self._groups.setdefault(group, {})
             self._groups[group][channel] = time.time()
 
     def group_discard(self, group, channel):
-        # Both should be text
-        assert isinstance(group, six.text_type), "%s is not text" % group
-        assert isinstance(channel, six.text_type), "%s is not text" % channel
+        # Both should be text and valid
+        assert self.valid_channel_name(channel), "Invalid channel name"
+        assert self.valid_group_name(group), "Invalid group name"
         # Remove from group set
         with self.thread_lock:
             if group in self._groups:
@@ -104,8 +106,8 @@ class ChannelLayer(BaseChannelLayer):
 
     def send_group(self, group, message):
         # Check types
-        assert isinstance(message, dict), "message is not a dict"
-        assert isinstance(group, six.text_type), "%s is not text" % group
+        assert isinstance(message, dict), "Message is not a dict"
+        assert self.valid_group_name(group), "Invalid group name"
         # Run clean
         self._clean_expired()
         # Send to each channel
