@@ -104,6 +104,9 @@ class ChannelLayer(BaseChannelLayer):
                 if not self._groups[group]:
                     del self._groups[group]
 
+    def group_channels(self, group):
+        return self._groups.get(group, set())
+
     def send_group(self, group, message):
         # Check types
         assert isinstance(message, dict), "Message is not a dict"
