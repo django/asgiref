@@ -11,9 +11,9 @@ readme_path = os.path.join(os.path.dirname(__file__), "README.rst")
 setup(
     name='asgiref',
     version=__version__,
-    url='http://github.com/andrewgodwin/asgiref/',
-    author='Andrew Godwin',
-    author_email='andrew@aeracode.org',
+    url='http://github.com/django/asgiref/',
+    author='Django Software Foundation',
+    author_email='foundation@djangoproject.com',
     description='Reference ASGI adapters and channel layers',
     long_description=open(readme_path).read(),
     license='BSD',
