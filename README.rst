@@ -38,3 +38,16 @@ WSGI-ASGI Adapters
 ------------------
 
 These are not yet complete and should not be used.
+
+
+Maintenance and Security
+------------------------
+
+To report security issues, please contact security@djangoproject.com. For GPG
+signatures and more security process information, see
+https://docs.djangoproject.com/en/dev/internals/security/.
+
+To report bugs or request new features, please open a new GitHub issue.
+
+This repository is part of the Channels project. For the shepherd and maintenance team, please see the
+`main Channels readme <https://github.com/andrewgodwin/channels/blob/master/README.rst>`_.
