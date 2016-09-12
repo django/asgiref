@@ -82,21 +82,25 @@ class BaseChannelLayer(object):
                 return capacity
         return self.capacity
 
+    def match_type_and_length(self, name):
+        if (len(name) < 100) and (isinstance(name, six.text_type)):
+            return True
+        return False
+
     ### Name validation functions
 
     channel_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+((\?|\!)[\d\w\-_.]+)?$")
     group_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+$")
+    invalid_name_error = "{} name must be a valid unicode string containing only alphanumerics, hyphens, or periods."
 
     def valid_channel_name(self, name):
-        if len(name) > 100:
-            return False
-        if not isinstance(name, six.text_type):
-            return False
-        return bool(self.channel_name_regex.match(name))
+        if self.match_type_and_length(name):
+            if bool(self.channel_name_regex.match(name)):
+                return True
+        raise TypeError("Channel name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
 
     def valid_group_name(self, name):
-        if len(name) > 100:
-            return False
-        if not isinstance(name, six.text_type):
-            return False
-        return bool(self.group_name_regex.match(name))
+        if self.match_type_and_length(name):
+            if bool(self.group_name_regex.match(name)):
+                return True
+        raise TypeError("Group name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
