@@ -83,7 +83,7 @@ class BaseChannelLayer(object):
         return self.capacity
 
     def match_type_and_length(self, name):
-        if (len(name) < 100) and (not isinstance(name, six.text_type)):
+        if (len(name) < 100) and (isinstance(name, six.text_type)):
             return True
         return False
 
@@ -97,10 +97,10 @@ class BaseChannelLayer(object):
         if self.match_type_and_length(name):
             if bool(self.channel_name_regex.match(name)):
                 return True
-        raise TypeError(self.invalid_name_error.format("Channel"))
+        raise TypeError("Channel name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
 
     def valid_group_name(self, name):
         if self.match_type_and_length(name):
             if bool(self.group_name_regex.match(name)):
                 return True
-        raise TypeError(self.invalid_name_error.format("Group"))
+        raise TypeError("Group name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
