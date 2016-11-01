@@ -266,3 +266,15 @@ class ConformanceTestCase(unittest.TestCase):
         """
         self.assertTrue(hasattr(self.channel_layer, "MessageTooLarge"))
         self.assertTrue(hasattr(self.channel_layer, "ChannelFull"))
+
+    def test_message_alteration_after_send(self):
+        """
+        Tests that a message can be altert after it was send through a channel
+        without affecting the object inside the queue.
+        """
+        message = {'value': [1, 2, 3]}
+        self.channel_layer.send('channel', message)
+        message['value'][0] = 'new value'
+
+        _, message = self.channel_layer.receive_many(['channel'])
+        self.assertEqual(message, {'value': [1, 2, 3]})
