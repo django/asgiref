@@ -54,7 +54,7 @@ class ChannelLayer(BaseChannelLayer):
                 deepcopy(message),
             ))
 
-    def receive_many(self, channels, block=False):
+    def receive(self, channels, block=False):
         # Check channel names
         assert all(self.valid_channel_name(channel) for channel in channels), "One or more channel names invalid"
         # Shuffle channel names to ensure approximate global ordering

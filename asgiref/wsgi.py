@@ -99,6 +99,6 @@ class WsgiToAsgiAdapter(object):
         Blocks until it gets a message on channel, then returns it.
         """
         while True:
-            _, message = self.channel_layer.receive_many([channel], block=True)
+            _, message = self.channel_layer.receive([channel], block=True)
             if message is not None:
                 return message

@@ -20,6 +20,6 @@ class InMemoryLayerTests(ConformanceTestCase):
         time.sleep(1.2)
         # Send new message to group, ensure message never arrives
         self.channel_layer.send_group("tgme_group", {"value": "blue"})
-        channel, message = self.channel_layer.receive_many(["tgme_test"])
+        channel, message = self.channel_layer.receive(["tgme_test"])
         self.assertIs(channel, None)
         self.assertIs(message, None)

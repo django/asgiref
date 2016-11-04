@@ -3,7 +3,7 @@ asgiref
 
 .. image:: https://api.travis-ci.org/django/asgiref.svg
     :target: https://travis-ci.org/django/asgiref
-    
+
 .. image:: https://img.shields.io/pypi/v/asgiref.svg
     :target: https://pypi.python.org/pypi/asgiref
 

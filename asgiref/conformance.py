@@ -70,15 +70,15 @@ class ConformanceTestCase(unittest.TestCase):
         self.channel_layer.send("sr_test", {"value": "green"})
         self.channel_layer.send("sr_test2", {"value": "red"})
         # Get just one first
-        channel, message = self.channel_layer.receive_many(["sr_test"])
+        channel, message = self.channel_layer.receive(["sr_test"])
         self.assertEqual(channel, "sr_test")
         self.assertEqual(message, {"value": "blue"})
         # And the second
-        channel, message = self.channel_layer.receive_many(["sr_test"])
+        channel, message = self.channel_layer.receive(["sr_test"])
         self.assertEqual(channel, "sr_test")
         self.assertEqual(message, {"value": "green"})
         # And the other channel with multi select
-        channel, message = self.channel_layer.receive_many(["sr_test", "sr_test2"])
+        channel, message = self.channel_layer.receive(["sr_test", "sr_test2"])
         self.assertEqual(channel, "sr_test2")
         self.assertEqual(message, {"value": "red"})
 
@@ -88,7 +88,7 @@ class ConformanceTestCase(unittest.TestCase):
         """
         self.channel_layer.send("me_test", {"value": "blue"})
         time.sleep(self.expiry_delay)
-        channel, message = self.channel_layer.receive_many(["me_test"])
+        channel, message = self.channel_layer.receive(["me_test"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
@@ -106,7 +106,7 @@ class ConformanceTestCase(unittest.TestCase):
         self.channel_layer.send(name1, {"value": "blue"})
         name2 = self.channel_layer.new_channel(pattern)
         # Make sure we can consume off of that new channel
-        channel, message = self.channel_layer.receive_many([name1, name2])
+        channel, message = self.channel_layer.receive([name1, name2])
         self.assertEqual(channel, name1)
         self.assertEqual(message, {"value": "blue"})
 
@@ -124,7 +124,7 @@ class ConformanceTestCase(unittest.TestCase):
         self.channel_layer.send(name1, {"value": "blue"})
         name2 = self.channel_layer.new_channel(pattern)
         # Make sure we can consume off of that new channel
-        channel, message = self.channel_layer.receive_many([name1, name2])
+        channel, message = self.channel_layer.receive([name1, name2])
         self.assertEqual(channel, name1)
         self.assertEqual(message, {"value": "blue"})
 
@@ -157,7 +157,7 @@ class ConformanceTestCase(unittest.TestCase):
         }
         # Send it and receive it
         self.channel_layer.send("str_test", message)
-        _, received = self.channel_layer.receive_many(["str_test"])
+        _, received = self.channel_layer.receive(["str_test"])
         # Compare
         self.assertIsInstance(received["values"]["utf-bytes"], six.binary_type)
         self.assertIsInstance(received["values"]["unicode"], six.text_type)
@@ -189,14 +189,14 @@ class ConformanceTestCase(unittest.TestCase):
             {"tg_test", "tg_test2"},
         )
         # Receive from the two channels in the group and ensure messages
-        channel, message = self.channel_layer.receive_many(["tg_test"])
+        channel, message = self.channel_layer.receive(["tg_test"])
         self.assertEqual(channel, "tg_test")
         self.assertEqual(message, {"value": "orange"})
-        channel, message = self.channel_layer.receive_many(["tg_test2"])
+        channel, message = self.channel_layer.receive(["tg_test2"])
         self.assertEqual(channel, "tg_test2")
         self.assertEqual(message, {"value": "orange"})
         # Make sure another channel does not get a message
-        channel, message = self.channel_layer.receive_many(["tg_test3"])
+        channel, message = self.channel_layer.receive(["tg_test3"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
@@ -208,7 +208,7 @@ class ConformanceTestCase(unittest.TestCase):
         # Send something to flush
         self.channel_layer.send("fl_test", {"value": "blue"})
         self.channel_layer.flush()
-        channel, message = self.channel_layer.receive_many(["fl_test"])
+        channel, message = self.channel_layer.receive(["fl_test"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
@@ -222,7 +222,7 @@ class ConformanceTestCase(unittest.TestCase):
         self.channel_layer.group_add("tfg_group", "tfg_test")
         self.channel_layer.send_group("tfg_group", {"value": "blue"})
         self.channel_layer.flush()
-        channel, message = self.channel_layer.receive_many(["tfg_test"])
+        channel, message = self.channel_layer.receive(["tfg_test"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
@@ -244,7 +244,7 @@ class ConformanceTestCase(unittest.TestCase):
         time.sleep(expiry + 1)
         # Ensure message never arrives
         self.channel_layer.send_group("tge_group", {"value": "blue"})
-        channel, message = self.channel_layer.receive_many(["tge_test"])
+        channel, message = self.channel_layer.receive(["tge_test"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
@@ -276,5 +276,5 @@ class ConformanceTestCase(unittest.TestCase):
         self.channel_layer.send('channel', message)
         message['value'][0] = 'new value'
 
-        _, message = self.channel_layer.receive_many(['channel'])
+        _, message = self.channel_layer.receive(['channel'])
         self.assertEqual(message, {'value': [1, 2, 3]})
