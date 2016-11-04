@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import fnmatch
 import re
 import six
+import warnings
 
 
 class BaseChannelLayer(object):
@@ -31,8 +32,15 @@ class BaseChannelLayer(object):
     def send(self, channel, message):
         raise NotImplementedError()
 
-    def receive_many(self, channels, block=False):
+    def receive(self, channels, block=False):
         raise NotImplementedError()
+
+    def receive_many(self, channels, block=False):
+        """
+        receive_many is deprecated, but this is provided for backwards compatability.
+        """
+        warnings.warn("receive_many is deprecated; please use receive", DeprecationWarning)
+        return self.receive(channels, block)
 
     def new_channel(self, pattern):
         raise NotImplementedError()
