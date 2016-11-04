@@ -1,0 +1,6 @@
+1.0.0 (2016-04-11)
+------------------
+
+* `receive_many` is now `receive`
+* In-memory layer deepcopies messages so they cannot be mutated post-send
+* Better errors for bad channel/group names
