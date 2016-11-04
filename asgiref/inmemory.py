@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+from copy import deepcopy
 import random
 import six
 import string
@@ -50,7 +51,7 @@ class ChannelLayer(BaseChannelLayer):
                 raise self.ChannelFull(channel)
             queue.append((
                 time.time() + self.expiry,
-                message,
+                deepcopy(message),
             ))
 
     def receive_many(self, channels, block=False):
