@@ -115,7 +115,7 @@ class ChannelLayer(BaseChannelLayer):
         # Run clean
         self._clean_expired()
         # Send to each channel
-        for channel in self._groups.get(group, set()):
+        for channel in self.group_channels(group):
             try:
                 self.send(channel, message)
             except self.ChannelFull:
