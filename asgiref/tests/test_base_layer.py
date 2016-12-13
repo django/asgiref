@@ -47,6 +47,32 @@ class BaseLayerTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             layer.valid_channel_name("some+other!thing")
 
+    def test_valid_channel_names(self):
+        """
+        Tests the channel names validator
+        """
+        layer = BaseChannelLayer()
+
+        # valid channel names
+        valid_names = ["http.request", "http.response!ab0def",
+                       "http.request.body?ab0def", "0.a_b-c?d_e-f.1"]
+        self.assertTrue(layer.valid_channel_names(valid_names))
+
+        # invalid channel names
+        invalid_names = ["http.request\u00a3", "way.too.long" * 10,
+                         "one?two?three", "four!five!six", "some+other!thing"]
+        with self.assertRaises(TypeError):
+            layer.valid_channel_names(invalid_names)
+
+        # empty names
+        with self.assertRaises(AssertionError):
+            layer.valid_channel_names([])
+
+        # list type check
+        with self.assertRaises(AssertionError):
+            layer.valid_channel_names("")
+
+
     def test_valid_group_name(self):
         """
         Tests the group name validator
