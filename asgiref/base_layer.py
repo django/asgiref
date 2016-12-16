@@ -53,6 +53,9 @@ class BaseChannelLayer(object):
     def group_discard(self, group, channel):
         raise NotImplementedError()
 
+    def group_channels(self, group):
+        raise NotImplementedError()
+
     def send_group(self, group, message):
         raise NotImplementedError()
 
