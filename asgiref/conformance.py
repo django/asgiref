@@ -177,17 +177,8 @@ class ConformanceTestCase(unittest.TestCase):
         self.channel_layer.group_add("tgroup", "tg_test")
         self.channel_layer.group_add("tgroup", "tg_test2")
         self.channel_layer.group_add("tgroup", "tg_test3")
-        self.assertEqual(
-            set(self.channel_layer.group_channels("tgroup")),
-            {"tg_test", "tg_test2", "tg_test3"},
-        )
         self.channel_layer.group_discard("tgroup", "tg_test3")
         self.channel_layer.send_group("tgroup", {"value": "orange"})
-        # Check group members
-        self.assertEqual(
-            set(self.channel_layer.group_channels("tgroup")),
-            {"tg_test", "tg_test2"},
-        )
         # Receive from the two channels in the group and ensure messages
         channel, message = self.channel_layer.receive(["tg_test"])
         self.assertEqual(channel, "tg_test")
@@ -199,6 +190,27 @@ class ConformanceTestCase(unittest.TestCase):
         channel, message = self.channel_layer.receive(["tg_test3"])
         self.assertIs(channel, None)
         self.assertIs(message, None)
+
+    def test_group_channels(self):
+        """
+        Tests that group membership check works
+        """
+        self.skip_if_no_extension("groups")
+        # Make a group
+        self.channel_layer.group_add("tgroup", "tg_test")
+        self.channel_layer.group_add("tgroup", "tg_test2")
+        self.channel_layer.group_add("tgroup", "tg_test3")
+        # Check group members
+        self.assertEqual(
+            set(self.channel_layer.group_channels("tgroup")),
+            {"tg_test", "tg_test2", "tg_test3"},
+        )
+        # Discard from group
+        self.channel_layer.group_discard("tgroup", "tg_test3")
+        self.assertEqual(
+            set(self.channel_layer.group_channels("tgroup")),
+            {"tg_test", "tg_test2"},
+        )
 
     def test_flush(self):
         """
