@@ -33,12 +33,6 @@ class ChannelLayer(BaseChannelLayer):
 
     extensions = ["groups", "flush"]
 
-    class ChannelFull(Exception):
-        pass
-
-    class MessageTooLarge(Exception):
-        pass
-
     def send(self, channel, message):
         # Make sure the message is a dict at least (no deep inspection)
         assert isinstance(message, dict), "Message is not a dict"
