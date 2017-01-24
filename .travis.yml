@@ -1,9 +1,17 @@
+# Faster container-based infrastructure
 sudo: false
+
 language: python
+
+# Python versions supported by channel's supported Django versions
 python:
   - "2.7"
+  - "3.4"
   - "3.5"
+
 install:
-  - if [[ $TRAVIS_PYTHON_VERSION == 2.7 ]]; then pip install unittest2; fi
-  - pip install six
-script: if [[ $TRAVIS_PYTHON_VERSION == 2.7 ]]; then python -m unittest2; else python -m unittest; fi
+  - pip install -e .
+  # Useful for debugging
+  - pip freeze
+
+script: python -m unittest discover
