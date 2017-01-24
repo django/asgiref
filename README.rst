@@ -39,6 +39,17 @@ WSGI-ASGI Adapters
 
 These are not yet complete and should not be used.
 
+Dependencies
+------------
+
+All Channels projects currently support Python 2.7, 3.4 and 3.5.
+
+Contributing
+------------
+
+Please refer to the
+`main Channels contributing docs <https://github.com/django/channels/blob/master/CONTRIBUTING.rst>`_.
+That also contains advice on how to set up the development environment and run the tests.
 
 Maintenance and Security
 ------------------------
