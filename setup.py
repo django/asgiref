@@ -1,5 +1,4 @@
 import os
-import sys
 from setuptools import find_packages, setup
 from asgiref import __version__
 

@@ -29,22 +29,10 @@ class ConformanceTestCase(unittest.TestCase):
     capacity_limit = None
 
     @classmethod
-    def raiseSkip(cls, message):
-        """
-        Picks the right skip class based on what version of unittest we're using.
-        """
-        try:
-            import unittest2
-            SkipTest = unittest2.SkipTest
-        except ImportError:
-            SkipTest = unittest.SkipTest
-        raise SkipTest(message)
-
-    @classmethod
     def setUpClass(cls):
         # Don't let this actual class run, it's abstract
         if cls is ConformanceTestCase:
-            cls.raiseSkip("Skipping base class tests")
+            raise unittest.SkipTest("Skipping base class tests")
 
     def setUp(self):
         if self.channel_layer is None:
@@ -60,7 +48,7 @@ class ConformanceTestCase(unittest.TestCase):
         We can't use the decorators, as we need access to self.
         """
         if extension not in self.channel_layer.extensions:
-            self.raiseSkip("No %s extension" % extension)
+            raise unittest.SkipTest("No %s extension" % extension)
 
     def test_send_recv(self):
         """
@@ -266,7 +254,7 @@ class ConformanceTestCase(unittest.TestCase):
         after the right number of messages. Only runs if capacity_limit is set.
         """
         if self.capacity_limit is None:
-            self.raiseSkip("No test capacity specified")
+            raise unittest.SkipTest("No test capacity specified")
         for _ in range(self.capacity_limit):
             self.channel_layer.send("cap_test", {"hey": "there"})
         with self.assertRaises(self.channel_layer.ChannelFull):
