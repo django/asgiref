@@ -1,3 +1,9 @@
+1.0.1 (2017-03-19)
+------------------
+
+* Improved channel and group name validation
+* Test rearrangements and improvements
+
 1.0.0 (2016-04-11)
 ------------------
 
