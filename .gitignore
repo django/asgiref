@@ -2,5 +2,6 @@
 dist/
 build/
 __pycache__/
-__pycache__/*
-/.tox
+*.pyc
+.tox/
+*~
