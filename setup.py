@@ -17,7 +17,7 @@ setup(
     long_description=open(readme_path).read(),
     license='BSD',
     zip_safe=False,
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests']),
     include_package_data=True,
     install_requires=[
         'six',
