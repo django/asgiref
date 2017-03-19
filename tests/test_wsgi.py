@@ -2,8 +2,8 @@ from __future__ import unicode_literals
 
 import six
 from unittest import TestCase
-from ..inmemory import ChannelLayer
-from ..wsgi import WsgiToAsgiAdapter
+from asgiref.inmemory import ChannelLayer
+from asgiref.wsgi import WsgiToAsgiAdapter
 
 
 class TestWsgiToAsgiAdapter(WsgiToAsgiAdapter):
