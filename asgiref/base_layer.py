@@ -100,13 +100,18 @@ class BaseChannelLayer(object):
 
     ### Name validation functions
 
-    channel_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+((\?|\!)[\d\w\-_.]+)?$")
+    channel_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+((\?|\!)[\d\w\-_.]*)?$")
     group_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+$")
     invalid_name_error = "{} name must be a valid unicode string containing only alphanumerics, hyphens, underscores, or periods."
 
-    def valid_channel_name(self, name):
+    def valid_channel_name(self, name, receive=False):
         if self.match_type_and_length(name):
             if bool(self.channel_name_regex.match(name)):
+                # Check cases for special channels
+                if "?" in name and name.endswith("?"):
+                    raise TypeError("Single-reader channel names must not end with ?")
+                elif "!" in name and not name.endswith("!") and receive:
+                    raise TypeError("Process-local channel names in receive() must end at the !")
                 return True
         raise TypeError("Channel name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
 
@@ -123,3 +128,14 @@ class BaseChannelLayer(object):
 
         assert all(self.valid_channel_name(channel) for channel in names)
         return True
+
+    def non_local_name(self, name):
+        """
+        Given a channel name, returns the "non-local" part. If the channel name
+        is a process-specific channel (contains !) this means the part up to
+        and including the !; if it is anything else, this means the full name.
+        """
+        if "!" in name:
+            return name[:name.find("!")+1]
+        else:
+            return name

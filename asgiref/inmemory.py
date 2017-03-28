@@ -38,6 +38,12 @@ class ChannelLayer(BaseChannelLayer):
         assert isinstance(message, dict), "Message is not a dict"
         # Channel name should be text
         assert self.valid_channel_name(channel), "Channel name not valid"
+        # Make sure the message does not contain reserved keys
+        assert "__asgi_channel__" not in message
+        # If it's a process-local channel, strip off local part and stick full name in message
+        if "!" in channel:
+            message['__asgi_channel__'] = channel
+            channel = self.non_local_name(channel)
         # Add it to a deque for the appropriate channel name
         with self.thread_lock:
             queue = self._channels.setdefault(channel, deque())
@@ -50,7 +56,14 @@ class ChannelLayer(BaseChannelLayer):
 
     def receive(self, channels, block=False):
         # Check channel names
-        assert all(self.valid_channel_name(channel) for channel in channels), "One or more channel names invalid"
+        assert all(
+            self.valid_channel_name(channel, receive=True) for channel in channels
+        ), "One or more channel names invalid"
+        # Trim any local parts off process-local channel names
+        channels = [
+            self.non_local_name(name)
+            for name in channels
+        ]
         # Shuffle channel names to ensure approximate global ordering
         channels = list(channels)
         random.shuffle(channels)
@@ -61,13 +74,17 @@ class ChannelLayer(BaseChannelLayer):
             for channel in channels:
                 if self._channels.get(channel, None):
                     _, message = self._channels[channel].popleft()
+                    # If there is a full channel name stored in the message, unpack it.
+                    if "__asgi_channel__" in message:
+                        channel = message['__asgi_channel__']
+                        del message['__asgi_channel__']
                     return channel, message
         # No message available
         return None, None
 
     def new_channel(self, pattern):
         assert isinstance(pattern, six.text_type)
-        assert pattern.endswith("!") or pattern.endswith("?"), "New channel pattern must end with !"
+        assert pattern.endswith("?"), "New channel pattern must end with ?"
         # Keep making channel names till one isn't present.
         while True:
             random_string = "".join(random.choice(string.ascii_letters) for i in range(8))

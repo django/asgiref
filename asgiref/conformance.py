@@ -70,6 +70,26 @@ class ConformanceTestCase(unittest.TestCase):
         self.assertEqual(channel, "sr_test2")
         self.assertEqual(message, {"value": "red"})
 
+    def test_single_process_receive(self):
+        """
+        Tests that single-process receive gets anything with the right prefix.
+        """
+        self.channel_layer.send("spr_test!a", {"best": "ponies"})
+        channel, message = self.channel_layer.receive(["spr_test!"])
+        self.assertEqual(channel, "spr_test!a")
+        self.assertEqual(message, {"best": "ponies"})
+        self.channel_layer.send("spr_test!b", {"best": "pangolins"})
+        channel, message = self.channel_layer.receive(["spr_test!"])
+        self.assertEqual(channel, "spr_test!b")
+        self.assertEqual(message, {"best": "pangolins"})
+
+    def test_single_process_receive_error(self):
+        """
+        Tests that single-process receive isn't allowed with a local part.
+        """
+        with self.assertRaises(Exception):
+            self.channel_layer.receive(["spr_test!c"])
+
     def test_message_expiry(self):
         """
         Tests that messages expire correctly.
@@ -82,7 +102,7 @@ class ConformanceTestCase(unittest.TestCase):
 
     def test_new_channel_single_reader(self):
         """
-        Tests that new channel names are made correctly.
+        Tests that new single-reader channel names are made correctly.
         """
         pattern = "test.foo?"
         name1 = self.channel_layer.new_channel(pattern)
@@ -98,30 +118,12 @@ class ConformanceTestCase(unittest.TestCase):
         self.assertEqual(channel, name1)
         self.assertEqual(message, {"value": "blue"})
 
-    def test_new_channel_single_process(self):
-        """
-        Tests that new channel names are made correctly.
-        """
-        pattern = "test.foo!"
-        name1 = self.channel_layer.new_channel(pattern)
-        self.assertFalse(name1.endswith("!"))
-        self.assertTrue("!" in name1)
-        self.assertEqual(name1.find("!"), name1.rfind("!"))
-        self.assertIsInstance(name1, six.text_type)
-        # Send a message and make sure new_channel on second pass changes
-        self.channel_layer.send(name1, {"value": "blue"})
-        name2 = self.channel_layer.new_channel(pattern)
-        # Make sure we can consume off of that new channel
-        channel, message = self.channel_layer.receive([name1, name2])
-        self.assertEqual(channel, name1)
-        self.assertEqual(message, {"value": "blue"})
-
     def test_new_channel_failures(self):
         """
         Tests that we don't allow bad new channel names.
         """
         with self.assertRaises(Exception):
-            self.channel_layer.new_channel("test!foo")
+            self.channel_layer.new_channel("test!")
         with self.assertRaises(Exception):
             self.channel_layer.new_channel("test.foo")
 
