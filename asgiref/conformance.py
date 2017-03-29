@@ -181,6 +181,25 @@ class ConformanceTestCase(unittest.TestCase):
         self.assertIs(channel, None)
         self.assertIs(message, None)
 
+    def test_groups_process(self):
+        """
+        Tests that group membership and sending works with process-specific channels.
+        """
+        self.skip_if_no_extension("groups")
+        # Make a group and send to it
+        self.channel_layer.group_add("tgroup", "tgp!test")
+        self.channel_layer.group_add("tgroup", "tgp!test2")
+        self.channel_layer.group_discard("tgroup", "tgp!test2")
+        self.channel_layer.send_group("tgroup", {"value": "orange"})
+        # Receive from the two channels in the group and ensure messages
+        channel, message = self.channel_layer.receive(["tgp!"])
+        self.assertEqual(channel, "tgp!test")
+        self.assertEqual(message, {"value": "orange"})
+        # Make sure another channel does not get a message
+        channel, message = self.channel_layer.receive(["tgp!"])
+        self.assertIs(channel, None)
+        self.assertIs(message, None)
+
     def test_group_channels(self):
         """
         Tests that group membership check works
@@ -261,6 +280,17 @@ class ConformanceTestCase(unittest.TestCase):
             self.channel_layer.send("cap_test", {"hey": "there"})
         with self.assertRaises(self.channel_layer.ChannelFull):
             self.channel_layer.send("cap_test", {"hey": "there"})
+
+    def test_capacity_process(self):
+        """
+        Tests that the capacity limiter works on process-specific channels overall
+        """
+        if self.capacity_limit is None or self.capacity_limit < 2:
+            raise unittest.SkipTest("Test capacity is unspecified or too low")
+        for i in range(self.capacity_limit):
+            self.channel_layer.send("capp!%s" % i, {"hey": "there"})
+        with self.assertRaises(self.channel_layer.ChannelFull):
+            self.channel_layer.send("capp!final", {"hey": "there"})
 
     def test_exceptions(self):
         """
