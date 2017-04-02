@@ -189,11 +189,15 @@ class ConformanceTestCase(unittest.TestCase):
         # Make a group and send to it
         self.channel_layer.group_add("tgroup", "tgp!test")
         self.channel_layer.group_add("tgroup", "tgp!test2")
+        self.channel_layer.group_add("tgroup", "tgp!test3")
         self.channel_layer.group_discard("tgroup", "tgp!test2")
         self.channel_layer.send_group("tgroup", {"value": "orange"})
         # Receive from the two channels in the group and ensure messages
         channel, message = self.channel_layer.receive(["tgp!"])
-        self.assertEqual(channel, "tgp!test")
+        self.assertIn(channel, ["tgp!test", "tgp!test3"])
+        self.assertEqual(message, {"value": "orange"})
+        channel, message = self.channel_layer.receive(["tgp!"])
+        self.assertIn(channel, ["tgp!test", "tgp!test3"])
         self.assertEqual(message, {"value": "orange"})
         # Make sure another channel does not get a message
         channel, message = self.channel_layer.receive(["tgp!"])
