@@ -121,12 +121,12 @@ class BaseChannelLayer(object):
                 return True
         raise TypeError("Group name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
 
-    def valid_channel_names(self, names):
+    def valid_channel_names(self, names, receive=False):
         _non_empty_list = True if names else False
         _names_type = isinstance(names, list)
         assert _non_empty_list and _names_type, "names must be a non-empty list"
 
-        assert all(self.valid_channel_name(channel) for channel in names)
+        assert all(self.valid_channel_name(channel, receive=receive) for channel in names)
         return True
 
     def non_local_name(self, name):
