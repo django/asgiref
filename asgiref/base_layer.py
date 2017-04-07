@@ -113,7 +113,7 @@ class BaseChannelLayer(object):
                 elif "!" in name and not name.endswith("!") and receive:
                     raise TypeError("Process-local channel names in receive() must end at the !")
                 return True
-        raise TypeError("Channel name must be a valid unicode string containing only alphanumerics, hyphens, or periods.")
+        raise TypeError("Channel name must be a valid unicode string containing only alphanumerics, hyphens, or periods, not '{}'.".format(name))
 
     def valid_group_name(self, name):
         if self.match_type_and_length(name):
