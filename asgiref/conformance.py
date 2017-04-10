@@ -296,6 +296,18 @@ class ConformanceTestCase(unittest.TestCase):
         with self.assertRaises(self.channel_layer.ChannelFull):
             self.channel_layer.send("capp!final", {"hey": "there"})
 
+    def test_capacity_group(self):
+        """
+        Tests that the capacity limiter on group_send() never raises
+        ChannelFull.
+        """
+        self.skip_if_no_extension("groups")
+        self.channel_layer.group_add("tcg_group", "tcg_test")
+        if self.capacity_limit is None:
+            raise unittest.SkipTest("No test capacity specified")
+        for _ in range(self.capacity_limit + 1):
+            self.channel_layer.send_group("tcg_group", {"hey": "there"})
+
     def test_exceptions(self):
         """
         Tests that the two exception classes exist on the channel layer
