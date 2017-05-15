@@ -72,15 +72,16 @@ class ConformanceTestCase(unittest.TestCase):
         """
         self.channel_layer.send("sr_test", {"value": "blue"})
         self.channel_layer.send("sr_test", {"value": "green"})
+        self.channel_layer.send("sr_test", {"value": "yellow"})
         self.channel_layer.send("sr_test2", {"value": "red"})
-        # Get just one first
-        channel, message = self.receive(["sr_test"])
-        self.assertEqual(channel, "sr_test")
-        self.assertEqual(message, {"value": "blue"})
-        # And the second
-        channel, message = self.receive(["sr_test"])
-        self.assertEqual(channel, "sr_test")
-        self.assertEqual(message, {"value": "green"})
+        # Receive from the first channel twice; order is not guaranteed
+        response_messages = []
+        for i in range(3):
+            channel, message = self.receive(["sr_test"])
+            self.assertEqual(channel, "sr_test")
+        for response in response_messages:
+            self.assertTrue("value" in response)
+            self.assertTrue(response["value"] in set("blue", "green", "yellow"))
         # And the other channel with multi select
         channel, message = self.receive(["sr_test", "sr_test2"])
         self.assertEqual(channel, "sr_test2")
