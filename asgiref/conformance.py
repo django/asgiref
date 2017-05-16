@@ -38,7 +38,7 @@ class ConformanceTestCase(unittest.TestCase):
         cycling through backend connections in order, for example) and set receive_tries to a value
         that guarantees a result.
         """
-        for _ in range(self.receive_tries * len(channels)):
+        for _ in range(self.receive_tries):
             channel, message = self.channel_layer.receive(channels)
             if channel:
                 return channel, message
