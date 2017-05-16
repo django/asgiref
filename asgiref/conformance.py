@@ -39,7 +39,7 @@ class ConformanceTestCase(unittest.TestCase):
         """
         for _ in range(self.receive_tries):
             channel, message = self.channel_layer.receive(channels)
-            if channel:
+            if channel is not None:
                 return channel, message
         return None, None
 
