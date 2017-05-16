@@ -83,7 +83,7 @@ class ConformanceTestCase(unittest.TestCase):
         for response in response_messages:
             self.assertTrue("value" in response)
         # Check that all messages were returned; order is not guaranteed
-        self.assertEqual(set([r["value"] for r in response_messages]), set("blue", "green", "yellow")))
+        self.assertEqual(set([r["value"] for r in response_messages]), set(["blue", "green", "yellow"])))
         # And the other channel with multi select
         channel, message = self.receive(["sr_test", "sr_test2"])
         self.assertEqual(channel, "sr_test2")
