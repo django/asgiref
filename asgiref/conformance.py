@@ -31,12 +31,11 @@ class ConformanceTestCase(unittest.TestCase):
 
     def receive(self, channels):
         """
-        Allows running tests that simulate a multi-worker environment in which an individual call to
-        receive() may not return a message. For example, a Redis-backed channel layer may have multiple
-        Redis connections but only read from one connection per receive() call. In such a case, the
-        developer should endeavor to make calls to receive() return a result deterministically (by
-        cycling through backend connections in order, for example) and set receive_tries to a value
-        that guarantees a result.
+        Allows tests to automatically call channel_layer.receive() more than once.
+        This is necessary for testing ChannelLayer implementations that do not guarantee a response will
+        be returned on every receive() call, even when there are messages on the channel. This would be
+        the case, for example, for a channel layer designed for a multi-worker environment with multiple
+        backing hosts, that checks a different host on each call.
         """
         for _ in range(self.receive_tries):
             channel, message = self.channel_layer.receive(channels)
