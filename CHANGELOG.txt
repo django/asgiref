@@ -1,3 +1,9 @@
+1.1.2 (2017-05-16)
+-----------------
+
+* Conformance test suite now allows for retries and tests group_send's behaviour with capacity
+* valid_channel_names now has a receive parameter
+
 1.1.1 (2017-04-02)
 ------------------
 
