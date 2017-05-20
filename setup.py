@@ -21,5 +21,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'six',
-    ]
+    ],
+    entry_points={'console_scripts': [
+        'asgiref_benchmark = asgiref.benchmark:Benchmarker.cli',
+    ]},
 )
