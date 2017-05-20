@@ -39,6 +39,22 @@ WSGI-ASGI Adapters
 
 These are not yet complete and should not be used.
 
+
+Benchmarker
+-----------
+
+To use the benchmarker, once ``asgiref`` is installed, run the ``asgiref_benchmark``
+program with the path to a channel layer instance (and an optional number of messages
+to test) to get throughput statistics::
+
+    $ asgiref_benchmark -n 2000 myproject.asgi:channel_layer
+    ...
+    Received: 2000/2000 (100.0%)
+    Latency mean: 0.0011  median: 0.0010  10%: 0.0008  90%: 0.0014
+    Send throughput: 1146.0/s
+    Receive throughput: 1146.0/s
+
+
 Dependencies
 ------------
 
