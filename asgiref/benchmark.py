@@ -36,6 +36,13 @@ class Benchmarker(object):
             help='The ASGI channel layer instance to use as path.to.module:instance.path',
         )
         parser.add_argument(
+            '-c',
+            '--channel',
+            type=str,
+            help='Name of the channel to benchmark on',
+            default="benchmark",
+        )
+        parser.add_argument(
             '-n',
             '--number',
             type=int,
@@ -51,7 +58,7 @@ class Benchmarker(object):
         for bit in object_path.split("."):
             channel_layer = getattr(channel_layer, bit)
 
-        self = cls(channel_layer, n=args.number)
+        self = cls(channel_layer, n=args.number, channel_name=args.channel)
         self.run()
 
     def run(self):
@@ -61,9 +68,6 @@ class Benchmarker(object):
         down a channel, and the other which does run_receiver, which receives
         messages and calculates stats.
         """
-        if "flush" in self.channel_layer.extensions:
-            print("Flushing layer...")
-            self.channel_layer.flush()
         self.child_pid = os.fork()
         if self.child_pid:
             # We are the parent.
@@ -135,6 +139,7 @@ class Benchmarker(object):
         print("Receiver complete. Calculating stats...")
         self.seen_numbers = set()
         self.latencies = []
+        self.sent_times = []
         self.received_times = []
         for number, sent, received in self.received:
             if number in self.seen_numbers:
@@ -143,6 +148,9 @@ class Benchmarker(object):
                 self.seen_numbers.add(number)
             self.latencies.append(received - sent)
             self.received_times.append(received)
+            self.sent_times.append(sent)
+        self.first_send = min(self.sent_times)
+        self.last_send = max(self.sent_times)
         self.first_receive = min(self.received_times)
         self.last_receive = max(self.received_times)
         # Final stats
@@ -158,7 +166,8 @@ class Benchmarker(object):
             self.percentile(self.latencies, 0.1),
             self.percentile(self.latencies, 0.9),
         ))
-        print("Throughput: %.1f/s" % (len(self.seen_numbers) / (self.last_receive - self.first_receive)))
+        print("Send throughput: %.1f/s" % (len(self.seen_numbers) / (self.last_send - self.first_send)))
+        print("Receive throughput: %.1f/s" % (len(self.seen_numbers) / (self.last_receive - self.first_receive)))
 
     def mean(self, values):
         """
