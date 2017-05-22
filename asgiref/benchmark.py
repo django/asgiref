@@ -7,6 +7,7 @@ import sys
 import importlib
 import string
 import random
+import subprocess
 
 
 class Benchmarker(object):
@@ -18,13 +19,12 @@ class Benchmarker(object):
     local computer time to detect latency.
     """
 
-    def __init__(self, channel_layer, warmup=100, n=1000, cooldown=3, channel_name="benchmark"):
-        self.channel_layer = channel_layer
+    def __init__(self, channel_layer_path, warmup=100, n=1000, cooldown=3, channel_name="benchmark"):
+        self.channel_layer_path = channel_layer_path
         self.channel_name = channel_name
         self.warmup = warmup
         self.n = n
         self.cooldown = cooldown
-        self.tag = "".join(random.choice(string.ascii_letters) for i in range(10))
 
     @classmethod
     def cli(cls):
@@ -49,17 +49,34 @@ class Benchmarker(object):
             help='Number of messages to send',
             default=1000,
         )
+        parser.add_argument(
+            '-t',
+            '--tag',
+            help='Tag to send; used by the main process to make sender processes',
+            default=None
+        )
         args = parser.parse_args()
 
-        # Import channel layer
-        sys.path.insert(0, ".")
-        module_path, object_path = args.channel_layer.split(":", 1)
-        channel_layer = importlib.import_module(module_path)
-        for bit in object_path.split("."):
-            channel_layer = getattr(channel_layer, bit)
+        self = cls(args.channel_layer, n=args.number, channel_name=args.channel)
+        if args.tag:
+            self.run_sender(args.tag)
+        else:
+            self.run_receiver()
 
-        self = cls(channel_layer, n=args.number, channel_name=args.channel)
-        self.run()
+    @property
+    def channel_layer(self):
+        """
+        Imports a channel layer by path. Must be done after the fork()
+        as otherwise some backends (e.g. SQLite) get confused.
+        """
+        if not hasattr(self, "_channel_layer"):
+            sys.path.insert(0, ".")
+            module_path, object_path = self.channel_layer_path.split(":", 1)
+            channel_layer = importlib.import_module(module_path)
+            for bit in object_path.split("."):
+                channel_layer = getattr(channel_layer, bit)
+            self._channel_layer = channel_layer
+        return self._channel_layer
 
     def run(self):
         """
@@ -71,25 +88,26 @@ class Benchmarker(object):
         self.child_pid = os.fork()
         if self.child_pid:
             # We are the parent.
-            print("Running receiver...")
             self.run_receiver()
         else:
             # We are the child
-            print("Running sender...")
             self.run_sender()
             print("Sender complete.")
             sys.exit(0)
 
-    def run_sender(self):
+    def run_sender(self, tag):
         """
         Continuously tries to send information down the channel layer
         """
+        print("Running sender...")
+        print("Warming up...")
         for _ in range(self.warmup):
             self.wait_send({"warmup": True})
         for i in range(self.n):
             if not (i % 100):
                 print("Sent %s" % i)
-            self.wait_send({"sent": time.time(), "number": i, "tag": self.tag})
+            self.wait_send({"sent": time.time(), "number": i, "tag": tag})
+        print("Sender complete")
 
     def wait_send(self, message):
         """
@@ -109,14 +127,17 @@ class Benchmarker(object):
         the sender process has exited.
         """
         self.received = []
+        self.tag = "".join(random.choice(string.ascii_letters) for i in range(10))
         self.stop_time = None
+        self.sender_process = subprocess.Popen(["asgiref_benchmark", "-t", self.tag, "-n", str(self.n), self.channel_layer_path])
+        print("Running receiver...")
         while True:
             # Check to see if we need to stop
             if self.stop_time:
                 if self.stop_time < time.time():
                     break
             else:
-                if os.waitpid(self.child_pid, os.WNOHANG)[0]:
+                if self.sender_process.poll() is not None:
                     print("Sender exited, scheduling receiver shutdown")
                     self.stop_time = time.time() + self.cooldown
             # Receive and re-loop
@@ -136,6 +157,9 @@ class Benchmarker(object):
             if len(self.received) % 100 == 0 and len(self.received):
                 print("Received %s" % len(self.received))
         # Calculate what's missing
+        if not self.received:
+            print("No messages received! Exiting.")
+            sys.exit(1)
         print("Receiver complete. Calculating stats...")
         self.seen_numbers = set()
         self.latencies = []
