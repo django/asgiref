@@ -13,9 +13,11 @@ def test_receive_async(self):
     # Test that receive works
     self.loop = asyncio.new_event_loop()
     asyncio.set_event_loop(None)
-    async def test():
+
+    @asyncio.coroutine
+    def test():
         self.channel_layer.send("test_async", {"is it": "working"})
-        channel, message = await self.channel_layer.receive_async(["test_async"])
+        channel, message = yield from self.channel_layer.receive_async(["test_async"])
         self.assertEqual(channel, "test_async")
         self.assertEqual(message, {"is it": "working"})
     self.loop.run_until_complete(test())
