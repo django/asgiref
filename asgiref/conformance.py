@@ -344,3 +344,8 @@ class ConformanceTestCase(unittest.TestCase):
 
         _, message = self.receive(['channel'])
         self.assertEqual(message, {'value': [1, 2, 3]})
+
+    # Asyncio has syntax that won't even import in Python 2 so its tests are
+    # in a separate file.
+    if six.PY3:
+        from .conformance_async import test_receive_async

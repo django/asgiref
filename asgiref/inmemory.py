@@ -31,7 +31,7 @@ class ChannelLayer(BaseChannelLayer):
 
     ### ASGI API ###
 
-    extensions = ["groups", "flush"]
+    extensions = ["groups", "flush", "async"]
 
     def send(self, channel, message):
         # Make sure the message is a dict at least (no deep inspection)
@@ -138,6 +138,13 @@ class ChannelLayer(BaseChannelLayer):
     def flush(self):
         self._channels = {}
         self._groups = {}
+
+    ### Async API ###
+
+    # Asyncio has syntax that won't even import in Python 2 so receive_async is
+    # in a separate file.
+    if six.PY3:
+        from .inmemory_async import receive_async
 
     ### Expire cleanup ###
 
