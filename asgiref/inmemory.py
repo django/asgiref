@@ -31,7 +31,7 @@ class ChannelLayer(BaseChannelLayer):
 
     ### ASGI API ###
 
-    extensions = ["groups", "flush", "async"]
+    extensions = ["groups", "flush"]
 
     def send(self, channel, message):
         # Make sure the message is a dict at least (no deep inspection)
@@ -145,6 +145,7 @@ class ChannelLayer(BaseChannelLayer):
     # in a separate file.
     if six.PY3:
         from .inmemory_async import receive_async
+        extensions.append("async")
 
     ### Expire cleanup ###
 
