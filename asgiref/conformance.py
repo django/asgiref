@@ -349,3 +349,24 @@ class ConformanceTestCase(unittest.TestCase):
     # in a separate file.
     if six.PY3:
         from .conformance_async import test_receive_async
+
+    def test_async_extension(self):
+        """
+        If channel layer says it support async extension, it must have
+        proper methods.  Otherwise, it should not.
+        """
+
+        if 'async' in self.channel_layer.extensions:
+            self.assertTrue(
+                hasattr(self.channel_layer, 'receive_async'),
+                '%s should have receive_async method' % (
+                    self.channel_layer.__class__.__name__,
+                ),
+            )
+        else:
+            self.assertFalse(
+                hasattr(self.channel_layer, 'receive_async'),
+                '%s should not have receive_async method' % (
+                    self.channel_layer.__class__.__name__,
+                ),
+            )
