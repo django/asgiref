@@ -1,5 +1,6 @@
 # Faster container-based infrastructure
 sudo: false
+dist: trusty
 
 language: python
 
