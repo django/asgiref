@@ -102,7 +102,8 @@ class BaseChannelLayer(object):
 
     channel_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+((\?|\!)[\d\w\-_.]*)?$")
     group_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+$")
-    invalid_name_error = "{} name must be a valid unicode string containing only ASCII alphanumerics, hyphens, underscores, or periods."
+    invalid_name_error = "{} name must be a valid unicode string containing only ASCII alphanumerics, hyphens, " \
+                         "underscores, or periods, not '{}'."
 
     def valid_channel_name(self, name, receive=False):
         if self.match_type_and_length(name):
@@ -113,13 +114,13 @@ class BaseChannelLayer(object):
                 elif "!" in name and not name.endswith("!") and receive:
                     raise TypeError("Process-local channel names in receive() must end at the !")
                 return True
-        raise TypeError("Channel name must be a valid unicode string containing only ASCII alphanumerics, hyphens, or periods, not '{}'.".format(name))
+        raise TypeError(self.invalid_name_error.format("Channel", name))
 
     def valid_group_name(self, name):
         if self.match_type_and_length(name):
             if bool(self.group_name_regex.match(name)):
                 return True
-        raise TypeError("Group name must be a valid unicode string containing only ASCII alphanumerics, hyphens, or periods.")
+        raise TypeError(self.invalid_name_error.format("Group", name))
 
     def valid_channel_names(self, names, receive=False):
         _non_empty_list = True if names else False
