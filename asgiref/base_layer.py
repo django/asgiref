@@ -93,33 +93,36 @@ class BaseChannelLayer(object):
                 return capacity
         return self.capacity
 
-    def match_type_and_length(self, name):
-        if (len(name) < 100) and (isinstance(name, six.text_type)):
-            return True
-        return False
+    def validate_name_type_and_length(self, name):
+        if len(name) >= 100:
+            raise TypeError("Channel and group names must be under 100 characters in length.")
+        if not isinstance(name, six.text_type):
+            raise TypeError("Channel or group name is not of 'str' type: {}.".format(type(name)))
+        return True
 
     ### Name validation functions
 
     channel_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+((\?|\!)[\d\w\-_.]*)?$")
     group_name_regex = re.compile(r"^[a-zA-Z\d\-_.]+$")
-    invalid_name_error = "{} name must be a valid unicode string containing only ASCII alphanumerics, hyphens, underscores, or periods."
+    invalid_name_error = "{} name must be a valid unicode string containing only ASCII alphanumerics, hyphens, " \
+                         "underscores, or periods, not '{}'."
 
     def valid_channel_name(self, name, receive=False):
-        if self.match_type_and_length(name):
-            if bool(self.channel_name_regex.match(name)):
-                # Check cases for special channels
-                if "?" in name and name.endswith("?"):
-                    raise TypeError("Single-reader channel names must not end with ?")
-                elif "!" in name and not name.endswith("!") and receive:
-                    raise TypeError("Process-local channel names in receive() must end at the !")
-                return True
-        raise TypeError("Channel name must be a valid unicode string containing only ASCII alphanumerics, hyphens, or periods, not '{}'.".format(name))
+        self.validate_name_type_and_length(name)
+        if bool(self.channel_name_regex.match(name)):
+            # Check cases for special channels
+            if "?" in name and name.endswith("?"):
+                raise TypeError("Single-reader channel names must not end with ?")
+            elif "!" in name and not name.endswith("!") and receive:
+                raise TypeError("Process-local channel names in receive() must end at the !")
+            return True
+        raise TypeError(self.invalid_name_error.format("Channel", name))
 
     def valid_group_name(self, name):
-        if self.match_type_and_length(name):
-            if bool(self.group_name_regex.match(name)):
-                return True
-        raise TypeError("Group name must be a valid unicode string containing only ASCII alphanumerics, hyphens, or periods.")
+        self.validate_name_type_and_length(name)
+        if bool(self.group_name_regex.match(name)):
+            return True
+        raise TypeError(self.invalid_name_error.format("Group", name))
 
     def valid_channel_names(self, names, receive=False):
         _non_empty_list = True if names else False
