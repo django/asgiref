@@ -37,7 +37,7 @@ class BaseChannelLayer(object):
 
     def receive_many(self, channels, block=False):
         """
-        receive_many is deprecated, but this is provided for backwards compatability.
+        receive_many is deprecated, but this is provided for backwards compatibility.
         """
         warnings.warn("receive_many is deprecated; please use receive", DeprecationWarning)
         return self.receive(channels, block)
