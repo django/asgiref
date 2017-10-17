@@ -1,36 +1,23 @@
 import asyncio
 import functools
 import threading
-import traceback
 from concurrent.futures import ThreadPoolExecutor, Future
 
 
-# TODO: Add number of threads option?
-def sync_application(cls):
+def callable_application(func):
     """
-    Class decorator/wrapper that wraps a sync ASGI application into an async ASGI application.
-
-    Each call to the __call__ method will be done in a separate thread, and
-    replies will be bounced out to the main thread before being sent to the
-    ASGI server.
-
-    One thread pool will be made per application.
+    Function/method decorator that turns an async callable that takes
+    (conntype, receive, send) into an ASGI application by doing the
+    double-callable step internally.
     """
-    # Make the thread pool
-    pool = ThreadPoolExecutor()
-    # Make a new specalist subclass of ThreadedApplication
-    threaded_subclass = type(
-        "ConcreteThreadedApplication",
-        (ThreadedApplication, ),
-        {
-            "application": cls,
-            "pool": pool,
-        },
-    )
-    return threaded_subclass
+    def outer(conntype):
+        async def inner(receive, send):
+            await func(conntype, receive, send)
+        return inner
+    return outer
 
 
-class CallBouncer:
+class AsyncToSync:
     """
     Utility class which turns an awaitable that only works on the main thread
     into a synchronous callable that works in a subthread.
@@ -51,64 +38,66 @@ class CallBouncer:
         self.main_event_loop.call_soon_threadsafe(
             asyncio.ensure_future,
             self.main_wrap(
-                {
-                    "args": args,
-                    "kwargs": kwargs,
-                },
+                args,
+                kwargs,
                 call_result,
             ),
         )
         # Wait for results from the future.
         call_result.result()
 
-    async def main_wrap(self, args, call_result):
+    async def main_wrap(self, args, kwargs, call_result):
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
         """
         try:
-            result = await self.awaitable(*args["args"], **args["kwargs"])
+            result = await self.awaitable(*args, **kwargs)
         except Exception as e:
             call_result.set_exception(e)
         else:
             call_result.set_result(result)
 
 
-class ThreadedApplication:
+class SyncToAsync:
     """
-    Wraps a synchronous-style application (a callable that returns a callable)
-    so that it presents as an asynchronous application.
-
-    Needs to be subclassed to provide the "application" and "pool" class body
-    attributes before it's run - this can either be done using the
-    sync_application decorator, or manually.
+    Utility class which turns a synchronous callable into an awaitable that
+    runs in a threadpool.
     """
 
     threadpool = ThreadPoolExecutor()
 
-    def __init__(self, conntype):
-        # We get the main event loop here as if we try to fetch from inside
-        # a thread we will get a thread-specific one.
-        self.instance = self.application(conntype)
+    def __init__(self, func):
+        self.func = func
 
-    async def __call__(self, receive, send):
-        """
-        Main entrypoint that runs the application in a thread.
-        """
-        # Wrap the async send function
-        self.thread_send = CallBouncer(send)
-        while True:
-            # Get the next event
-            message = await receive()
-            # Run it in the pool
-            self.threadpool.submit(self.thread_handler, message)
+    async def __call__(self, *args, **kwargs):
+        loop = asyncio.get_event_loop()
+        future = loop.run_in_executor(
+            self.threadpool,
+            functools.partial(self.thread_handler, *args, **kwargs),
+        )
+        return await asyncio.wait_for(future, timeout=None)
 
-    def thread_handler(self, message):
+    def thread_handler(self, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
         try:
-            self.instance(message, self.thread_send)
+            self.func(*args, **kwargs)
         except Exception as e:
-            traceback.print_exc()
             raise e
+
+
+# Decorator versions that will work on methods too.
+def sync_to_async(func):
+    async_func = SyncToAsync(func)
+    async def inner(*args, **kwargs):
+        return await async_func(*args, **kwargs)
+    return inner
+
+
+def async_to_sync(func):
+    sync_func = AsyncToSync(func)
+    def inner(*args, **kwargs):
+        return sync_func(*args, **kwargs)
+    return inner
