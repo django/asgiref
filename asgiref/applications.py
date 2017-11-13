@@ -19,14 +19,13 @@ def callable_application(func):
 
 class AsyncToSync:
     """
-    Utility class which turns an awaitable that only works on the main thread
-    into a synchronous callable that works in a subthread.
+    Utility class which turns an awaitable that only works on the thread with
+    the event loop into a synchronous callable that works in a subthread.
 
     Must be initialised from the main thread.
     """
 
     def __init__(self, awaitable):
-        assert threading.current_thread() == threading.main_thread()
         self.awaitable = awaitable
         self.main_event_loop = asyncio.get_event_loop()
 
