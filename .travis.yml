@@ -3,15 +3,12 @@ sudo: false
 
 language: python
 
-# Python versions supported by channel's supported Django versions
 python:
-  - "2.7"
-  - "3.4"
   - "3.5"
+  - "3.6"
 
 install:
-  - pip install -e .
-  # Useful for debugging
+  - pip install -e .[tests]
   - pip freeze
 
-script: python -m unittest discover
+script: pytest

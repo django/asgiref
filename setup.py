@@ -19,6 +19,12 @@ setup(
     zip_safe=False,
     packages=find_packages(exclude=['tests']),
     include_package_data=True,
+    extras_require={
+        "tests": [
+            "pytest",
+            "pytest-asyncio",
+        ],
+    },
     install_requires=[
         'six',
     ],
