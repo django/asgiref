@@ -13,7 +13,7 @@ setup(
     url='http://github.com/django/asgiref/',
     author='Django Software Foundation',
     author_email='foundation@djangoproject.com',
-    description='Reference ASGI adapters and channel layers',
+    description='ASGI specs, helper code, and adapters',
     long_description=open(readme_path).read(),
     license='BSD',
     zip_safe=False,
@@ -28,7 +28,4 @@ setup(
     install_requires=[
         'six',
     ],
-    entry_points={'console_scripts': [
-        'asgiref_benchmark = asgiref.benchmark:Benchmarker.cli',
-    ]},
 )
