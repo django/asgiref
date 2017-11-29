@@ -27,12 +27,15 @@ async def test_basic_wsgi():
     })
     # Feed it send/receive awaitables
     sent = []
+
     async def receive():
         return {
             "type": "http.request",
         }
+
     async def send(message):
         sent.append(message)
+
     # Run coroutine (the WSGI one exits after the request ends)
     await instance(receive, send)
     # Check they send stuff

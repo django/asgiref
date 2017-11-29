@@ -8,10 +8,11 @@ python:
   - "3.6"
 
 install:
-  - pip install -e .[tests] isort unify
+  - pip install -e .[tests] isort unify flake8
   - pip freeze
 
 script:
   - pytest
+  - flake8
   - isort --check-only --recursive asgiref
   - unify --check-only --recursive --quote \" asgiref/

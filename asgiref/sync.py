@@ -77,13 +77,17 @@ class SyncToAsync:
 # Decorator versions that will work on methods too.
 def sync_to_async(func):
     async_func = SyncToAsync(func)
+
     async def inner(*args, **kwargs):
         return await async_func(*args, **kwargs)
+
     return inner
 
 
 def async_to_sync(func):
     sync_func = AsyncToSync(func)
+
     def inner(*args, **kwargs):
         return sync_func(*args, **kwargs)
+
     return inner
