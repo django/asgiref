@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import os
 from concurrent.futures import ThreadPoolExecutor, Future
 
 
@@ -50,7 +51,7 @@ class SyncToAsync:
     runs in a threadpool.
     """
 
-    threadpool = ThreadPoolExecutor()
+    threadpool = ThreadPoolExecutor(max_workers=os.environ.get("ASGI_THREADS", None))
 
     def __init__(self, func):
         self.func = func
