@@ -1,9 +1,10 @@
 import asyncio
-import pytest
 import time
+from concurrent.futures import ThreadPoolExecutor
+
+import pytest
 
 from asgiref.sync import SyncToAsync
-from concurrent.futures import ThreadPoolExecutor
 
 
 @pytest.mark.asyncio

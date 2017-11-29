@@ -14,5 +14,5 @@ install:
 script:
   - pytest
   - flake8
-  - isort --check-only --recursive asgiref
-  - unify --check-only --recursive --quote \" asgiref/
+  - isort --check-only --recursive asgiref tests
+  - unify --check-only --recursive --quote \" asgiref tests
