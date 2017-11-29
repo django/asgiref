@@ -43,15 +43,15 @@ async def test_basic_wsgi():
         "headers": [(b"X-Colour", b"Blue")],
     }
     assert sent[1] == {
-        "type": "http.response.chunk",
+        "type": "http.response.content",
         "content": b"first chunk ",
         "more_content": True,
     }
     assert sent[2] == {
-        "type": "http.response.chunk",
+        "type": "http.response.content",
         "content": b"second chunk",
         "more_content": True,
     }
     assert sent[3] == {
-        "type": "http.response.chunk",
+        "type": "http.response.content",
     }

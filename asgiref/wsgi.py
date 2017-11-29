@@ -120,9 +120,9 @@ class WsgiToAsgiInstance:
                 self.response_started = True
                 self.sync_send(self.response_start)
             self.sync_send({
-                "type": "http.response.chunk",
+                "type": "http.response.content",
                 "content": output,
                 "more_content": True,
             })
         # Close connection
-        self.sync_send({"type": "http.response.chunk"})
+        self.sync_send({"type": "http.response.content"})

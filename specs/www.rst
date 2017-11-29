@@ -109,7 +109,7 @@ Response Start
 ''''''''''''''
 
 Starts sending a response to the client. Needs to be followed by at least
-one response chunk message.
+one response content message.
 
 Keys:
 
@@ -123,8 +123,8 @@ Keys:
   must be lowercased. Optional, defaults to an empty list.
 
 
-Response Chunk
-''''''''''''''
+Response Content
+''''''''''''''''
 
 Continues sending a response to the client. Protocol servers must
 flush any data passed to them into the send buffer before returning from a
@@ -133,7 +133,7 @@ close the connection.
 
 Keys:
 
-* ``type``: ``http.response.chunk``
+* ``type``: ``http.response.content``
 
 * ``content``: Byte string of HTTP body content. Concatenated onto any previous
   ``content`` values sent in this connection scope. Optional, defaults to
@@ -327,5 +327,5 @@ The ``start_response`` callable maps similarly to ``http.response.start``:
 * The ``status`` argument becomes ``status``, with the reason phrase dropped.
 * ``response_headers`` maps to ``headers``
 
-Yielding chunks from the WSGI application maps to sending
-``http.response.chunk`` messages.
+Yielding content from the WSGI application maps to sending
+``http.response.content`` messages.
