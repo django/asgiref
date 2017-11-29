@@ -1,3 +1,9 @@
+2.0.0 (2017-11-28)
+------------------
+
+* Complete rewrite for new async-based ASGI mechanisms and removal of
+  channel layers.
+
 1.1.2 (2017-05-16)
 -----------------
 

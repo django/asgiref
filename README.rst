@@ -80,7 +80,12 @@ Contributing
 
 Please refer to the
 `main Channels contributing docs <https://github.com/django/channels/blob/master/CONTRIBUTING.rst>`_.
-That also contains advice on how to set up the development environment and run the tests.
+
+To run tests, make sure you have installed the ``tests`` extra with the package::
+
+    cd asgiref/
+    pip install -e .[tests]
+    pytest
 
 
 Maintenance and Security
