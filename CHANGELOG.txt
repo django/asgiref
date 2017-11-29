@@ -1,3 +1,9 @@
+2.0.1 (2017-11-28)
+------------------
+
+* Bugfix release to have HTTP response content message as the correct
+  "http.response.content" not the older "http.response.chunk".
+
 2.0.0 (2017-11-28)
 ------------------
 
