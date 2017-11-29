@@ -66,14 +66,14 @@ class WsgiToAsgiInstance:
             environ["SERVER_NAME"] = "localhost"
             environ["SERVER_PORT"] = 80
         # Go through headers and make them into environ entries
-        for name, value in self.scope.get('headers', []):
+        for name, value in self.scope.get("headers", []):
             name = name.decode("latin1")
             if name == "content-length":
                 corrected_name = "CONTENT_LENGTH"
             elif name == "content-type":
                 corrected_name = "CONTENT_TYPE"
             else:
-                corrected_name = 'HTTP_%s' % name.upper().replace("-", "_")
+                corrected_name = "HTTP_%s" % name.upper().replace("-", "_")
             # HTTPbis say only ASCII chars are allowed in headers, but we latin1 just in case
             value = value.decode("latin1")
             if corrected_name in environ:
