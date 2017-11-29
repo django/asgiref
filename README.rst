@@ -7,58 +7,73 @@ asgiref
 .. image:: https://img.shields.io/pypi/v/asgiref.svg
     :target: https://pypi.python.org/pypi/asgiref
 
-Contains various reference ASGI implementations, including:
+ASGI base libraries, including:
 
-* A base channel layer, ``asgiref.base_layer``
-* An in-memory channel layer, ``asgiref.inmemory``
-* WSGI-to-ASGI and ASGI-to-WSGI adapters, in ``asgiref.wsgi``
-
-
-Base Channel Layer
-------------------
-
-Provides an optional template to start ASGI channel layers from with the two
-exceptions you need provided and all API functions stubbed out.
-
-Also comes with logic for doing per-channel capacities using channel names and
-globbing; use ``self.get_capacity`` and pass the arguments through to the base
-``__init__`` if you want to use it.
+* Sync-to-async and async-to-sync function wrappers, ``asgiref.sync``
+* Server base classes, ``asgiref.server``
+* WSGI-to-ASGI adapter, in ``asgiref.wsgi``
 
 
-In-memory Channel Layer
------------------------
+Function wrappers
+-----------------
 
-Simply instantiate ``asgiref.inmemory.ChannelLayer``, or use the pre-made
-``asgiref.inmemory.channel_layer`` for easy use. Implements the ``group``
-extension, and is designed to support running multiple ASGI programs
-in separate threads within one process (the channel layer is threadsafe).
+These allow you to wrap or decorate async or sync functions to call them from
+the other style (so you can call async functions from a synchronous thread,
+or vice-versa).
+
+In particular:
+
+* AsyncToSync lets a synchronous subthread stop and wait while the async
+  function is called on the main thread's event loop, and then control is
+  returned to the thread when the async function is finished.
+
+* SyncToAsync lets async code call a synchronous function, which is run in
+  a threadpool and control returned to the async coroutine when the synchronous
+  function completes.
+
+The idea is to make it easier to call synchronous APIs from async code and
+asynchronous APIs from synchronous code so it's easier to transition code from
+one style to the other. In the case of Channels, we wrap the (synchronous)
+Django view system with SyncToAsync to allow it to run inside the (asynchronous)
+ASGI server.
 
 
-WSGI-ASGI Adapters
-------------------
+Server base classes
+-------------------
 
-These are not yet complete and should not be used.
+Includes a ``StatelessServer`` class which provides all the hard work of
+writing a stateless server (as in, does not handle direct incoming sockets
+but instead consumes external streams or sockets to work out what is happening).
+
+An example of such a server would be a chatbot server that connects out to
+a central chat server and provides a "connection scope" per user chatting to
+it. There's only one actual connection, but the server has to separate things
+into several scopes for easier writing of the code.
+
+You can see an example of this being used in `frequensgi <https://github.com/andrewgodwin/frequensgi>`_.
 
 
-Benchmarker
------------
+WSGI-to-ASGI adapter
+--------------------
 
-To use the benchmarker, once ``asgiref`` is installed, run the ``asgiref_benchmark``
-program with the path to a channel layer instance (and an optional number of messages
-to test) to get throughput statistics::
+Allows you to wrap a WSGI application so it appears as a valid ASGI application.
 
-    $ asgiref_benchmark -n 2000 myproject.asgi:channel_layer
-    ...
-    Received: 2000/2000 (100.0%)
-    Latency mean: 0.0011  median: 0.0010  10%: 0.0008  90%: 0.0014
-    Send throughput: 1146.0/s
-    Receive throughput: 1146.0/s
+Simply wrap it around your WSGI application like so::
+
+    asgi_application = WsgiToAsgi(wsgi_application)
+
+The WSGI application will be run in a synchronous threadpool, and the wrapped
+ASGI application will be one that accepts ``http`` class messages.
+
+Please note that not all extended features of WSGI may be supported (such as
+file handles for incoming POST bodies).
 
 
 Dependencies
 ------------
 
-All Channels projects currently support Python 2.7, 3.4 and 3.5.
+``asgiref`` requires Python 3.5 or higher.
+
 
 Contributing
 ------------
@@ -66,6 +81,7 @@ Contributing
 Please refer to the
 `main Channels contributing docs <https://github.com/django/channels/blob/master/CONTRIBUTING.rst>`_.
 That also contains advice on how to set up the development environment and run the tests.
+
 
 Maintenance and Security
 ------------------------
