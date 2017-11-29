@@ -1,5 +1,6 @@
-from asgiref.sync import sync_to_async, AsyncToSync
 from io import BytesIO, StringIO
+
+from asgiref.sync import AsyncToSync, sync_to_async
 
 
 class WsgiToAsgi:

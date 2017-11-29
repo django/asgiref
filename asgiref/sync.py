@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import os
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import Future, ThreadPoolExecutor
 
 
 class AsyncToSync:
