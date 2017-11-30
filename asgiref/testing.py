@@ -17,17 +17,17 @@ class ApplicationCommunicator:
             self.instance(self.input_queue.get, self.output_queue.put)
         )
 
-    def stop(self):
+    def stop(self, exceptions=True):
         if not self.future.done():
             self.future.cancel()
-        else:
+        elif exceptions:
             # Give a chance to raise any exceptions
             self.future.result()
 
     def __del__(self):
         # Clean up on deletion
         try:
-            self.stop()
+            self.stop(exceptions=False)
         except RuntimeError:
             # Event loop already stopped
             pass
