@@ -17,20 +17,41 @@ class ApplicationCommunicator:
             self.instance(self.input_queue.get, self.output_queue.put)
         )
 
-    def __del__(self):
-        # Clean up on deletion
+    def stop(self):
         if not self.future.done():
             self.future.cancel()
+        else:
+            # Give a chance to raise any exceptions
+            self.future.result()
+
+    def __del__(self):
+        # Clean up on deletion
+        try:
+            self.stop()
+        except RuntimeError:
+            # Event loop already stopped
+            pass
 
     async def send_input(self, message):
         """
         Sends a single message to the application
         """
+        # Give it the message
         await self.input_queue.put(message)
 
     async def receive_output(self, timeout=None):
         """
         Receives a single message from the application, with optional timeout.
         """
-        async with async_timeout.timeout(timeout):
-            return await self.output_queue.get()
+        # Make sure there's not an exception to raise from the task
+        if self.future.done():
+            self.future.result()
+        # Wait and receive the message
+        try:
+            async with async_timeout.timeout(timeout):
+                return await self.output_queue.get()
+        except asyncio.TimeoutError:
+            # See if we have another error to raise inside
+            if self.future.done():
+                self.future.result()
+            raise
