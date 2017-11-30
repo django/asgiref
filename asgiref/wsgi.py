@@ -121,9 +121,9 @@ class WsgiToAsgiInstance:
                 self.response_started = True
                 self.sync_send(self.response_start)
             self.sync_send({
-                "type": "http.response.content",
-                "content": output,
-                "more_content": True,
+                "type": "http.response.body",
+                "body": output,
+                "more_body": True,
             })
         # Close connection
-        self.sync_send({"type": "http.response.content"})
+        self.sync_send({"type": "http.response.body"})

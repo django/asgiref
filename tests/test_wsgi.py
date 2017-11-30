@@ -36,15 +36,15 @@ async def test_basic_wsgi():
         "headers": [(b"X-Colour", b"Blue")],
     }
     assert (await instance.receive_output(1)) == {
-        "type": "http.response.content",
-        "content": b"first chunk ",
-        "more_content": True,
+        "type": "http.response.body",
+        "body": b"first chunk ",
+        "more_body": True,
     }
     assert (await instance.receive_output(1)) == {
-        "type": "http.response.content",
-        "content": b"second chunk",
-        "more_content": True,
+        "type": "http.response.body",
+        "body": b"second chunk",
+        "more_body": True,
     }
     assert (await instance.receive_output(1)) == {
-        "type": "http.response.content",
+        "type": "http.response.body",
     }

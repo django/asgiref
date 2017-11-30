@@ -96,11 +96,11 @@ Keys:
 * ``type``: ``http.request``
 
 * ``body``: Body of the request, as a byte string. Optional, defaults to ``""``.
-  If ``more_content`` is set, treat as start of body and concatenate
+  If ``more_body`` is set, treat as start of body and concatenate
   on further chunks.
 
-* ``more_content``: Boolean value signifying if there is additional content
-  to come (as part of a Request Body Chunk message). If ``True``, the consuming
+* ``more_body``: Boolean value signifying if there is additional content
+  to come (as part of a Request message). If ``True``, the consuming
   application should wait until it gets a chunk with this set to ``False``. If
   ``False``, the request is complete and should be processed.
 
@@ -123,24 +123,24 @@ Keys:
   must be lowercased. Optional, defaults to an empty list.
 
 
-Response Content
-''''''''''''''''
+Response Body
+'''''''''''''
 
 Continues sending a response to the client. Protocol servers must
 flush any data passed to them into the send buffer before returning from a
-send call. If ``more_content`` is set to ``False`` this will
+send call. If ``more_body`` is set to ``False`` this will
 close the connection.
 
 Keys:
 
-* ``type``: ``http.response.content``
+* ``type``: ``http.response.body``
 
-* ``content``: Byte string of HTTP body content. Concatenated onto any previous
-  ``content`` values sent in this connection scope. Optional, defaults to
+* ``body``: Byte string of HTTP body content. Concatenated onto any previous
+  ``body`` values sent in this connection scope. Optional, defaults to
   ``""``.
 
-* ``more_content``: Boolean value signifying if there is additional content
-  to come (as part of a Response message). If ``False``, response will
+* ``more_body``: Boolean value signifying if there is additional content
+  to come (as part of a Response Body message). If ``False``, response will
   be taken as complete and closed off, and any further messages on the channel
   will be ignored. Optional, defaults to ``False``.
 
@@ -328,4 +328,4 @@ The ``start_response`` callable maps similarly to ``http.response.start``:
 * ``response_headers`` maps to ``headers``
 
 Yielding content from the WSGI application maps to sending
-``http.response.content`` messages.
+``http.response.body`` messages.
