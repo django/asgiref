@@ -1,5 +1,6 @@
 import pytest
 
+from asgiref.testing import ApplicationCommunicator
 from asgiref.wsgi import WsgiToAsgi
 
 
@@ -16,45 +17,34 @@ async def test_basic_wsgi():
         yield b"second chunk"
     # Wrap it
     application = WsgiToAsgi(wsgi_application)
-    # Feed it a scope
-    instance = application({
+    # Launch it as a test application
+    instance = ApplicationCommunicator(application({
         "type": "http",
         "http_version": "1.0",
         "method": "GET",
         "path": "/foo/",
         "query_string": b"bar=baz",
         "headers": [[b"test-header", b"test value"]],
+    }))
+    await instance.send_input({
+        "type": "http.request",
     })
-    # Feed it send/receive awaitables
-    sent = []
-
-    async def receive():
-        return {
-            "type": "http.request",
-        }
-
-    async def send(message):
-        sent.append(message)
-
-    # Run coroutine (the WSGI one exits after the request ends)
-    await instance(receive, send)
     # Check they send stuff
-    assert len(sent) == 4
-    assert sent[0] == {
+    assert (await instance.receive_output(1)) == {
         "type": "http.response.start",
         "status": 200,
         "headers": [(b"X-Colour", b"Blue")],
     }
-    assert sent[1] == {
+    assert (await instance.receive_output(1)) == {
         "type": "http.response.content",
         "content": b"first chunk ",
         "more_content": True,
     }
-    assert sent[2] == {
+    assert (await instance.receive_output(1)) == {
         "type": "http.response.content",
         "content": b"second chunk",
         "more_content": True,
     }
-    assert sent[3] == {
+    assert (await instance.receive_output(1)) == {
         "type": "http.response.content",
     }

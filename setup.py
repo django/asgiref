@@ -21,11 +21,11 @@ setup(
     include_package_data=True,
     extras_require={
         "tests": [
-            "pytest",
-            "pytest-asyncio",
+            "pytest~=3.3",
+            "pytest-asyncio~=0.8",
         ],
     },
     install_requires=[
-        'six',
+        'async-timeout~=2.0',
     ],
 )
