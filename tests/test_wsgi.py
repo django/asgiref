@@ -18,14 +18,14 @@ async def test_basic_wsgi():
     # Wrap it
     application = WsgiToAsgi(wsgi_application)
     # Launch it as a test application
-    instance = ApplicationCommunicator(application({
+    instance = ApplicationCommunicator(application, {
         "type": "http",
         "http_version": "1.0",
         "method": "GET",
         "path": "/foo/",
         "query_string": b"bar=baz",
         "headers": [[b"test-header", b"test value"]],
-    }))
+    })
     await instance.send_input({
         "type": "http.request",
     })
