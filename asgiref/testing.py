@@ -9,8 +9,10 @@ class ApplicationCommunicator:
     it and retrieval of messages it sends.
     """
 
-    def __init__(self, instance):
-        self.instance = instance
+    def __init__(self, application, scope):
+        self.application = application
+        self.scope = scope
+        self.instance = self.application(scope)
         self.input_queue = asyncio.Queue()
         self.output_queue = asyncio.Queue()
         self.future = asyncio.ensure_future(
@@ -39,7 +41,7 @@ class ApplicationCommunicator:
         # Give it the message
         await self.input_queue.put(message)
 
-    async def receive_output(self, timeout=None):
+    async def receive_output(self, timeout=1):
         """
         Receives a single message from the application, with optional timeout.
         """

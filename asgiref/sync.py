@@ -21,6 +21,8 @@ class AsyncToSync:
         call_result = Future()
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread
+        if not self.main_event_loop.is_running():
+            raise RuntimeError("Cannot call async functions without an event loop running")
         self.main_event_loop.call_soon_threadsafe(
             asyncio.ensure_future,
             self.main_wrap(
