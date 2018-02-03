@@ -102,7 +102,8 @@ Keys:
 * ``more_body``: Boolean value signifying if there is additional content
   to come (as part of a Request message). If ``True``, the consuming
   application should wait until it gets a chunk with this set to ``False``. If
-  ``False``, the request is complete and should be processed.
+  ``False``, the request is complete and should be processed. Optional, defaults
+  to ``False``.
 
 
 Response Start
