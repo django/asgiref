@@ -1,3 +1,8 @@
+2.1.1 (2018-02-02)
+------------------
+
+* Allow AsyncToSync constructor to be called inside SyncToAsync.
+
 2.1.0 (2018-01-19)
 ------------------
 
