@@ -56,3 +56,20 @@ async def test_async_to_sync_to_async():
     # Check it works right
     await async_function()
     assert result["worked"]
+
+
+def test_async_to_sync():
+    """
+    Tests we can call AsyncToSync outside of an outer event loop.
+    """
+    result = {}
+
+    # Define async function
+    async def inner_async_function():
+        await asyncio.sleep(0)
+        result["worked"] = True
+
+    # Run it
+    sync_function = AsyncToSync(inner_async_function)
+    sync_function()
+    assert result["worked"]
