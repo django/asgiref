@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import os
+import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 
 
@@ -14,7 +15,16 @@ class AsyncToSync:
 
     def __init__(self, awaitable):
         self.awaitable = awaitable
-        self.main_event_loop = asyncio.get_event_loop()
+        try:
+            self.main_event_loop = asyncio.get_event_loop()
+        except RuntimeError:
+            # There's no event loop in this thread. Look for the threadlocal if
+            # we're inside SyncToAsync
+            self.main_event_loop = getattr(SyncToAsync.threadlocal, "main_event_loop", None)
+            if self.main_event_loop is None:
+                raise RuntimeError(
+                    "You cannot instantiate AsyncToSync inside a thread that wasn't made using SyncToAsync"
+                )
 
     def __call__(self, *args, **kwargs):
         # Make a future for the return information
@@ -50,10 +60,12 @@ class AsyncToSync:
 class SyncToAsync:
     """
     Utility class which turns a synchronous callable into an awaitable that
-    runs in a threadpool.
+    runs in a threadpool. It also sets a threadlocal inside the thread so
+    calls to AsyncToSync can escape it.
     """
 
     threadpool = ThreadPoolExecutor(max_workers=os.environ.get("ASGI_THREADS", None))
+    threadlocal = threading.local()
 
     def __init__(self, func):
         self.func = func
@@ -62,14 +74,17 @@ class SyncToAsync:
         loop = asyncio.get_event_loop()
         future = loop.run_in_executor(
             self.threadpool,
-            functools.partial(self.thread_handler, *args, **kwargs),
+            functools.partial(self.thread_handler, loop, *args, **kwargs),
         )
         return await asyncio.wait_for(future, timeout=None)
 
-    def thread_handler(self, *args, **kwargs):
+    def thread_handler(self, loop, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
+        # Set the threadlocal for AsyncToSync
+        self.threadlocal.main_event_loop = loop
+        # Run the function
         try:
             self.func(*args, **kwargs)
         except Exception as e:

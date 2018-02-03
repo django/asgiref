@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from asgiref.sync import SyncToAsync
+from asgiref.sync import AsyncToSync, SyncToAsync
 
 
 @pytest.mark.asyncio
@@ -33,3 +33,26 @@ async def test_sync_to_async():
         assert end - start >= 2
     finally:
         SyncToAsync.threadpool = old_threadpool
+
+
+@pytest.mark.asyncio
+async def test_async_to_sync_to_async():
+    """
+    Tests we can call async functions from a sync thread created by AsyncToSync
+    (even if the number of thread workers is less than the number of calls)
+    """
+    result = {}
+
+    # Define async function
+    async def inner_async_function():
+        result["worked"] = True
+
+    # Define sync function
+    def sync_function():
+        AsyncToSync(inner_async_function)()
+
+    # Wrap it
+    async_function = SyncToAsync(sync_function)
+    # Check it works right
+    await async_function()
+    assert result["worked"]
