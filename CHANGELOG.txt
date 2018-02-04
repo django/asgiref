@@ -1,3 +1,10 @@
+2.1.3 (2018-02-04)
+------------------
+
+* Add an ApplicationCommunicator.wait() method to allow you to wait for an
+  application instance to exit before seeing what it did.
+
+
 2.1.2 (2018-02-03)
 ------------------
 
