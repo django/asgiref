@@ -16,12 +16,14 @@ async def test_sync_to_async():
     # Define sync function
     def sync_function():
         time.sleep(1)
+        return 42
     # Wrap it
     async_function = SyncToAsync(sync_function)
     # Check it works right
     start = time.monotonic()
-    await async_function()
+    result = await async_function()
     end = time.monotonic()
+    assert result == 42
     assert end - start >= 1
     # Set workers to 1, call it twice and make sure that works right
     old_threadpool, SyncToAsync.threadpool = SyncToAsync.threadpool, ThreadPoolExecutor(max_workers=1)
@@ -46,15 +48,17 @@ async def test_async_to_sync_to_async():
     # Define async function
     async def inner_async_function():
         result["worked"] = True
+        return 65
 
     # Define sync function
     def sync_function():
-        AsyncToSync(inner_async_function)()
+        return AsyncToSync(inner_async_function)()
 
     # Wrap it
     async_function = SyncToAsync(sync_function)
     # Check it works right
-    await async_function()
+    number = await async_function()
+    assert number == 65
     assert result["worked"]
 
 
@@ -68,8 +72,10 @@ def test_async_to_sync():
     async def inner_async_function():
         await asyncio.sleep(0)
         result["worked"] = True
+        return 84
 
     # Run it
     sync_function = AsyncToSync(inner_async_function)
-    sync_function()
+    number = sync_function()
+    assert number == 84
     assert result["worked"]

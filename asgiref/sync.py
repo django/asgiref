@@ -46,7 +46,7 @@ class AsyncToSync:
                 ),
             )
         # Wait for results from the future.
-        call_result.result()
+        return call_result.result()
 
     async def main_wrap(self, args, kwargs, call_result):
         """
@@ -90,7 +90,7 @@ class SyncToAsync:
         self.threadlocal.main_event_loop = loop
         # Run the function
         try:
-            self.func(*args, **kwargs)
+            return self.func(*args, **kwargs)
         except Exception as e:
             raise e
 
