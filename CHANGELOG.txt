@@ -1,12 +1,20 @@
+2.1.2 (2018-02-03)
+------------------
+
+* Allow AsyncToSync to work if called from a non-async-wrapped sync context.
+
+
 2.1.1 (2018-02-02)
 ------------------
 
 * Allow AsyncToSync constructor to be called inside SyncToAsync.
 
+
 2.1.0 (2018-01-19)
 ------------------
 
 * Add `asgiref.testing` module with ApplicationCommunicator testing helper
+
 
 2.0.1 (2017-11-28)
 ------------------
@@ -14,11 +22,13 @@
 * Bugfix release to have HTTP response content message as the correct
   "http.response.content" not the older "http.response.chunk".
 
+
 2.0.0 (2017-11-28)
 ------------------
 
 * Complete rewrite for new async-based ASGI mechanisms and removal of
   channel layers.
+
 
 1.1.2 (2017-05-16)
 -----------------
@@ -26,10 +36,12 @@
 * Conformance test suite now allows for retries and tests group_send's behaviour with capacity
 * valid_channel_names now has a receive parameter
 
+
 1.1.1 (2017-04-02)
 ------------------
 
 * Error with sending to multi-process channels with the same message fixed
+
 
 1.1.0 (2017-04-01)
 ------------------
@@ -37,11 +49,13 @@
 * Process-specific channel behaviour has been changed, and the base layer
   and conformance suites updated to match.
 
+
 1.0.1 (2017-03-19)
 ------------------
 
 * Improved channel and group name validation
 * Test rearrangements and improvements
+
 
 1.0.0 (2016-04-11)
 ------------------
