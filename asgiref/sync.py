@@ -33,7 +33,7 @@ class AsyncToSync:
         # main event loop's thread
         if not self.main_event_loop.is_running():
             # Make our own event loop and run inside that.
-            loop = asyncio.get_event_loop()
+            loop = asyncio.new_event_loop()
             loop.run_until_complete(self.main_wrap(args, kwargs, call_result))
             loop.close()
         else:
