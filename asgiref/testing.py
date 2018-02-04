@@ -19,6 +19,14 @@ class ApplicationCommunicator:
             self.instance(self.input_queue.get, self.output_queue.put)
         )
 
+    async def wait(self, timeout=1):
+        """
+        Waits for the application to stop itself and returns any exceptions.
+        """
+        async with async_timeout.timeout(timeout):
+            await self.future
+            self.future.result()
+
     def stop(self, exceptions=True):
         if not self.future.done():
             self.future.cancel()
