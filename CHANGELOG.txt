@@ -1,3 +1,11 @@
+2.1.4 (2018-02-07)
+------------------
+
+* Values are now correctly returned from sync_to_async and async_to_sync
+
+* ASGI_THREADS environment variable now works correctly
+
+
 2.1.3 (2018-02-04)
 ------------------
 
