@@ -48,6 +48,12 @@ class AsyncToSync:
         # Wait for results from the future.
         return call_result.result()
 
+    def __get__(self, parent, objtype):
+        """
+        Include self for methods
+        """
+        return functools.partial(self.__call__, parent)
+
     async def main_wrap(self, args, kwargs, call_result):
         """
         Wraps the awaitable with something that puts the result into the
@@ -68,7 +74,13 @@ class SyncToAsync:
     calls to AsyncToSync can escape it.
     """
 
-    threadpool = ThreadPoolExecutor(max_workers=os.environ.get("ASGI_THREADS", None))
+    threadpool = ThreadPoolExecutor(
+        max_workers=(
+            int(os.environ["ASGI_THREADS"])
+            if "ASGI_THREADS" in os.environ
+            else None
+        )
+    )
     threadlocal = threading.local()
 
     def __init__(self, func):
@@ -82,6 +94,12 @@ class SyncToAsync:
         )
         return await asyncio.wait_for(future, timeout=None)
 
+    def __get__(self, parent, objtype):
+        """
+        Include self for methods
+        """
+        return functools.partial(self.__call__, parent)
+
     def thread_handler(self, loop, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
@@ -89,26 +107,9 @@ class SyncToAsync:
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
         # Run the function
-        try:
-            return self.func(*args, **kwargs)
-        except Exception as e:
-            raise e
+        return self.func(*args, **kwargs)
 
 
-# Decorator versions that will work on methods too.
-def sync_to_async(func):
-    async_func = SyncToAsync(func)
-
-    async def inner(*args, **kwargs):
-        return await async_func(*args, **kwargs)
-
-    return inner
-
-
-def async_to_sync(func):
-    sync_func = AsyncToSync(func)
-
-    def inner(*args, **kwargs):
-        return sync_func(*args, **kwargs)
-
-    return inner
+# Lowercase is more sensible for most things
+sync_to_async = SyncToAsync
+async_to_sync = AsyncToSync

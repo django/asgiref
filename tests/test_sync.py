@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from asgiref.sync import AsyncToSync, SyncToAsync
+from asgiref.sync import async_to_sync, sync_to_async
 
 
 @pytest.mark.asyncio
@@ -18,7 +18,7 @@ async def test_sync_to_async():
         time.sleep(1)
         return 42
     # Wrap it
-    async_function = SyncToAsync(sync_function)
+    async_function = sync_to_async(sync_function)
     # Check it works right
     start = time.monotonic()
     result = await async_function()
@@ -26,7 +26,7 @@ async def test_sync_to_async():
     assert result == 42
     assert end - start >= 1
     # Set workers to 1, call it twice and make sure that works right
-    old_threadpool, SyncToAsync.threadpool = SyncToAsync.threadpool, ThreadPoolExecutor(max_workers=1)
+    old_threadpool, sync_to_async.threadpool = sync_to_async.threadpool, ThreadPoolExecutor(max_workers=1)
     try:
         start = time.monotonic()
         await asyncio.wait([async_function(), async_function()])
@@ -34,13 +34,45 @@ async def test_sync_to_async():
         # It should take at least 2 seconds as there's only one worker.
         assert end - start >= 2
     finally:
-        SyncToAsync.threadpool = old_threadpool
+        sync_to_async.threadpool = old_threadpool
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_decorator():
+    """
+    Tests sync_to_async as a decorator
+    """
+    # Define sync function
+    @sync_to_async
+    def test_function():
+        time.sleep(1)
+        return 43
+    # Check it works right
+    result = await test_function()
+    assert result == 43
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_method_decorator():
+    """
+    Tests sync_to_async as a method decorator
+    """
+    # Define sync function
+    class TestClass:
+        @sync_to_async
+        def test_method(self):
+            time.sleep(1)
+            return 44
+    # Check it works right
+    instance = TestClass()
+    result = await instance.test_method()
+    assert result == 44
 
 
 @pytest.mark.asyncio
 async def test_async_to_sync_to_async():
     """
-    Tests we can call async functions from a sync thread created by AsyncToSync
+    Tests we can call async functions from a sync thread created by async_to_sync
     (even if the number of thread workers is less than the number of calls)
     """
     result = {}
@@ -52,10 +84,10 @@ async def test_async_to_sync_to_async():
 
     # Define sync function
     def sync_function():
-        return AsyncToSync(inner_async_function)()
+        return async_to_sync(inner_async_function)()
 
     # Wrap it
-    async_function = SyncToAsync(sync_function)
+    async_function = sync_to_async(sync_function)
     # Check it works right
     number = await async_function()
     assert number == 65
@@ -64,7 +96,7 @@ async def test_async_to_sync_to_async():
 
 def test_async_to_sync():
     """
-    Tests we can call AsyncToSync outside of an outer event loop.
+    Tests we can call async_to_sync outside of an outer event loop.
     """
     result = {}
 
@@ -75,7 +107,47 @@ def test_async_to_sync():
         return 84
 
     # Run it
-    sync_function = AsyncToSync(inner_async_function)
+    sync_function = async_to_sync(inner_async_function)
     number = sync_function()
     assert number == 84
+    assert result["worked"]
+
+
+def test_async_to_sync_decorator():
+    """
+    Tests we can call async_to_sync as a function decorator
+    """
+    result = {}
+
+    # Define async function
+    @async_to_sync
+    async def test_function():
+        await asyncio.sleep(0)
+        result["worked"] = True
+        return 85
+
+    # Run it
+    number = test_function()
+    assert number == 85
+    assert result["worked"]
+
+
+def test_async_to_sync_method_decorator():
+    """
+    Tests we can call async_to_sync as a function decorator
+    """
+    result = {}
+
+    # Define async function
+    class TestClass:
+        @async_to_sync
+        async def test_function(self):
+            await asyncio.sleep(0)
+            result["worked"] = True
+            return 86
+
+    # Run it
+    instance = TestClass()
+    number = instance.test_function()
+    assert number == 86
     assert result["worked"]
