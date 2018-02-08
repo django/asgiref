@@ -151,3 +151,19 @@ def test_async_to_sync_method_decorator():
     number = instance.test_function()
     assert number == 86
     assert result["worked"]
+
+
+@pytest.mark.asyncio
+async def test_async_to_sync_in_async():
+    """
+    Makes sure async_to_sync bails if you try to call it from an async loop
+    """
+
+    # Define async function
+    async def inner_async_function():
+        return 84
+
+    # Run it
+    sync_function = async_to_sync(inner_async_function)
+    with pytest.raises(RuntimeError):
+        sync_function()
