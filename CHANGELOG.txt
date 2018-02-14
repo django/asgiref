@@ -1,3 +1,11 @@
+2.1.5 (2018-02-14)
+------------------
+
+* Fixed issues with async_to_sync not setting the event loop correctly
+
+* Stop async_to_sync being called from threads with an active event loop
+
+
 2.1.4 (2018-02-07)
 ------------------
 
