@@ -21,10 +21,6 @@ class AsyncToSync:
             # There's no event loop in this thread. Look for the threadlocal if
             # we're inside SyncToAsync
             self.main_event_loop = getattr(SyncToAsync.threadlocal, "main_event_loop", None)
-            if self.main_event_loop is None:
-                raise RuntimeError(
-                    "You cannot instantiate AsyncToSync inside a thread that wasn't made using SyncToAsync"
-                )
 
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
@@ -42,7 +38,7 @@ class AsyncToSync:
         call_result = Future()
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread
-        if not self.main_event_loop.is_running():
+        if not (self.main_event_loop and self.main_event_loop.is_running()):
             # Make our own event loop and run inside that.
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)

@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -167,3 +168,24 @@ async def test_async_to_sync_in_async():
     sync_function = async_to_sync(inner_async_function)
     with pytest.raises(RuntimeError):
         sync_function()
+
+
+def test_async_to_sync_in_thread():
+    """
+    Tests we can call async_to_sync inside a thread
+    """
+    result = {}
+
+    # Define async function
+    @async_to_sync
+    async def test_function():
+        await asyncio.sleep(0)
+        result["worked"] = True
+
+    # Make a thread
+    thread = threading.Thread(target=test_function)
+    thread.start()
+    thread.join()
+
+    # Run it
+    assert result["worked"]
