@@ -47,7 +47,7 @@ class AsyncToSync:
             asyncio.set_event_loop(self.main_event_loop)
         else:
             self.main_event_loop.call_soon_threadsafe(
-                asyncio.ensure_future,
+                self.main_event_loop.create_task,
                 self.main_wrap(
                     args,
                     kwargs,
