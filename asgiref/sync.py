@@ -42,9 +42,15 @@ class AsyncToSync:
             # Make our own event loop and run inside that.
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.main_wrap(args, kwargs, call_result))
-            loop.close()
-            asyncio.set_event_loop(self.main_event_loop)
+            try:
+                loop.run_until_complete(self.main_wrap(args, kwargs, call_result))
+            finally:
+                try:
+                    if hasattr(loop, "shutdown_asyncgens"):
+                        loop.run_until_complete(loop.shutdown_asyncgens())
+                finally:
+                    loop.close()
+                    asyncio.set_event_loop(self.main_event_loop)
         else:
             self.main_event_loop.call_soon_threadsafe(
                 self.main_event_loop.create_task,
