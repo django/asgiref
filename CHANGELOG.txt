@@ -1,3 +1,10 @@
+2.1.6 (2018-02-19)
+------------------
+
+* async_to_sync now works inside of threads (but is still not allowed in threads
+  that have an active event loop)
+
+
 2.1.5 (2018-02-14)
 ------------------
 
