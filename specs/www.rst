@@ -15,7 +15,7 @@ HTTP
 
 The HTTP format covers HTTP/1.0, HTTP/1.1 and HTTP/2, as the changes in
 HTTP/2 are largely on the transport level. A protocol server should give
-different requests on the same HTTP2 connection different scopes, and
+different requests on the same HTTP/2 connection different scopes, and
 correctly multiplex the responses back into the same stream as they come in.
 The HTTP version is available as a string in the scope.
 
@@ -59,7 +59,7 @@ The connection scope contains:
   Optional (but must not be empty), default is ``"http"``.
 
 * ``path``: Unicode string HTTP path from URL, with percent escapes decoded
-  and UTF8 byte sequences decoded into characters.
+  and UTF-8 byte sequences decoded into characters.
 
 * ``query_string``: Byte string URL portion after the ``?``, not url-decoded.
 

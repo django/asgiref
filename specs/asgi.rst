@@ -8,7 +8,7 @@ Abstract
 
 This document proposes a standard interface between network protocol
 servers (particularly web servers) and Python applications, intended
-to allow handling of multiple common protocol styles (including HTTP, HTTP2,
+to allow handling of multiple common protocol styles (including HTTP, HTTP/2,
 and WebSocket).
 
 This base specification is intended to fix in place the set of APIs by which
@@ -50,10 +50,10 @@ Overview
 ASGI consists of two different components:
 
 - A *protocol server*, which terminates sockets and translates them into
-  per-event messages
+  connections and per-connection event messages.
 
 - An *application*, which lives inside a *protocol server*, is instantiated
-  once per socket, and handles event messages as they happen.
+  once per connection, and handles event messages as they happen.
 
 Like WSGI, the server hosts the application inside it, and dispatches incoming
 requests to it in a standardized format. Unlike WSGI, however, applications
@@ -63,8 +63,8 @@ or other processes if they need synchronous code).
 
 Unlike WSGI, there are two separate parts to an ASGI connection:
 
-- A *connection scope*, which represents a connection to a user and
-  survives until the user's connection closes.
+- A *connection scope*, which represents a protocol connection to a user and
+  survives until the connection closes.
 
 - *Events*, which are sent to the application as things happen on the
   connection.
@@ -87,7 +87,7 @@ what information it gets given upon creation, is called the *connection scope*.
 For example, under HTTP the connection scope lasts just one request, but it
 contains most of the request data (apart from the HTTP request body).
 
-Under WebSocket, though, this connection scope lasts for as long as the socket
+Under WebSocket, though, the connection scope lasts for as long as the socket
 is connected. The scope contains information like the WebSocket's path, but
 details like incoming messages come through as Events instead.
 
@@ -139,12 +139,12 @@ ASGI applications are defined as a callable::
 
     application(scope)
 
-* ``scope``: The Connection Scope, a disctionary that contains at least a
+* ``scope``: The Connection Scope, a dictionary that contains at least a
   ``type`` key specifying the protocol that is incoming.
 
-This first callable is called whenever a new socket comes in to the protocol
-server, and creates a new *instance* of the application per socket (the
-instance is the object that this first callable returns).
+This first callable is called whenever a new connection comes in to the
+protocol server, and creates a new *instance* of the application per
+connection (the instance is the object that this first callable returns).
 
 It must return another, awaitable callable::
 
