@@ -8,7 +8,7 @@ Abstract
 
 This document proposes a standard interface between network protocol
 servers (particularly web servers) and Python applications, intended
-to allow handling of multiple common protocol styles (including HTTP, HTTP2,
+to allow handling of multiple common protocol styles (including HTTP, HTTP/2,
 and WebSocket).
 
 This base specification is intended to fix in place the set of APIs by which
@@ -50,7 +50,7 @@ Overview
 ASGI consists of two different components:
 
 - A *protocol server*, which terminates sockets and translates them into
-  per-event messages
+  per-event messages.
 
 - An *application*, which lives inside a *protocol server*, is instantiated
   once per socket, and handles event messages as they happen.
@@ -139,7 +139,7 @@ ASGI applications are defined as a callable::
 
     application(scope)
 
-* ``scope``: The Connection Scope, a disctionary that contains at least a
+* ``scope``: The Connection Scope, a dictionary that contains at least a
   ``type`` key specifying the protocol that is incoming.
 
 This first callable is called whenever a new socket comes in to the protocol
