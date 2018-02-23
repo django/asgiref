@@ -125,7 +125,7 @@ serializable, and so they are only allowed to contain the following types:
 * Byte strings
 * Unicode strings
 * Integers (within the signed 64 bit range)
-* Floating point numbers (within the IEEE 754 double precision range)
+* Floating point numbers (within the IEEE 754 double precision range, no ``Nan`` or infinities)
 * Lists (tuples should be encoded as lists)
 * Dicts (keys must be unicode strings)
 * Booleans
