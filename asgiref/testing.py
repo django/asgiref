@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import CancelledError
 
 import async_timeout
 
@@ -23,9 +24,17 @@ class ApplicationCommunicator:
         """
         Waits for the application to stop itself and returns any exceptions.
         """
-        async with async_timeout.timeout(timeout):
-            await self.future
-            self.future.result()
+        try:
+            async with async_timeout.timeout(timeout):
+                await self.future
+                self.future.result()
+        finally:
+            if not self.future.done():
+                self.future.cancel()
+                try:
+                    await self.future()
+                except CancelledError:
+                    pass
 
     def stop(self, exceptions=True):
         if not self.future.done():
@@ -60,8 +69,14 @@ class ApplicationCommunicator:
         try:
             async with async_timeout.timeout(timeout):
                 return await self.output_queue.get()
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             # See if we have another error to raise inside
             if self.future.done():
                 self.future.result()
-            raise
+            else:
+                self.future.cancel()
+                try:
+                    await self.future
+                except CancelledError:
+                    pass
+            raise e
