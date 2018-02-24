@@ -95,7 +95,7 @@ Keys:
 
 * ``type``: ``http.request``
 
-* ``body``: Body of the request, as a byte string. Optional, defaults to ``""``.
+* ``body``: Body of the request, as a byte string. Optional, defaults to ``b""``.
   If ``more_body`` is set, treat as start of body and concatenate
   on further chunks.
 
@@ -139,7 +139,7 @@ Keys:
 
 * ``body``: Byte string of HTTP body content. Concatenated onto any previous
   ``body`` values sent in this connection scope. Optional, defaults to
-  ``""``.
+  ``b""``.
 
 * ``more_body``: Boolean value signifying if there is additional content
   to come (as part of a Response Body message). If ``False``, response will
