@@ -166,8 +166,11 @@ WebSockets share some HTTP details - they have a path and headers - but also
 have more state. Again, most of that state is in the scope, which will live
 as long as the socket does.
 
-WebSocket protocol servers should handle PING/PONG requests themselves, and
-send PING frames as necessary to ensure the connection is alive.
+WebSocket protocol servers should handle PING/PONG messages themselves, and
+send PING messages as necessary to ensure the connection is alive.
+
+WebSocket protocol servers should handle message fragmentation themselves,
+and deliver complete messages to the application.
 
 The WebSocket protocol should be signified to ASGI applications with
 a ``type`` value of ``websocket``.
@@ -244,15 +247,17 @@ Sent by the application when it wishes to accept an incoming connection.
 Receive
 '''''''
 
-Sent when a data frame is received from the client.
+Sent when a data message is received from the client.
 
 Keys:
 
 * ``type``: ``websocket.receive``
 
-* ``bytes``: Byte string of frame content, if it was binary mode, or ``None``.
+* ``bytes``: Byte string of the message content, if it was binary mode, or
+  ``None``.
 
-* ``text``: Unicode string of frame content, if it was text mode, or ``None``.
+* ``text``: Unicode string of the message content, if it was text mode, or
+  ``None``.
 
 Exactly one of ``bytes`` or ``text`` must be non-``None``.
 
@@ -260,15 +265,15 @@ Exactly one of ``bytes`` or ``text`` must be non-``None``.
 Send
 ''''
 
-Sends a data frame to the client.
+Sends a data message to the client.
 
 Keys:
 
 * ``type``: ``websocket.send``
 
-* ``bytes``: Byte string of binary frame content, or ``None``.
+* ``bytes``: Byte string of binary message content, or ``None``.
 
-* ``text``: Unicode string of text frame content, or ``None``.
+* ``text``: Unicode string of text message content, or ``None``.
 
 Exactly one of ``bytes`` or ``text`` must be non-``None``.
 
