@@ -1,3 +1,11 @@
+2.2.0 (2018-03-06)
+------------------
+
+* Cancelled tasks now correctly cascade-cancel their children
+
+* Communicator.wait() no longer re-raises CancelledError from inner coroutines
+
+
 2.1.6 (2018-02-19)
 ------------------
 
