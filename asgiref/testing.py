@@ -26,13 +26,16 @@ class ApplicationCommunicator:
         """
         try:
             async with async_timeout.timeout(timeout):
-                await self.future
-                self.future.result()
+                try:
+                    await self.future
+                    self.future.result()
+                except CancelledError:
+                    pass
         finally:
             if not self.future.done():
                 self.future.cancel()
                 try:
-                    await self.future()
+                    await self.future
                 except CancelledError:
                     pass
 
