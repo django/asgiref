@@ -58,8 +58,8 @@ ASGI consists of two different components:
 Like WSGI, the server hosts the application inside it, and dispatches incoming
 requests to it in a standardized format. Unlike WSGI, however, applications
 are instantiated objects that are fed events rather than simple callables,
-and must run as coroutines (on the main thread; they are free to use threading
-or other processes if they need synchronous code).
+and must run as ``asyncio``-compatible coroutines (on the main thread;
+they are free to use threading or other processes if they need synchronous code).
 
 Unlike WSGI, there are two separate parts to an ASGI connection:
 
