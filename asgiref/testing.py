@@ -83,3 +83,21 @@ class ApplicationCommunicator:
                 except CancelledError:
                     pass
             raise e
+
+    async def receive_nothing(self, timeout=0.1, attempt=0.01):
+        """
+        Checks that there is no message to receive in the given time.
+        """
+        # No reason to wait if there is a message already
+        if not self.output_queue.empty():
+            return False
+        # Keep time to wait short if possible
+        if timeout <= attempt:
+            await asyncio.sleep(timeout)
+            return self.output_queue.empty()
+        await asyncio.sleep(attempt)
+        if not self.output_queue.empty():
+            return False
+        # Wait for the timeout
+        await asyncio.sleep(timeout - attempt)
+        return self.output_queue.empty()
