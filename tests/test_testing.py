@@ -8,28 +8,28 @@ from asgiref.wsgi import WsgiToAsgi
 
 
 @pytest.mark.parametrize(
-    "event, timeout, attempt, duration, tolerance, expected", [
+    "event, timeout, interval, duration, tolerance, expected", [
         # No event
         # Standard values
         (False, 0.1, 0.01, 0.1, 0.03, True),
-        # attempt > timeout
-        (False, 0.1, 1, 0.1, 0.03, True),
-        # timeout % attempt > 0
-        (False, 1, 0.6, 1, 0.03, True),
+        # interval > timeout (interval has precedence over timeout)
+        (False, 0.1, 1, 1, 0.03, True),
+        # timeout % interval > 0 (interval cycle completes)
+        (False, 1, 0.6, 1.2, 0.03, True),
 
         # Events
         # Standard values
         (True, 0.1, 0.01, 0.01, 0.003, False),
         # No delay
         (True, 0, 0.01, 0, 0.003, True),
-        # No attempt
-        (True, 0.1, 0, 0.1, 0.03, False),
-        # attempt > timeout
-        (True, 0.1, 1, 0.1, 0.03, False),
+        # No interval
+        (True, 0.1, 0, 0, 0.003, False),
+        # interval > timeout (interval has precedence over timeout)
+        (True, 0.1, 1, 1, 0.03, False),
     ]
 )
 @pytest.mark.asyncio
-async def test_receive_nothing(event, timeout, attempt, duration, tolerance, expected):
+async def test_receive_nothing(event, timeout, interval, duration, tolerance, expected):
     """
     Tests ApplicationCommunicator.receive_nothing with different parameters.
     """
@@ -53,7 +53,7 @@ async def test_receive_nothing(event, timeout, attempt, duration, tolerance, exp
         })
 
     start = time.monotonic()
-    result = await instance.receive_nothing(timeout=timeout, attempt=attempt)
+    result = await instance.receive_nothing(timeout=timeout, interval=interval)
     end = time.monotonic()
     assert result is expected
     assert math.isclose(end - start, duration, abs_tol=tolerance)

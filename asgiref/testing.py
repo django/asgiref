@@ -1,4 +1,5 @@
 import asyncio
+import time
 from concurrent.futures import CancelledError
 
 import async_timeout
@@ -84,16 +85,14 @@ class ApplicationCommunicator:
                     pass
             raise e
 
-    async def receive_nothing(self, timeout=0.1, attempt=0.01):
+    async def receive_nothing(self, timeout=0.1, interval=0.01):
         """
         Checks that there is no message to receive in the given time.
         """
-        if attempt > 0:
-            for i in range(int(timeout // attempt)):
-                if not self.output_queue.empty():
-                    return False
-                await asyncio.sleep(attempt)
-            await asyncio.sleep(timeout % attempt)
-        else:
-            await asyncio.sleep(timeout)
+        # `interval` has precedence over `timeout`
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
+            if not self.output_queue.empty():
+                return False
+            await asyncio.sleep(interval)
         return self.output_queue.empty()
