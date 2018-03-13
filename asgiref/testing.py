@@ -88,16 +88,12 @@ class ApplicationCommunicator:
         """
         Checks that there is no message to receive in the given time.
         """
-        # No reason to wait if there is a message already
-        if not self.output_queue.empty():
-            return False
-        # Keep time to wait short if possible
-        if timeout <= attempt:
+        if attempt > 0:
+            for i in range(int(timeout // attempt)):
+                if not self.output_queue.empty():
+                    return False
+                await asyncio.sleep(attempt)
+            await asyncio.sleep(timeout % attempt)
+        else:
             await asyncio.sleep(timeout)
-            return self.output_queue.empty()
-        await asyncio.sleep(attempt)
-        if not self.output_queue.empty():
-            return False
-        # Wait for the timeout
-        await asyncio.sleep(timeout - attempt)
         return self.output_queue.empty()
