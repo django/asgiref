@@ -26,14 +26,18 @@ async def test_receive_nothing():
     # No event
     assert await instance.receive_nothing() is True
 
-    # Events
+    # Produce 3 events to receive
     await instance.send_input({
         "type": "http.request",
     })
+    # Start event of the response
     assert await instance.receive_nothing() is False
     await instance.receive_output()
+    # First body event of the response announcing further body event
     assert await instance.receive_nothing() is False
     await instance.receive_output()
+    # Last body event of the response
     assert await instance.receive_nothing() is False
     await instance.receive_output()
+    # Response received completely
     assert await instance.receive_nothing(0.01) is True
