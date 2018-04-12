@@ -1,3 +1,9 @@
+2.3.0 (2018-04-11)
+------------------
+
+* ApplicationCommunicator now has a receive_nothing() test available
+
+
 2.2.0 (2018-03-06)
 ------------------
 
