@@ -146,6 +146,10 @@ This first callable is called whenever a new connection comes in to the
 protocol server, and creates a new *instance* of the application per
 connection (the instance is the object that this first callable returns).
 
+This callable is synchronous, and may potentially contain blocking calls.
+Servers should call this in a threadpool or other similar mechanism so that
+it will not block the event loop on the main thread.
+
 It must return another, awaitable callable::
 
     coroutine application_instance(receive, send)
