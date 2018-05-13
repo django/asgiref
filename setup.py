@@ -26,7 +26,7 @@ setup(
         ],
     },
     install_requires=[
-        'async-timeout~=2.0',
+        'async_timeout>=3.0,<4.0',
     ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
