@@ -2,6 +2,7 @@
 ASGI (Asynchronous Server Gateway Interface) Specification
 ==========================================================
 
+**Version**: 2.0 (2018-05-13)
 
 Abstract
 ========
@@ -73,6 +74,12 @@ Applications are instantiated with a connection scope, and then run in an
 event loop where they are expected to handle events and send data back to the
 client.
 
+Each application instance maps to a single incoming "socket" or connection, and
+is expected to last the lifetime of that connection plus a little longer if
+there is cleanup to do. Some protocols may not use traditional sockets; ASGI
+specifications for those protocols are expected to define what the scope
+(instance) lifetime is and when it gets shut down.
+
 
 Specification Details
 =====================
@@ -102,16 +109,16 @@ event loop is entered, and depending on the protocol spec, may have to
 wait for an initial opening message.
 
 
-Events and Messages
--------------------
+Events
+------
 
-ASGI decomposes protocols into a series of events that an application must
+ASGI decomposes protocols into a series of *events* that an application must
 react to. For HTTP, this is as simple as two events in order - ``http.request``
 and ``http.disconnect``. For something like a WebSocket, it could be more like
 ``websocket.connect``, ``websocket.receive``, ``websocket.receive``,
 ``websocket.disconnect``.
 
-Each message is a ``dict`` with a top-level ``type`` key that contains a
+Each event is a ``dict`` with a top-level ``type`` key that contains a
 unicode string of the message type. Users are free to invent their own message
 types and send them between application instances for high-level events - for
 example, a chat application might send chat messages with a user type of
@@ -146,16 +153,17 @@ This first callable is called whenever a new connection comes in to the
 protocol server, and creates a new *instance* of the application per
 connection (the instance is the object that this first callable returns).
 
-This callable is synchronous, and may potentially contain blocking calls.
-Servers should call this in a threadpool or other similar mechanism so that
-it will not block the event loop on the main thread.
+This callable is synchronous, and must not contain blocking calls (it's
+recommended that all it does is store the scope). If you need to do
+blocking work, you must do it at the start of the next callable, before you
+application awaits incoming events.
 
 It must return another, awaitable callable::
 
     coroutine application_instance(receive, send)
 
-* ``receive``, an awaitable that will yield a new Event when one is available
-* ``send``, an awaitable that will return once the send has been completed
+* ``receive``, an awaitable callable that will yield a new Event when one is available
+* ``send``, an awaitable callable that will return once the send has been completed
 
 This design is perhaps more easily recognised as one of its possible
 implementations, as a class::
@@ -163,7 +171,7 @@ implementations, as a class::
     class Application:
 
         def __init__(self, scope):
-            ...
+            self.scope = scope
 
         async def __call__(self, receive, send):
             ...
@@ -173,8 +181,9 @@ to allow more flexibility for things like factory functions or type-based
 dispatchers.
 
 Both the ``scope`` and the format of the messages you send and receive are
-defined by one of the application protocols. The key ``scope["type"]`` will
-always be present, and can be used to work out which protocol is incoming.
+defined by one of the application protocols. ``scope`` must be a ``dict``.
+The key ``scope["type"]`` will always be present, and can be used to work
+out which protocol is incoming.
 
 The protocol-specific sub-specifications cover these scope
 and message formats. They are equivalent to the specification for keys in the
@@ -189,7 +198,7 @@ These describe the standardized scope and message formats for various protocols.
 The one common key across all scopes and messages is ``type``, a way to indicate
 what type of scope or message is being received.
 
-In scopes, the ``type`` key should be a simple string, like ``"http"`` or
+In scopes, the ``type`` key should be a unicode string, like ``"http"`` or
 ``"websocket"``, as defined in the specification.
 
 In messages, the ``type`` should be namespaced as ``protocol.message_type``,
@@ -225,11 +234,8 @@ in Python 3.
 This document will never specify just *string* - all strings are one of the
 two exact types.
 
-Some serializers, such as ``json``, cannot differentiate between byte
-strings and unicode strings; these should include logic to box one type as
-the other (for example, encoding byte strings as base64 unicode strings with
-a preceding special character, e.g. U+FFFF), so the distinction is always
-preserved even across the network.
+All dict keys mentioned (including those for *scopes* and *events*) are
+unicode strings.
 
 
 Copyright
