@@ -2,6 +2,8 @@
 HTTP & WebSocket ASGI Message Format
 ====================================
 
+**Version**: 2.0 (2017-11-28)
+
 The HTTP+WebSocket ASGI sub-specification outlines how to transport HTTP/1.1,
 HTTP/2 and WebSocket connections within ASGI.
 
@@ -336,3 +338,44 @@ The ``start_response`` callable maps similarly to ``http.response.start``:
 
 Yielding content from the WSGI application maps to sending
 ``http.response.body`` messages.
+
+
+WSGI encoding differences
+-------------------------
+
+The WSGI specification (as defined in PEP 3333) specifies that all strings
+sent to or from the server must be of the ``str`` type but only contain
+codepoints in the ISO-8859-1 ("latin-1") range. This was due to it originally
+being designed for Python 2 and its different set of string types.
+
+The ASGI HTTP and WebSocket specifications instead specify each entry of the
+``scope`` dict as either a bytestring or a unicode string. HTTP, being an older
+protocol, is sometimes imperfect at specifying encoding, so some decisions
+of what is unicode versus bytes may not be obvious.
+
+* ``path``: URLs can have both percent-encoded and UTF-8 encoded sections.
+  Because decoding these is often done by the underlying server (or sometimes
+  even proxies in the path), this is a unicode string, fully decoded from both
+  UTF-8 encoding and percent encodings.
+
+* ``headers``: These are bytestrings of the exact byte sequences sent by the
+  client/to be sent by the server. While modern HTTP standards say that headers
+  should be ASCII, older ones did not and allowed a wider range of characters.
+  Frameworks/applications should decode headers as they deem appropriate.
+
+* ``query_string``: Unlike the ``path``, this is not as subject to server
+  interference and so is presented as its raw bytestring version, undecoded.
+
+* ``root_path``: Unicode to match ``path``.
+
+
+Version History
+===============
+
+* 2.0 (2017-11-28): Initial non-channel-layer based ASGI spec
+
+
+Copyright
+=========
+
+This document has been placed in the public domain.

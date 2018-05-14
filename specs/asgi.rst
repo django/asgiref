@@ -2,7 +2,7 @@
 ASGI (Asynchronous Server Gateway Interface) Specification
 ==========================================================
 
-**Version**: 2.0 (2018-05-13)
+**Version**: 2.0 (2017-11-28)
 
 Abstract
 ========
@@ -92,7 +92,8 @@ that application being created for the connection. How long this lives, and
 what information it gets given upon creation, is called the *connection scope*.
 
 For example, under HTTP the connection scope lasts just one request, but it
-contains most of the request data (apart from the HTTP request body).
+contains most of the request data (apart from the HTTP request body, as this
+is streamed in via events).
 
 Under WebSocket, though, the connection scope lasts for as long as the socket
 is connected. The scope contains information like the WebSocket's path, but
@@ -198,30 +199,58 @@ These describe the standardized scope and message formats for various protocols.
 The one common key across all scopes and messages is ``type``, a way to indicate
 what type of scope or message is being received.
 
-In scopes, the ``type`` key should be a unicode string, like ``"http"`` or
-``"websocket"``, as defined in the specification.
+In scopes, the ``type`` key must be a unicode string, like ``"http"`` or
+``"websocket"``, as defined in the relevant protocol specification.
 
 In messages, the ``type`` should be namespaced as ``protocol.message_type``,
 where the ``protocol`` matches the scope type, and ``message_type`` is
 defined by the protocol spec. Examples of a message ``type`` value include
 ``http.request`` and ``websocket.send``.
 
-(add links here)
+Current protocol specifications:
+
+* `HTTP and WebSocket <https://github.com/django/asgiref/blob/master/specs/www.rst>`_
 
 
-Protocol Format Guidelines
---------------------------
+Extensions
+----------
 
-Message formats for protocols should follow these rules, unless
-a very good performance or implementation reason is present:
+There are times when protocol servers may want to provide server-specific
+extensions outside of a core ASGI protocol specification, or when a change
+to a specification is being trialled before being rolled in.
 
-* If the protocol has low-level negotiation, keepalive or other features,
-  handle these within the protocol server and don't expose them in ASGI
-  events. You want to try and complete negotiation and present the application
-  with rich information in its connection scope.
+For this use case, we define a common pattern for ``extensions`` - named
+additions to a protocol specification that are optional but that, if provided
+by the server and understood by the application, can be used to get more
+functionality.
 
-* If the protocol is datagram-based, one datagram should equal one ASGI message
-  (unless size is an issue)
+This is achieved via a ``extensions`` entry in the ``scope`` dict, which is
+itself a dict. Extensions have a unicode string name that
+is agreed upon between servers and applications.
+
+If the server supports an extension, it should place an entry into the
+``extensions`` dict under the extension's name, and the value of that entry
+should itself be a dict. Servers can provide any extra scope information
+that is part of the extension inside this dict value, or if the extension is
+only to indicate that the server accepts additional events via the ``send``
+callable, it may just be an empty dict.
+
+As an example, imagine a HTTP protocol server wishes to provide an extension
+that allows a new event to be sent back to the server that tries to flush the
+network send buffer all the way through the OS level. It provides an empty
+entry in the extensions dict to signal that it can handle the event::
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        ...
+        "extensions": {
+            "fullflush": {},
+        },
+    }
+
+If an application sees this it then knows it can send the custom event
+(say, of type ``http.fullflush``) via the ``send`` callable.
 
 
 Strings and Unicode
@@ -236,6 +265,12 @@ two exact types.
 
 All dict keys mentioned (including those for *scopes* and *events*) are
 unicode strings.
+
+
+Version History
+===============
+
+* 2.0 (2017-11-28): Initial non-channel-layer based ASGI spec
 
 
 Copyright
