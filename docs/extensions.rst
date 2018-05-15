@@ -39,3 +39,37 @@ The messages themselves should be ``websocket.http.response.start``
 and ``websocket.http.response.body`` with a structure that matches the
 ``http.response.start`` and ``http.response.body`` messages defined in
 the HTTP part of the core ASGI specification.
+
+HTTP/2 Server Push
+------------------
+
+HTTP/2 allows for a server to push a resource to a client by sending a
+push promise. ASGI servers that implement this extension will provide
+``http.response.push`` in the extensions part of the scope::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.push": {},
+        },
+    }
+
+An ASGI framework can initiate a server push by sending a message with
+the following keys, This message can be sent at any time after the
+*Response Start* message but before the final *Response Body* message.
+
+Keys:
+
+* ``type``: ``http.response.push``
+
+* ``path``: Unicode string HTTP path from URL, with percent escapes
+  decoded and UTF-8 byte sequences decoded into characters.
+
+* ``headers``: A list of ``[name, value]`` lists, where ``name`` is the
+  byte string header name, and ``value`` is the byte string
+  header value. Header names must be lowercased.
+
+The ASGI server should then attempt to send a server push (or push
+promise) to the client. If the client accepts the server should create
+a new connection to a new instance of the application and treat it as
+if the client had made a request.
