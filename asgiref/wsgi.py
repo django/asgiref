@@ -126,4 +126,7 @@ class WsgiToAsgiInstance:
                 "more_body": True,
             })
         # Close connection
+        if not self.response_started:
+            self.response_started = True
+            self.sync_send(self.response_start)
         self.sync_send({"type": "http.response.body"})
