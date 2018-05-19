@@ -219,11 +219,15 @@ Error Handling
 
 If a server receives an invalid event dict - for example, with an unknown type,
 missing keys a type should have, or with wrong Python types for objects (e.g.
-unicode strings for HTTP headers), it should raise an error out of the ``send``
-awaitable back into the application.
+unicode strings for HTTP headers), it should raise an exception out of the
+``send`` awaitable back into the application.
 
 If an application receives an invalid event dict from ``receive`` it should
 raise an exception.
+
+In both cases, presence of additional keys in the event dict should not raise
+an exception. This is to allow non-breaking upgrades to protocol specifications
+over time.
 
 Servers are free to surface errors that bubble up out of application instances
 they are running however they wish - log to console, send to syslog, or other
