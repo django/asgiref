@@ -163,8 +163,10 @@ It must return another, awaitable callable::
 
     coroutine application_instance(receive, send)
 
-* ``receive``, an awaitable callable that will yield a new Event when one is available
-* ``send``, an awaitable callable that will return once the send has been completed
+* ``receive``, an awaitable callable that will yield a new event dict when
+  one is available
+* ``send``, an awaitable callable taking a single event dict as a positional
+  argument that will return once the send has been completed
 
 This design is perhaps more easily recognised as one of its possible
 implementations, as a class::
@@ -210,6 +212,23 @@ defined by the protocol spec. Examples of a message ``type`` value include
 Current protocol specifications:
 
 * `HTTP and WebSocket <https://github.com/django/asgiref/blob/master/specs/www.rst>`_
+
+
+Error Handling
+--------------
+
+If a server receives an invalid event dict - for example, with an unknown type,
+missing keys a type should have, or with wrong Python types for objects (e.g.
+unicode strings for HTTP headers), it should raise an error out of the ``send``
+awaitable back into the application.
+
+If an application receives an invalid event dict from ``receive`` it should
+raise an exception.
+
+Servers are free to surface errors that bubble up out of application instances
+they are running however they wish - log to console, send to syslog, or other
+options - but they must terminate the application instance and its associated
+connection if this happens.
 
 
 Extensions
