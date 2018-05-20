@@ -214,6 +214,30 @@ Current protocol specifications:
 * `HTTP and WebSocket <https://github.com/django/asgiref/blob/master/specs/www.rst>`_
 
 
+Middleware
+----------
+
+It is possible to have ASGI "middleware" - code that plays the role of both
+server and application, taking in a scope and the send/receive awaitables,
+potentially modifying them, and then calling an inner application.
+
+When middleware is modifying the scope, it should make a copy of the scope
+object before mutating it and passing it to the inner application, as otherwise
+changes may leak upstream. In particular, you should not assume that the copy
+of the scope you pass down to the application is the one that it ends up using,
+as there may be other middleware in the way; thus, do not keep a reference to
+it and try to mutate it outside of the initial ASGI constructor callable that
+gets passed ``scope``.
+
+It's notable that the part of ASGI applications that gets to modify the
+``scope`` runs synchronously, as it's designed to be compatible with Python
+class constructors. If you need to put objects into the scope that require
+blocking/asynchronous work to resolve, then either make them awaitables
+themselves, or make objects that you can fill in later during the coroutine
+entry (remember, the objects must be modifiable; you cannot keep a reference
+to the scope and try to add keys later).
+
+
 Error Handling
 --------------
 
