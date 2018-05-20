@@ -14,4 +14,4 @@ ASGI standard, as well as other examples and tips on implementation.
 
    introduction
    specs/index
-
+   extensions
