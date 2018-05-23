@@ -89,13 +89,11 @@ class SyncToAsync:
     calls to AsyncToSync can escape it.
     """
 
-    threadpool = ThreadPoolExecutor(
-        max_workers=(
-            int(os.environ["ASGI_THREADS"])
-            if "ASGI_THREADS" in os.environ
-            else None
-        )
-    )
+    # If they've set ASGI_THREADS, update the default asyncio executor for now
+    if "ASGI_THREADS" in os.environ:
+        loop = asyncio.get_event_loop()
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"])))
+
     threadlocal = threading.local()
 
     def __init__(self, func):
@@ -104,7 +102,7 @@ class SyncToAsync:
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
         future = loop.run_in_executor(
-            self.threadpool,
+            None,
             functools.partial(self.thread_handler, loop, *args, **kwargs),
         )
         return await asyncio.wait_for(future, timeout=None)
