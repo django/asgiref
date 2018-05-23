@@ -1,3 +1,9 @@
+2.3.2 (2018-05-23)
+------------------
+
+* Packaging fix to allow old async_timeout dependencies (2.0 as well as 3.0)
+
+
 2.3.1 (2018-05-23)
 ------------------
 
