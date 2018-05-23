@@ -27,7 +27,9 @@ async def test_sync_to_async():
     assert result == 42
     assert end - start >= 1
     # Set workers to 1, call it twice and make sure that works right
-    old_threadpool, sync_to_async.threadpool = sync_to_async.threadpool, ThreadPoolExecutor(max_workers=1)
+    loop = asyncio.get_event_loop()
+    old_executor = loop._default_executor
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
     try:
         start = time.monotonic()
         await asyncio.wait([async_function(), async_function()])
@@ -35,7 +37,7 @@ async def test_sync_to_async():
         # It should take at least 2 seconds as there's only one worker.
         assert end - start >= 2
     finally:
-        sync_to_async.threadpool = old_threadpool
+        loop.set_default_executor(old_executor)
 
 
 @pytest.mark.asyncio
