@@ -168,6 +168,11 @@ It must return another, awaitable callable::
 * ``send``, an awaitable callable taking a single event dict as a positional
   argument that will return once the send has been completed
 
+The application may have ``startup`` and ``cleanup`` attributes that
+are coroutine functions taking no arguments. If these attributes exist
+they will be awaited once per server process before serving a single
+request and after serving all requests respectively.
+
 This design is perhaps more easily recognised as one of its possible
 implementations, as a class::
 
@@ -177,6 +182,12 @@ implementations, as a class::
             self.scope = scope
 
         async def __call__(self, receive, send):
+            ...
+
+        async def startup(self):
+            ...
+
+        async def cleanup(self):
             ...
 
 The application interface is specified as the more generic case of two callables
