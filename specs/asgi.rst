@@ -116,7 +116,7 @@ Events
 ASGI decomposes protocols into a series of *events* that an application must
 react to. For HTTP, this is as simple as two events in order - ``http.request``
 and ``http.disconnect``. For something like a WebSocket, it could be more like
-``websocket.connect``, ``websocket.receive``, ``websocket.receive``,
+``websocket.connect``, ``websocket.send``, ``websocket.receive``,
 ``websocket.disconnect``.
 
 Each event is a ``dict`` with a top-level ``type`` key that contains a
