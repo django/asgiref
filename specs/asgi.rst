@@ -211,7 +211,7 @@ defined by the protocol spec. Examples of a message ``type`` value include
 
 Current protocol specifications:
 
-* `HTTP and WebSocket <https://github.com/django/asgiref/blob/master/specs/www.rst>`_
+* :doc:`HTTP and WebSocket <www>`
 
 
 Middleware
