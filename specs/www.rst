@@ -256,12 +256,13 @@ Keys:
 * ``type``: ``websocket.receive``
 
 * ``bytes``: Byte string of the message content, if it was binary mode, or
-  ``None``.
+  ``None``. Optional; if missing, it is equivalent to ``None``.
 
 * ``text``: Unicode string of the message content, if it was text mode, or
-  ``None``.
+  ``None``. Optional; if missing, it is equivalent to ``None``.
 
-Exactly one of ``bytes`` or ``text`` must be non-``None``.
+Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
+keys may be present, however.
 
 
 Send
@@ -274,10 +275,13 @@ Keys:
 * ``type``: ``websocket.send``
 
 * ``bytes``: Byte string of binary message content, or ``None``.
+   Optional; if missing, it is equivalent to ``None``.
 
 * ``text``: Unicode string of text message content, or ``None``.
+   Optional; if missing, it is equivalent to ``None``.
 
-Exactly one of ``bytes`` or ``text`` must be non-``None``.
+Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
+keys may be present, however.
 
 
 Disconnection
