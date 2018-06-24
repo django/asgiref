@@ -165,8 +165,9 @@ It must return another, awaitable callable::
 
 * ``receive``, an awaitable callable that will yield a new event dict when
   one is available
-* ``send``, an awaitable callable taking a single event dict as a positional
-  argument that will return once the send has been completed
+* ``send``, an awaitable callable taking a single event dict as a
+  positional argument that will return once the send has been
+  completed or the connection has been closed
 
 This design is perhaps more easily recognised as one of its possible
 implementations, as a class::
@@ -257,6 +258,10 @@ Servers are free to surface errors that bubble up out of application instances
 they are running however they wish - log to console, send to syslog, or other
 options - but they must terminate the application instance and its associated
 connection if this happens.
+
+Note messages received by a server after the connection has been
+closed are not considered errors. In this case the send awaitable
+callable should act as a no-op.
 
 
 Extensions
