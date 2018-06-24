@@ -69,18 +69,18 @@ The connection scope contains:
   is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional, defaults
   to ``""``.
 
-* ``headers``: A list of ``[name, value]`` two-item iterables, where ``name``
+* ``headers``: A two-item iterable of ``[name, value]``, where ``name``
   is the byte string header name, and ``value`` is the byte string
   header value. Order of header values must be preserved from the original HTTP
   request; order of header names is not important. Duplicates are possible and
   must be preserved in the message as received.
   Header names must be lowercased.
 
-* ``client``: List of ``[host, port]`` two-item iterables, where ``host``
+* ``client``: A two-item iterable of ``[host, port]``, where ``host``
   is a unicode string of the remote host's IPv4 or IPv6 address, and
   ``port`` is the remote port as an integer. Optional, defaults to ``None``.
 
-* ``server``: List of ``[host, port]`` two-item iterables, where ``host``
+* ``server``: A two-item iterable of ``[host, port]``, where ``host``
   is the listening address for this server as a unicode string, and ``port``
   is the integer listening port. Optional, defaults to ``None``.
 
@@ -205,11 +205,11 @@ contains the initial connection metadata (mostly from the HTTP handshake):
   duplicates are possible and must be preserved in the message as received.
   Header names must be lowercased.
 
-* ``client``: List of ``[host, port]`` two-item iterables, where ``host``
+* ``client``: A two-item iterable of ``[host, port]``, where ``host``
   is a unicode string of the remote host's IPv4 or IPv6 address, and
   ``port`` is the remote port as an integer. Optional, defaults to ``None``.
 
-* ``server``: List of ``[host, port]`` two-item iterables, where ``host``
+* ``server``: A two-item iterable of ``[host, port]``, where ``host``
   is the listening address for this server as a unicode string, and ``port``
   is the integer listening port. Optional, defaults to ``None``.
 
