@@ -69,8 +69,8 @@ The connection scope contains:
   is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional, defaults
   to ``""``.
 
-* ``headers``: A two-item iterable of ``[name, value]``, where ``name``
-  is the byte string header name, and ``value`` is the byte string
+* ``headers``: An iterable of ``[name, value]`` two-item iterables, where
+  ``name`` is the byte string header name, and ``value`` is the byte string
   header value. Order of header values must be preserved from the original HTTP
   request; order of header names is not important. Duplicates are possible and
   must be preserved in the message as received.
@@ -199,9 +199,9 @@ contains the initial connection metadata (mostly from the HTTP handshake):
   is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional, defaults
   to empty string.
 
-* ``headers``: List of ``[name, value]`` two-item iterables, where ``name`` is
-  the header name as byte string and ``value`` is the header value as a byte
-  string. Order should be preserved from the original HTTP request;
+* ``headers``: An iterable of ``[name, value]`` two-item iterables, where
+  ``name`` is the header name as byte string and ``value`` is the header value
+  as a byte string. Order should be preserved from the original HTTP request;
   duplicates are possible and must be preserved in the message as received.
   Header names must be lowercased.
 
