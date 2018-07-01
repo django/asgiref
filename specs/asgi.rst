@@ -212,6 +212,8 @@ defined by the protocol spec. Examples of a message ``type`` value include
 
 Current protocol specifications:
 
+* :doc:`Lifespan <lifespan>`
+
 * :doc:`HTTP and WebSocket <www>`
 
 
