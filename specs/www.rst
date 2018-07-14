@@ -152,9 +152,10 @@ Keys:
 Disconnect
 ''''''''''
 
-Sent to the application when a HTTP connection is closed. This is mainly
-useful for long-polling, where you may want to trigger cleanup code if
-the connection closes early.
+Sent to the application when a HTTP connection is closed or if receive
+is called after a response has been sent. This is mainly useful for
+long-polling, where you may want to trigger cleanup code if the
+connection closes early.
 
 Keys:
 
