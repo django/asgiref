@@ -15,30 +15,39 @@ class AsyncToSync:
 
     def __init__(self, awaitable):
         self.awaitable = awaitable
+
+    def __call__(self, *args, **kwargs):
+        # Make a future for the return information
+        call_result = Future()
+        threadlocal = False
         try:
-            self.main_event_loop = asyncio.get_event_loop()
+            main_event_loop = asyncio.get_event_loop()
         except RuntimeError:
             # There's no event loop in this thread. Look for the threadlocal if
             # we're inside SyncToAsync
-            self.main_event_loop = getattr(SyncToAsync.threadlocal, "main_event_loop", None)
-
-    def __call__(self, *args, **kwargs):
-        # You can't call AsyncToSync from a thread with a running event loop
-        try:
-            event_loop = asyncio.get_event_loop()
-        except RuntimeError:
-            pass
-        else:
-            if event_loop.is_running():
-                raise RuntimeError(
-                    "You cannot use AsyncToSync in the same thread as an async event loop - "
-                    "just await the async function directly."
+            main_event_loop = getattr(SyncToAsync.threadlocal, "main_event_loop", None)
+            threadlocal = True
+        if main_event_loop and main_event_loop.is_running():
+            if threadlocal:
+                # Schedule a synchronous callback to the thread local event loop.
+                main_event_loop.call_soon_threadsafe(
+                    main_event_loop.create_task,
+                    self.main_wrap(args, kwargs, call_result)
                 )
-        # Make a future for the return information
-        call_result = Future()
-        # Use call_soon_threadsafe to schedule a synchronous callback on the
-        # main event loop's thread
-        if not (self.main_event_loop and self.main_event_loop.is_running()):
+            else:
+                # Calling coroutine from main async thread will cause race.
+                # Call the coroutine in a new thread.
+                def run_in_thread():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        loop.run_until_complete(self.main_wrap(args, kwargs, call_result))
+                    finally:
+                        loop.close()
+                thread = threading.Thread(target=run_in_thread)
+                thread.start()
+                thread.join()
+        else:
             # Make our own event loop and run inside that.
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -50,16 +59,7 @@ class AsyncToSync:
                         loop.run_until_complete(loop.shutdown_asyncgens())
                 finally:
                     loop.close()
-                    asyncio.set_event_loop(self.main_event_loop)
-        else:
-            self.main_event_loop.call_soon_threadsafe(
-                self.main_event_loop.create_task,
-                self.main_wrap(
-                    args,
-                    kwargs,
-                    call_result,
-                ),
-            )
+                    asyncio.set_event_loop(main_event_loop)
         # Wait for results from the future.
         return call_result.result()
 
