@@ -7,11 +7,15 @@ asgiref
 .. image:: https://img.shields.io/pypi/v/asgiref.svg
     :target: https://pypi.python.org/pypi/asgiref
 
-ASGI base libraries, including:
+ASGI is a standard for Python asynchronous web apps and servers to communicate
+with each other, and positioned as an asynchronous successor to WSGI. You can
+read more at https://asgi.readthedocs.io/en/latest/
+
+This package includes ASGI base libraries, such as:
 
 * Sync-to-async and async-to-sync function wrappers, ``asgiref.sync``
 * Server base classes, ``asgiref.server``
-* WSGI-to-ASGI adapter, in ``asgiref.wsgi``
+* A WSGI-to-ASGI adapter, in ``asgiref.wsgi``
 
 
 Function wrappers
