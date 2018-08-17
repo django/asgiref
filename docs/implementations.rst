@@ -48,6 +48,24 @@ original driving force behind the ASGI project. Supports HTTP and WebSockets
 with Django integration, and any protocol with ASGI-native code.
 
 
+API Star
+--------
+
+*Beta* / https://github.com/encode/apistar
+
+A smart Web API framework that runs via ASGI. Supports HTTP.
+
+
+Quart
+-----
+
+*Beta* / https://github.com/pgjones/quart
+
+Quart is a Python ASGI web microframework. It is intended to provide the easiest
+way to use asyncio functionality in a web context, especially with existing Flask apps.
+Supports HTTP.
+
+
 Starlette
 ---------
 
