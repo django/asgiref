@@ -184,10 +184,14 @@ The application interface is specified as the more generic case of two callables
 to allow more flexibility for things like factory functions or type-based
 dispatchers.
 
-Both the ``scope`` and the format of the messages you send and receive are
-defined by one of the application protocols. ``scope`` must be a ``dict``.
-The key ``scope["type"]`` will always be present, and can be used to work
-out which protocol is incoming.
+Both the ``scope`` and the format of the messages you send and receive
+are defined by one of the application protocols. ``scope`` must be a
+``dict``.  The key ``scope["type"]`` will always be present, and can
+be used to work out which protocol is incoming. The key
+``scope["asgi"]`` will also be present as a dictionary containing a
+``scope["asgi"]["version"]`` key that corresponds to the ASGI version
+the server implements. If missing the version should default to
+``"2.0"``.
 
 The protocol-specific sub-specifications cover these scope
 and message formats. They are equivalent to the specification for keys in the
