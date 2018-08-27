@@ -18,6 +18,7 @@ async def test_sync_to_async():
     def sync_function():
         time.sleep(1)
         return 42
+
     # Wrap it
     async_function = sync_to_async(sync_function)
     # Check it works right
@@ -50,6 +51,7 @@ async def test_sync_to_async_decorator():
     def test_function():
         time.sleep(1)
         return 43
+
     # Check it works right
     result = await test_function()
     assert result == 43
@@ -66,6 +68,7 @@ async def test_sync_to_async_method_decorator():
         def test_method(self):
             time.sleep(1)
             return 44
+
     # Check it works right
     instance = TestClass()
     result = await instance.test_method()

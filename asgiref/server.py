@@ -86,10 +86,12 @@ class StatelessServer:
         input_queue = asyncio.Queue()
         application_instance = self.application(scope=scope)
         # Run it, and stash the future for later checking
-        future = asyncio.ensure_future(application_instance(
-            receive=input_queue.get,
-            send=lambda message: self.application_send(scope, message),
-        ))
+        future = asyncio.ensure_future(
+            application_instance(
+                receive=input_queue.get,
+                send=lambda message: self.application_send(scope, message),
+            )
+        )
         self.application_instances[scope_id] = {
             "input_queue": input_queue,
             "future": future,
@@ -103,8 +105,7 @@ class StatelessServer:
         Finds and deletes the oldest application instance
         """
         oldest_time = min(
-            details["last_used"]
-            for details in self.application_instances.values()
+            details["last_used"] for details in self.application_instances.values()
         )
         for scope_id, details in self.application_instances.items():
             if details["last_used"] == oldest_time:
@@ -148,8 +149,6 @@ class StatelessServer:
         logging.error(
             "Exception inside application: %s\n%s%s",
             exception,
-            "".join(traceback.format_tb(
-                exception.__traceback__,
-            )),
+            "".join(traceback.format_tb(exception.__traceback__)),
             "  {}".format(exception),
         )

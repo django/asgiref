@@ -13,23 +13,25 @@ async def test_receive_nothing():
     def wsgi_application(environ, start_response):
         start_response("200 OK", [])
         yield b"content"
+
     application = WsgiToAsgi(wsgi_application)
-    instance = ApplicationCommunicator(application, {
-        "type": "http",
-        "http_version": "1.0",
-        "method": "GET",
-        "path": "/foo/",
-        "query_string": b"bar=baz",
-        "headers": [],
-    })
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/foo/",
+            "query_string": b"bar=baz",
+            "headers": [],
+        },
+    )
 
     # No event
     assert await instance.receive_nothing() is True
 
     # Produce 3 events to receive
-    await instance.send_input({
-        "type": "http.request",
-    })
+    await instance.send_input({"type": "http.request"})
     # Start event of the response
     assert await instance.receive_nothing() is False
     await instance.receive_output()

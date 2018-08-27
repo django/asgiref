@@ -20,7 +20,9 @@ class AsyncToSync:
         except RuntimeError:
             # There's no event loop in this thread. Look for the threadlocal if
             # we're inside SyncToAsync
-            self.main_event_loop = getattr(SyncToAsync.threadlocal, "main_event_loop", None)
+            self.main_event_loop = getattr(
+                SyncToAsync.threadlocal, "main_event_loop", None
+            )
 
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
@@ -54,11 +56,7 @@ class AsyncToSync:
         else:
             self.main_event_loop.call_soon_threadsafe(
                 self.main_event_loop.create_task,
-                self.main_wrap(
-                    args,
-                    kwargs,
-                    call_result,
-                ),
+                self.main_wrap(args, kwargs, call_result),
             )
         # Wait for results from the future.
         return call_result.result()
@@ -92,7 +90,9 @@ class SyncToAsync:
     # If they've set ASGI_THREADS, update the default asyncio executor for now
     if "ASGI_THREADS" in os.environ:
         loop = asyncio.get_event_loop()
-        loop.set_default_executor(ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"])))
+        loop.set_default_executor(
+            ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
+        )
 
     threadlocal = threading.local()
 
@@ -102,8 +102,7 @@ class SyncToAsync:
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
         future = loop.run_in_executor(
-            None,
-            functools.partial(self.thread_handler, loop, *args, **kwargs),
+            None, functools.partial(self.thread_handler, loop, *args, **kwargs)
         )
         return await asyncio.wait_for(future, timeout=None)
 

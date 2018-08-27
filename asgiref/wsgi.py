@@ -90,7 +90,9 @@ class WsgiToAsgiInstance:
             raise exc_info[1].with_traceback(exc_info[2])
         # Don't allow re-calling without exc_info
         if hasattr(self, "response_start") and exc_info is None:
-            raise ValueError("You cannot call start_response a second time without exc_info")
+            raise ValueError(
+                "You cannot call start_response a second time without exc_info"
+            )
         # Extract status code
         status_code, _ = status.split(" ", 1)
         status_code = int(status_code)
@@ -120,11 +122,9 @@ class WsgiToAsgiInstance:
             if not self.response_started:
                 self.response_started = True
                 self.sync_send(self.response_start)
-            self.sync_send({
-                "type": "http.response.body",
-                "body": output,
-                "more_body": True,
-            })
+            self.sync_send(
+                {"type": "http.response.body", "body": output, "more_body": True}
+            )
         # Close connection
         if not self.response_started:
             self.response_started = True
