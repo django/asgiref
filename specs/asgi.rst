@@ -218,6 +218,7 @@ Current protocol specifications:
 
 * :doc:`HTTP and WebSocket <www>`
 
+* :doc:`Startup and Cleanup (Lifespan) <lifespan>`
 
 Middleware
 ----------
