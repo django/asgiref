@@ -268,6 +268,20 @@ closed are not considered errors. In this case the send awaitable
 callable should act as a no-op.
 
 
+Extra Coroutines
+----------------
+
+Frameworks or applications may want to run extra coroutines in addition to the
+coroutine launched for each application instance. Since there is no way to
+parent these to the instance's coroutine in Python 3.7, applications should
+ensure that all coroutines launched as part of running an application instance
+are terminated either before or at the same time as the application instance's
+coroutine.
+
+Any coroutines that continue to run outside of this window have no guarantees
+about their lifetime and may be killed at any time.
+
+
 Extensions
 ----------
 
