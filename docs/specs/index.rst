@@ -12,3 +12,4 @@ each protocol.
 
    ASGI Specification <main>
    HTTP and WebSocket protocol <www>
+   Lifespan <lifespan>
