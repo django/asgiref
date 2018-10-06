@@ -302,6 +302,16 @@ Keys:
 Close
 '''''
 
+Tells the server to close the connection.
+
+If this is sent before the socket is accepted, the server
+must close the connection with a HTTP 403 error code
+(Forbidden), and not complete the WebSocket handshake; this may present on some
+browsers as a different WebSocket error code (such as 1006, Abnormal Closure).
+
+If this is sent after the socket is accepted, the server must close the socket
+with the close code passed in the message (or 1000 if none is specified).
+
 * ``type``: ``websocket.close``
 
 * ``code``: The WebSocket close code (integer), as per the WebSocket spec.
