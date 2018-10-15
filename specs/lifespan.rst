@@ -78,26 +78,26 @@ Keys:
 * ``type``: ``lifespan.startup.complete``
 
 
-Cleanup
-'''''''
+Shutdown
+''''''''
 
 Sent when the server has stopped accepting connections and closed all
 active connections.
 
 Keys:
 
-* ``type``:  ``lifespan.cleanup``
+* ``type``:  ``lifespan.shutdown``
 
 
-Cleanup Complete
-''''''''''''''''
+Shutdown Complete
+'''''''''''''''''
 
 Sent by the application when it has completed its cleanup. A server
 must wait for this message before terminating.
 
 Keys:
 
-* ``type``: ``lifespan.cleanup.complete``
+* ``type``: ``lifespan.shutdown.complete``
 
 
 Version History
