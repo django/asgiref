@@ -35,7 +35,7 @@ async def test_basic_wsgi():
     assert (await instance.receive_output(1)) == {
         "type": "http.response.start",
         "status": 200,
-        "headers": [(b"X-Colour", b"Blue")],
+        "headers": [(b"x-colour", b"Blue")],
     }
     assert (await instance.receive_output(1)) == {
         "type": "http.response.body",
