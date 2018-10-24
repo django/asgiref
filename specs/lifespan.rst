@@ -5,12 +5,12 @@ Lifespan Protocol
 **Version**: 1.0 (2018-09-06)
 
 The Lifespan ASGI sub-specification outlines how to communicate
-lifespan events such as startup and cleanup within ASGI. The lifespan
+lifespan events such as startup and shutdown within ASGI. The lifespan
 being referred to is that of main event loop. In a multi-process
 environment there will be lifespan events in each process.
 
 The lifespan messages allow for a application to initialise and
-cleanup in the context of a running event loop. An example of this
+shutdown in the context of a running event loop. An example of this
 would be creating a connection pool and subsequently closing the
 connection pool to release the connections.
 
@@ -28,9 +28,9 @@ A possible implementation of this protocol is given below::
                     if message['type'] == 'lifespan.startup':
                         await self.startup()
                         await send({'type': 'lifespan.startup.complete'})
-                    elif message['type'] == 'lifespan.cleanup':
-                        await self.cleanup()
-                        await send({'type': 'lifespan.cleanup.complete'})
+                    elif message['type'] == 'lifespan.shutdown':
+                        await self.shutdown()
+                        await send({'type': 'lifespan.shutdown.complete'})
                         return
             else:
                 pass # Handle other types
@@ -38,7 +38,7 @@ A possible implementation of this protocol is given below::
         async def startup(self):
             ...
 
-        async def cleanup(self):
+        async def shutdown(self):
             ...
 
 
