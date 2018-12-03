@@ -3,6 +3,10 @@ import functools
 import os
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
+try:
+     import contextvars  # Python 3.7+ only.
+except ImportError:
+    contextvars = None
 
 
 class AsyncToSync:
@@ -101,8 +105,18 @@ class SyncToAsync:
 
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
+
+        if contextvars is not None:
+            context = contextvars.copy_context()
+            child = functools.partial(self.func, *args, **kwargs)
+            func = context.run
+            args = (child,)
+            kwargs = {}
+        else:
+            func = self.func
+
         future = loop.run_in_executor(
-            None, functools.partial(self.thread_handler, loop, *args, **kwargs)
+            None, functools.partial(self.thread_handler, loop, func, *args, **kwargs)
         )
         return await asyncio.wait_for(future, timeout=None)
 
@@ -112,14 +126,14 @@ class SyncToAsync:
         """
         return functools.partial(self.__call__, parent)
 
-    def thread_handler(self, loop, *args, **kwargs):
+    def thread_handler(self, loop, func, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
         # Run the function
-        return self.func(*args, **kwargs)
+        return func(*args, **kwargs)
 
 
 # Lowercase is more sensible for most things
