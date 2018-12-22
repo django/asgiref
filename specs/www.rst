@@ -60,8 +60,9 @@ The connection scope contains:
 * ``scheme``: Unicode string URL scheme portion (likely ``http`` or ``https``).
   Optional (but must not be empty), default is ``"http"``.
 
-* ``path``: Unicode string HTTP path from URL, with percent escapes decoded
-  and UTF-8 byte sequences decoded into characters.
+* ``path``: Unicode string HTTP request target excluding any query
+  string, with percent escapes decoded and UTF-8 byte sequences
+  decoded into characters.
 
 * ``query_string``: Byte string URL portion after the ``?``, not url-decoded.
 
@@ -191,7 +192,9 @@ contains the initial connection metadata (mostly from the HTTP handshake):
 * ``scheme``: Unicode string URL scheme portion (likely ``ws`` or ``wss``).
   Optional (but must not be empty), default is ``ws``.
 
-* ``path``: Unicode HTTP path from URL, already urldecoded.
+* ``path``: Unicode string HTTP request target excluding any query
+  string, with percent escapes decoded and UTF-8 byte sequences
+  decoded into characters.
 
 * ``query_string``: Byte string URL portion after the ``?``. Optional, default
   is empty string.
