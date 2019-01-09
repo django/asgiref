@@ -198,8 +198,8 @@ and message formats. They are equivalent to the specification for keys in the
 ``environ`` dict for WSGI.
 
 
-Protocol Specfications
-----------------------
+Protocol Specifications
+-----------------------
 
 These describe the standardized scope and message formats for various protocols.
 
