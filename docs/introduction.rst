@@ -3,7 +3,7 @@ Introduction
 
 ASGI is a spiritual successor to
 `WSGI <https://www.python.org/dev/peps/pep-3333/>`_, the long-standing Python
-standard for compatability between web servers, frameworks, and applications.
+standard for compatibility between web servers, frameworks, and applications.
 
 WSGI succeeded in allowing much more freedom and innovation in the Python
 web space, and ASGI's goal is to continue this onward into the land of

@@ -59,7 +59,7 @@ support the lifespan protocol.
 Startup
 '''''''
 
-Sent when the server is ready to startup and recieve connections, but
+Sent when the server is ready to startup and receive connections, but
 before it has started to do so.
 
 Keys:
