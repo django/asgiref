@@ -189,6 +189,9 @@ contains the initial connection metadata (mostly from the HTTP handshake):
 
 * ``type``: ``websocket``
 
+* ``http_version``: Unicode string, one of ``1.1`` or ``2``. Optional,
+  default is ``1.1``.
+
 * ``scheme``: Unicode string URL scheme portion (likely ``ws`` or ``wss``).
   Optional (but must not be empty), default is ``ws``.
 
