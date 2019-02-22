@@ -252,6 +252,13 @@ Sent by the application when it wishes to accept an incoming connection.
 * ``subprotocol``: The subprotocol the server wishes to accept, as a unicode
   string. Optional, defaults to ``None``.
 
+* ``headers``: A list of ``[name, value]`` lists, where ``name`` is
+  the byte string header name, and ``value`` is the byte string header
+  value. Order must be preserved in the HTTP response. Header names
+  must be lowercased. Must not include a ``sec-websocket-protocol``
+  named header, use the ``subprotocol`` key instead.  Optional,
+  defaults to an empty list.
+
 
 Receive
 '''''''
