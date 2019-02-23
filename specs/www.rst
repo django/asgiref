@@ -53,6 +53,9 @@ The connection scope contains:
 
 * ``type``: ``http``
 
+* ``spec_version``: Version of the spec as a string, must be ``1.0``.
+  Optional, if missing assume ``1.0``.
+
 * ``http_version``: Unicode string, one of ``1.0``, ``1.1`` or ``2``.
 
 * ``method``: Unicode string HTTP method name, uppercased.
@@ -189,6 +192,9 @@ contains the initial connection metadata (mostly from the HTTP handshake):
 
 * ``type``: ``websocket``
 
+* ``spec_version``: Version of the spec as a string, one of ``1.0`` or ``2.0``.
+  Optional, if missing assume ``1.0``.
+
 * ``http_version``: Unicode string, one of ``1.1`` or ``2``. Optional,
   default is ``1.1``.
 
@@ -257,7 +263,7 @@ Sent by the application when it wishes to accept an incoming connection.
   value. Order must be preserved in the HTTP response. Header names
   must be lowercased. Must not include a ``sec-websocket-protocol``
   named header, use the ``subprotocol`` key instead.  Optional,
-  defaults to an empty list.
+  defaults to an empty list. *Added in spec version 2.0*
 
 
 Receive
