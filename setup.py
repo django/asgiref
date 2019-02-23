@@ -21,7 +21,7 @@ setup(
     include_package_data=True,
     extras_require={
         "tests": [
-            "pytest~=4.1.0",
+            "pytest~=4.3.0",
             "pytest-asyncio~=0.10.0",
         ],
     },
