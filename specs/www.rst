@@ -53,7 +53,7 @@ The connection scope contains:
 
 * ``type``: ``http``
 
-* ``spec_version``: Version of the spec as a string, must be ``1.0``.
+* ``asgi['spec_version']``: Version of the spec as a string, must be ``1.0``.
   Optional, if missing assume ``1.0``.
 
 * ``http_version``: Unicode string, one of ``1.0``, ``1.1`` or ``2``.
@@ -192,7 +192,7 @@ contains the initial connection metadata (mostly from the HTTP handshake):
 
 * ``type``: ``websocket``
 
-* ``spec_version``: Version of the spec as a string, one of ``1.0`` or ``2.0``.
+* ``asgi['spec_version']``: Version of the spec as a string, one of ``1.0`` or ``2.0``.
   Optional, if missing assume ``1.0``.
 
 * ``http_version``: Unicode string, one of ``1.1`` or ``2``. Optional,

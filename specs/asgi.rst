@@ -193,6 +193,9 @@ be used to work out which protocol is incoming. The key
 the server implements. If missing the version should default to
 ``"2.0"``.
 
+There may also be a spec-specific version present as
+``scope["asgi"]["spec_version"]``.
+
 The protocol-specific sub-specifications cover these scope
 and message formats. They are equivalent to the specification for keys in the
 ``environ`` dict for WSGI.
