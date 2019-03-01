@@ -12,6 +12,21 @@ and specifies how to translate between the two for the set of requests that
 are able to be handled by WSGI.
 
 
+Spec Versions
+-------------
+
+This spec has had two versions:
+
+* ``2.0``: The first version of the spec, released with ASGI 2.0
+* ``2.1``: Added the ``headers`` key to the WebSocket Accept response.
+
+Spec versions let you understand what the server you are using understands -
+if a server tells you it only supports version ``2.0`` of this spec, then
+sending ``headers`` with a WebSocket Accept message is an error, for example.
+
+They are separate from the HTTP version or the ASGI version.
+
+
 HTTP
 ----
 
@@ -53,8 +68,8 @@ The connection scope contains:
 
 * ``type``: ``http``
 
-* ``asgi['spec_version']``: Version of the spec as a string, must be ``1.0``.
-  Optional, if missing assume ``1.0``.
+* ``asgi['spec_version']``: Version of the ASGI HTTP spec this server understands
+   as a string; one of ``2.0`` or ``2.1``. Optional, if missing assume ``2.0``.
 
 * ``http_version``: Unicode string, one of ``1.0``, ``1.1`` or ``2``.
 
@@ -192,8 +207,8 @@ contains the initial connection metadata (mostly from the HTTP handshake):
 
 * ``type``: ``websocket``
 
-* ``asgi['spec_version']``: Version of the spec as a string, one of ``1.0`` or ``2.0``.
-  Optional, if missing assume ``1.0``.
+* ``asgi['spec_version']``: Version of the ASGI HTTP spec this server understands
+   as a string; one of ``2.0`` or ``2.1``. Optional, if missing assume ``2.0``.
 
 * ``http_version``: Unicode string, one of ``1.1`` or ``2``. Optional,
   default is ``1.1``.
