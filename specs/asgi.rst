@@ -229,6 +229,14 @@ where the ``protocol`` matches the scope type, and ``message_type`` is
 defined by the protocol spec. Examples of a message ``type`` value include
 ``http.request`` and ``websocket.send``.
 
+.. note::
+
+  Applications should actively reject any protocol that they do not understand
+  with an Exception (of any type). Failure to do this may result in the server
+  thinking you support a protocol you don't, which is especially dangerous with
+  the Lifespan protocol, as the server will wait to start until you tell it.
+
+
 Current protocol specifications:
 
 * :doc:`HTTP and WebSocket <www>`
@@ -356,6 +364,7 @@ unicode strings.
 Version History
 ===============
 
+* 3.0 (2019-03-04): Changed to single-callable application style
 * 2.0 (2017-11-28): Initial non-channel-layer based ASGI spec
 
 
