@@ -278,7 +278,7 @@ Sent by the application when it wishes to accept an incoming connection.
   value. Order must be preserved in the HTTP response. Header names
   must be lowercased. Must not include a ``sec-websocket-protocol``
   named header, use the ``subprotocol`` key instead.  Optional,
-  defaults to an empty list. *Added in spec version 2.0*
+  defaults to an empty list. *Added in spec version 2.1*
 
 
 Receive
