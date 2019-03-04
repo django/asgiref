@@ -10,7 +10,8 @@ def double_application_function(scope):
     """
 
     async def inner(receive, send):
-        await send({"test": scope["test"]})
+        message = await receive()
+        await send({"scope": scope["value"], "message": message["value"]})
 
     return inner
 
@@ -89,5 +90,6 @@ async def test_double_to_single_communicator():
     Test that the new application works
     """
     new_app = double_to_single_callable(double_application_function)
-    instance = ApplicationCommunicator(new_app, {"test": "woohoo"})
-    assert await instance.receive_output() == {"test": "woohoo"}
+    instance = ApplicationCommunicator(new_app, {"value": "woohoo"})
+    await instance.send_input({"value": 42})
+    assert await instance.receive_output() == {"scope": "woohoo", "message": 42}

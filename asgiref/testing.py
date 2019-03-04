@@ -9,7 +9,7 @@ from .compatibility import guarantee_single_callable
 
 class ApplicationCommunicator:
     """
-    Runs a single-callable ASGI application in a test mode, allowing sending of
+    Runs an ASGI application in a test mode, allowing sending of
     messages to it and retrieval of messages it sends.
     """
 
