@@ -233,7 +233,7 @@ defined by the protocol spec. Examples of a message ``type`` value include
 
   Applications should actively reject any protocol that they do not understand
   with an Exception (of any type). Failure to do this may result in the server
-  thinking you support a protocol you don't, which is especially dangerous with
+  thinking you support a protocol you don't, which can be confusing with
   the Lifespan protocol, as the server will wait to start until you tell it.
 
 
