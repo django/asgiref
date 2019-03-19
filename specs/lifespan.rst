@@ -49,6 +49,7 @@ The lifespan scope exists for the duration of the event loop. The
 scope itself contains basic metadata:
 
 * ``type``: ``lifespan``
+* ``asgi["version"]``: The version of the ASGI spec, as a string.
 * ``asgi["spec_version"]``: The version of this spec being used, as a string. Optional, defaults to ``"1.0"``.
 
 If an exception is raised when calling the application callable with a

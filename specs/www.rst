@@ -68,6 +68,8 @@ The connection scope contains:
 
 * ``type``: ``http``
 
+* ``asgi["version"]``: The version of the ASGI spec, as a string.
+
 * ``asgi['spec_version']``: Version of the ASGI HTTP spec this server understands
    as a string; one of ``2.0`` or ``2.1``. Optional, if missing assume ``2.0``.
 
@@ -206,6 +208,8 @@ application dies the socket should be closed, and vice-versa. The scope
 contains the initial connection metadata (mostly from the HTTP handshake):
 
 * ``type``: ``websocket``
+
+* ``asgi["version"]``: The version of the ASGI spec, as a string.
 
 * ``asgi['spec_version']``: Version of the ASGI HTTP spec this server understands
    as a string; one of ``2.0`` or ``2.1``. Optional, if missing assume ``2.0``.
