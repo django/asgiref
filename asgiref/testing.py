@@ -4,21 +4,22 @@ from concurrent.futures import CancelledError
 
 import async_timeout
 
+from .compatibility import guarantee_single_callable
+
 
 class ApplicationCommunicator:
     """
-    Runs an ASGI application in a test mode, allowing sending of messages to
-    it and retrieval of messages it sends.
+    Runs an ASGI application in a test mode, allowing sending of
+    messages to it and retrieval of messages it sends.
     """
 
     def __init__(self, application, scope):
-        self.application = application
+        self.application = guarantee_single_callable(application)
         self.scope = scope
-        self.instance = self.application(scope)
         self.input_queue = asyncio.Queue()
         self.output_queue = asyncio.Queue()
         self.future = asyncio.ensure_future(
-            self.instance(self.input_queue.get, self.output_queue.put)
+            self.application(scope, self.input_queue.get, self.output_queue.put)
         )
 
     async def wait(self, timeout=1):

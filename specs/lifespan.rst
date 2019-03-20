@@ -2,7 +2,7 @@
 Lifespan Protocol
 =================
 
-**Version**: 1.0 (2018-09-06)
+**Version**: 2.0 (2019-03-04)
 
 The Lifespan ASGI sub-specification outlines how to communicate
 lifespan events such as startup and shutdown within ASGI. The lifespan
@@ -46,14 +46,20 @@ Scope
 '''''
 
 The lifespan scope exists for the duration of the event loop. The
-scope itself contains basic metadata,
+scope itself contains basic metadata:
 
 * ``type``: ``lifespan``
+* ``asgi["version"]``: The version of the ASGI spec, as a string.
+* ``asgi["spec_version"]``: The version of this spec being used, as a string. Optional, defaults to ``"1.0"``.
 
 If an exception is raised when calling the application callable with a
-lifespan scope the server must continue but not send any lifespan
-events. This allows for compatibility with applications that do not
-support the lifespan protocol.
+``lifespan.startup`` message or a scope with type ``lifespan``
+the server must continue but not send any lifespan events.
+
+This allows for compatibility with applications that do not support the lifespan
+protocol. If you want to log an error that occurred during lifespan startup and
+prevent the server from starting, then send back ``lifespan.startup.failed``
+instead.
 
 
 Startup
@@ -78,6 +84,18 @@ Keys:
 * ``type``: ``lifespan.startup.complete``
 
 
+Startup Failed
+''''''''''''''
+
+Sent by the application when it has failed to complete its startup. If a server
+sees this it should log/print the message provided and then exit.
+
+Keys:
+
+* ``type``: ``lifespan.startup.failed``
+* ``message``: Unicode string (optional, defaults to ``""``).
+
+
 Shutdown
 ''''''''
 
@@ -100,9 +118,23 @@ Keys:
 * ``type``: ``lifespan.shutdown.complete``
 
 
+Shutdown Failed
+'''''''''''''''
+
+Sent by the application when it has failed to complete its cleanup. If a server
+sees this it should log/print the message provided and then terminate.
+
+Keys:
+
+* ``type``: ``lifespan.shutdown.failed``
+* ``message``: Unicode string (optional, defaults to ``""``).
+
+
 Version History
 ===============
 
+* 2.0 (2019-03-04): Added startup.failed and shutdown.failed,
+  clarified exception handling during startup phase.
 * 1.0 (2018-09-06): Updated ASGI spec with a lifespan protocol.
 
 

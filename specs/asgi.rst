@@ -2,7 +2,7 @@
 ASGI (Asynchronous Server Gateway Interface) Specification
 ==========================================================
 
-**Version**: 2.0 (2017-11-28)
+**Version**: 3.0 (2019-03-04)
 
 Abstract
 ========
@@ -143,46 +143,29 @@ serializable, and so they are only allowed to contain the following types:
 Applications
 ------------
 
-ASGI applications are defined as a callable::
+.. note::
 
-    application(scope)
+    The application format changed in 3.0 to use a single callable, rather than
+    the prior two-callable format. Two-callable is documented below in
+    "Legacy Applications"; servers can easily implement support for it using
+    the ``asgiref.compatibility`` library, and should try to support it.
+
+ASGI applications should be a single async callable::
+
+    coroutine application(scope, receive, send)
 
 * ``scope``: The Connection Scope, a dictionary that contains at least a
   ``type`` key specifying the protocol that is incoming.
-
-This first callable is called whenever a new connection comes in to the
-protocol server, and creates a new *instance* of the application per
-connection (the instance is the object that this first callable returns).
-
-This callable is synchronous, and must not contain blocking calls (it's
-recommended that all it does is store the scope). If you need to do
-blocking work, you must do it at the start of the next callable, before you
-application awaits incoming events.
-
-It must return another, awaitable callable::
-
-    coroutine application_instance(receive, send)
-
 * ``receive``, an awaitable callable that will yield a new event dict when
   one is available
 * ``send``, an awaitable callable taking a single event dict as a
   positional argument that will return once the send has been
   completed or the connection has been closed
 
-This design is perhaps more easily recognised as one of its possible
-implementations, as a class::
-
-    class Application:
-
-        def __init__(self, scope):
-            self.scope = scope
-
-        async def __call__(self, receive, send):
-            ...
-
-The application interface is specified as the more generic case of two callables
-to allow more flexibility for things like factory functions or type-based
-dispatchers.
+The application is called once per "connection". What exactly a connection is
+and its lifespan is dictated by the protocol specification in question. For
+example, with HTTP it is one request, whereas for a WebSocket it is a single
+WebSocket connection.
 
 Both the ``scope`` and the format of the messages you send and receive
 are defined by one of the application protocols. ``scope`` must be a
@@ -194,11 +177,40 @@ the server implements. If missing the version should default to
 ``"2.0"``.
 
 There may also be a spec-specific version present as
-``scope["asgi"]["spec_version"]``.
+``scope["asgi"]["spec_version"]``. This allows the individual protocol
+specifications to make enhancements without bumping the overall ASGI version.
 
-The protocol-specific sub-specifications cover these scope
-and message formats. They are equivalent to the specification for keys in the
-``environ`` dict for WSGI.
+The protocol-specific sub-specifications cover these scope and message formats.
+They are equivalent to the specification for keys in the ``environ`` dict for
+WSGI.
+
+
+Legacy Applications
+-------------------
+
+Legacy (v2.0) ASGI applications are defined as a callable::
+
+    application(scope)
+
+Which returns another, awaitable callable::
+
+    coroutine application_instance(receive, send)
+
+The meanings of ``scope``, ``receive`` and ``send`` are the same as in the
+newer single-callable application, but note that the first callable is
+*synchronous*.
+
+The first callable is called when the connection is started, and then the
+second callable is called immediately afterwards.
+
+This style was retired in version 3.0 as the two-callable layout was deemed
+unnecessary. It's now legacy, but there are applications out there written in
+this style, and so it's important to support them.
+
+There is a compatability suite available in the ``asgiref.compatability``
+module which allows you to both detect legacy applications, and convert them
+to the new single-protocol style seamlessly. Servers are encouraged to support
+both types as of ASGI 3.0 and gradually drop support by default over time.
 
 
 Protocol Specifications
@@ -216,6 +228,14 @@ In messages, the ``type`` should be namespaced as ``protocol.message_type``,
 where the ``protocol`` matches the scope type, and ``message_type`` is
 defined by the protocol spec. Examples of a message ``type`` value include
 ``http.request`` and ``websocket.send``.
+
+.. note::
+
+  Applications should actively reject any protocol that they do not understand
+  with an Exception (of any type). Failure to do this may result in the server
+  thinking you support a protocol you don't, which can be confusing with
+  the Lifespan protocol, as the server will wait to start until you tell it.
+
 
 Current protocol specifications:
 
@@ -344,6 +364,7 @@ unicode strings.
 Version History
 ===============
 
+* 3.0 (2019-03-04): Changed to single-callable application style
 * 2.0 (2017-11-28): Initial non-channel-layer based ASGI spec
 
 

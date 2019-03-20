@@ -11,13 +11,13 @@ class WsgiToAsgi:
     def __init__(self, wsgi_application):
         self.wsgi_application = wsgi_application
 
-    def __call__(self, scope):
+    async def __call__(self, scope, receive, send):
         """
         ASGI application instantiation point.
         We return a new WsgiToAsgiInstance here with the WSGI app
         and the scope, ready to respond when it is __call__ed.
         """
-        return WsgiToAsgiInstance(self.wsgi_application, scope)
+        await WsgiToAsgiInstance(self.wsgi_application)(scope, receive, send)
 
 
 class WsgiToAsgiInstance:
@@ -25,12 +25,12 @@ class WsgiToAsgiInstance:
     Per-socket instance of a wrapped WSGI application
     """
 
-    def __init__(self, wsgi_application, scope):
+    def __init__(self, wsgi_application):
         self.wsgi_application = wsgi_application
-        self.scope = scope
         self.response_started = False
 
-    async def __call__(self, receive, send):
+    async def __call__(self, scope, receive, send):
+        self.scope = scope
         # Alright, wait for the http.request message
         message = await receive()
         if message["type"] != "http.request":
