@@ -2,7 +2,7 @@
 HTTP & WebSocket ASGI Message Format
 ====================================
 
-**Version**: 2.0 (2017-11-28)
+**Version**: 2.1 (2019-03-20)
 
 The HTTP+WebSocket ASGI sub-specification outlines how to transport HTTP/1.1,
 HTTP/2 and WebSocket connections within ASGI.

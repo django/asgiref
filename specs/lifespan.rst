@@ -2,7 +2,7 @@
 Lifespan Protocol
 =================
 
-**Version**: 2.0 (2019-03-04)
+**Version**: 2.0 (2019-03-20)
 
 The Lifespan ASGI sub-specification outlines how to communicate
 lifespan events such as startup and shutdown within ASGI. The lifespan

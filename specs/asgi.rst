@@ -2,7 +2,7 @@
 ASGI (Asynchronous Server Gateway Interface) Specification
 ==========================================================
 
-**Version**: 3.0 (2019-03-04)
+**Version**: 3.0 (2019-03-20)
 
 Abstract
 ========
