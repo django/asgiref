@@ -1,4 +1,6 @@
+import asyncio
 import threading
+import time
 
 from .sync import SyncToAsync
 
@@ -13,8 +15,12 @@ class Local:
     3.7 only, we can then reimplement the storage much more nicely.
     """
 
+    CLEANUP_INTERVAL = 60  # seconds
+
     def __init__(self):
         self._storage = {}
+        self._last_cleanup = time.time()
+        self._clean_lock = threading.Lock()
 
     @staticmethod
     def _get_context_id():
@@ -37,6 +43,27 @@ class Local:
             raise RuntimeError("Cannot find task context for Local storage")
         return context_id
 
+    def _cleanup(self):
+        """
+        Cleans up any references to dead threads or tasks
+        """
+        for key in list(self._storage.keys()):
+            if isinstance(key, threading.Thread):
+                if not key.is_alive():
+                    del self._storage[key]
+            elif isinstance(key, asyncio.Task):
+                if key.done():
+                    del self._storage[key]
+        self._last_cleanup = time.time()
+
+    def _maybe_cleanup(self):
+        """
+        Cleans up if enough time has passed
+        """
+        if time.time() - self._last_cleanup > self.CLEANUP_INTERVAL:
+            with self._clean_lock:
+                self._cleanup()
+
     def __getattr__(self, key):
         context_id = self._get_context_id()
         if key in self._storage.get(context_id, {}):
@@ -45,8 +72,9 @@ class Local:
             raise AttributeError("%r object has no attribute %r" % (self, key))
 
     def __setattr__(self, key, value):
-        if key == "_storage":
-            super().__setattr__(key, value)
+        if key in ("_storage", "_last_cleanup", "_clean_lock"):
+            return super().__setattr__(key, value)
+        self._maybe_cleanup()
         self._storage.setdefault(self._get_context_id(), {})[key] = value
 
     def __delattr__(self, key):
