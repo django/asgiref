@@ -1,3 +1,9 @@
+3.1.1 (2019-04-13)
+------------------
+
+* Local now cleans up storage of old threads and tasks to prevent a memory leak.
+
+
 3.1.0 (2019-04-13)
 ------------------
 
