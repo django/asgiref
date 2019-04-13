@@ -150,16 +150,18 @@ class SyncToAsync:
     def get_current_task():
         """
         Cross-version implementation of asyncio.current_task()
+
+        Returns None if there is no task.
         """
-        if hasattr(asyncio, "current_task"):
-            # Python 3.7 and up
-            try:
+        try:
+            if hasattr(asyncio, "current_task"):
+                # Python 3.7 and up
                 return asyncio.current_task()
-            except RuntimeError:
-                return None
-        else:
-            # Python 3.6
-            return asyncio.Task.current_task
+            else:
+                # Python 3.6
+                return asyncio.Task.current_task()
+        except RuntimeError:
+            return None
 
 
 # Lowercase is more sensible for most things

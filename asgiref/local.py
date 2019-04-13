@@ -1,3 +1,5 @@
+import threading
+
 from .sync import SyncToAsync
 
 
@@ -14,7 +16,8 @@ class Local:
     def __init__(self):
         self._storage = {}
 
-    def _get_context_id(self):
+    @staticmethod
+    def _get_context_id():
         """
         Get the ID we should use for looking up variables
         """
@@ -22,7 +25,13 @@ class Local:
         context_id = SyncToAsync.get_current_task()
         # If that fails, then try and pull the proxy ID from a threadlocal
         if context_id is None:
-            context_id = SyncToAsync.threadlocal.current_task
+            try:
+                context_id = SyncToAsync.threadlocal.current_task
+            except AttributeError:
+                pass
+        # OK, let's try for a thread ID
+        if context_id is None:
+            context_id = threading.current_thread()
         # If that fails, error
         if context_id is None:
             raise RuntimeError("Cannot find task context for Local storage")
