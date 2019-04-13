@@ -117,7 +117,15 @@ class SyncToAsync:
             func = self.func
 
         future = loop.run_in_executor(
-            None, functools.partial(self.thread_handler, loop, func, *args, **kwargs)
+            None,
+            functools.partial(
+                self.thread_handler,
+                loop,
+                self.get_current_task(),
+                func,
+                *args,
+                **kwargs
+            ),
         )
         return await asyncio.wait_for(future, timeout=None)
 
@@ -127,14 +135,31 @@ class SyncToAsync:
         """
         return functools.partial(self.__call__, parent)
 
-    def thread_handler(self, loop, func, *args, **kwargs):
+    def thread_handler(self, loop, current_task, func, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
+        # Set the threadlocal for task mapping (used for locals)
+        self.threadlocal.current_task = current_task
         # Run the function
         return func(*args, **kwargs)
+
+    @staticmethod
+    def get_current_task():
+        """
+        Cross-version implementation of asyncio.current_task()
+        """
+        if hasattr(asyncio, "current_task"):
+            # Python 3.7 and up
+            try:
+                return asyncio.current_task()
+            except RuntimeError:
+                return None
+        else:
+            # Python 3.6
+            return asyncio.Task.current_task
 
 
 # Lowercase is more sensible for most things

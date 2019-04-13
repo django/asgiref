@@ -42,6 +42,15 @@ Django view system with SyncToAsync to allow it to run inside the (asynchronous)
 ASGI server.
 
 
+Threadlocal replacement
+-----------------------
+
+This is a drop-in replacement for ``threading.local`` that works with both
+threads and asyncio Tasks. Even better, it will proxy values through from a
+task-local context to a thread-local context when you use ``sync_to_async``
+to run things in a threadpool.
+
+
 Server base classes
 -------------------
 
