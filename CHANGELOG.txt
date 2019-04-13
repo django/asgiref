@@ -1,9 +1,16 @@
+3.1.0 (2019-04-13)
+------------------
+
+* Added ``asgiref.local`` module to provide threading.local drop-in replacement.
+
+
 3.0.0 (2019-03-20)
 ------------------
 
 * Updated to match new ASGI 3.0 spec
 * Compatability library added that allows adapting ASGI 2 apps into ASGI 3 apps
   losslessly
+
 
 2.3.2 (2018-05-23)
 ------------------
