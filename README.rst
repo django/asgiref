@@ -48,7 +48,10 @@ Threadlocal replacement
 This is a drop-in replacement for ``threading.local`` that works with both
 threads and asyncio Tasks. Even better, it will proxy values through from a
 task-local context to a thread-local context when you use ``sync_to_async``
-to run things in a threadpool.
+to run things in a threadpool, and vice-versa for ``async_to_sync``.
+
+If you instead want true thread- and task-safety, you can set
+``thread_critical`` on the Local object to ensure this instead.
 
 
 Server base classes
