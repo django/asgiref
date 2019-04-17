@@ -18,16 +18,23 @@ class AsyncToSync:
     Must be initialised from the main thread.
     """
 
-    def __init__(self, awaitable):
+    # Maps launched Tasks to the threads that launched them
+    launch_map = {}
+
+    def __init__(self, awaitable, force_new_loop=False):
         self.awaitable = awaitable
-        try:
-            self.main_event_loop = asyncio.get_event_loop()
-        except RuntimeError:
-            # There's no event loop in this thread. Look for the threadlocal if
-            # we're inside SyncToAsync
-            self.main_event_loop = getattr(
-                SyncToAsync.threadlocal, "main_event_loop", None
-            )
+        if force_new_loop:
+            # They have asked that we always run in a new sub-loop.
+            self.main_event_loop = None
+        else:
+            try:
+                self.main_event_loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # There's no event loop in this thread. Look for the threadlocal if
+                # we're inside SyncToAsync
+                self.main_event_loop = getattr(
+                    SyncToAsync.threadlocal, "main_event_loop", None
+                )
 
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
@@ -43,14 +50,19 @@ class AsyncToSync:
                 )
         # Make a future for the return information
         call_result = Future()
+        # Get the source thread
+        source_thread = threading.current_thread()
         # Use call_soon_threadsafe to schedule a synchronous callback on the
-        # main event loop's thread
+        # main event loop's thread if it's there, otherwise make a new loop
+        # in this thread.
         if not (self.main_event_loop and self.main_event_loop.is_running()):
             # Make our own event loop and run inside that.
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                loop.run_until_complete(self.main_wrap(args, kwargs, call_result))
+                loop.run_until_complete(
+                    self.main_wrap(args, kwargs, call_result, source_thread)
+                )
             finally:
                 try:
                     if hasattr(loop, "shutdown_asyncgens"):
@@ -61,7 +73,7 @@ class AsyncToSync:
         else:
             self.main_event_loop.call_soon_threadsafe(
                 self.main_event_loop.create_task,
-                self.main_wrap(args, kwargs, call_result),
+                self.main_wrap(args, kwargs, call_result, source_thread),
             )
         # Wait for results from the future.
         return call_result.result()
@@ -72,17 +84,21 @@ class AsyncToSync:
         """
         return functools.partial(self.__call__, parent)
 
-    async def main_wrap(self, args, kwargs, call_result):
+    async def main_wrap(self, args, kwargs, call_result, source_thread):
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
         """
+        current_task = SyncToAsync.get_current_task()
+        self.launch_map[current_task] = source_thread
         try:
             result = await self.awaitable(*args, **kwargs)
         except Exception as e:
             call_result.set_exception(e)
         else:
             call_result.set_result(result)
+        finally:
+            del self.launch_map[current_task]
 
 
 class SyncToAsync:
@@ -99,6 +115,10 @@ class SyncToAsync:
             ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
         )
 
+    # Maps launched threads to the coroutines that spawned them
+    launch_map = {}
+
+    # Storage for main event loop references
     threadlocal = threading.local()
 
     def __init__(self, func):
@@ -135,16 +155,20 @@ class SyncToAsync:
         """
         return functools.partial(self.__call__, parent)
 
-    def thread_handler(self, loop, current_task, func, *args, **kwargs):
+    def thread_handler(self, loop, source_task, func, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
-        # Set the threadlocal for task mapping (used for locals)
-        self.threadlocal.current_task = current_task
+        # Set the task mapping (used for the locals module)
+        current_thread = threading.current_thread()
+        self.launch_map[current_thread] = source_task
         # Run the function
-        return func(*args, **kwargs)
+        try:
+            return func(*args, **kwargs)
+        finally:
+            del self.launch_map[current_thread]
 
     @staticmethod
     def get_current_task():
