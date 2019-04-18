@@ -1,3 +1,12 @@
+3.1.2 (2019-04-17)
+------------------
+
+* New thread_critical argument to Local to tell it to not inherit contexts
+  across threads/tasks.
+* Local now inherits across any number of sync_to_async to async_to_sync calls
+  nested inside each other
+
+
 3.1.1 (2019-04-13)
 ------------------
 
@@ -14,7 +23,7 @@
 ------------------
 
 * Updated to match new ASGI 3.0 spec
-* Compatability library added that allows adapting ASGI 2 apps into ASGI 3 apps
+* Compatibility library added that allows adapting ASGI 2 apps into ASGI 3 apps
   losslessly
 
 
