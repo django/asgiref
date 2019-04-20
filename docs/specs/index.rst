@@ -1,10 +1,9 @@
 Specifications
 ==============
 
-These are the specifications for ASGI. There's a root specification, which
-specifies how applications are structured and called, and then protocol
-specifications, that outline the events that can be sent and received for
-each protocol.
+These are the specifications for ASGI. The root specification outlines how
+applications are structured and called, and the protocol specifications outline
+the events that can be sent and received for each protocol.
 
 
 .. toctree::
