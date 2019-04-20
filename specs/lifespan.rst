@@ -48,9 +48,9 @@ Scope
 The lifespan scope exists for the duration of the event loop. The
 scope itself contains basic metadata:
 
-* ``type`` (*Unicode string*): ``"lifespan"``.
-* ``asgi["version"]`` (*Unicode string*): The version of the ASGI spec.
-* ``asgi["spec_version"]`` (*Unicode string*): The version of this spec being
+* ``type`` (*Unicode string*) -- ``"lifespan"``.
+* ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
+* ``asgi["spec_version"]`` (*Unicode string*) -- The version of this spec being
   used. Optional; defaults to ``"1.0"``.
 
 If an exception is raised when calling the application callable with a
@@ -71,7 +71,7 @@ before it has started to do so.
 
 Keys:
 
-* ``type`` (*Unicode string*): ``"lifespan.startup"``.
+* ``type`` (*Unicode string*) -- ``"lifespan.startup"``.
 
 
 Startup Complete
@@ -82,7 +82,7 @@ must wait for this message before it starts processing connections.
 
 Keys:
 
-* ``type`` (*Unicode string*): ``"lifespan.startup.complete"``.
+* ``type`` (*Unicode string*) -- ``"lifespan.startup.complete"``.
 
 
 Startup Failed
@@ -93,8 +93,8 @@ sees this it should log/print the message provided and then exit.
 
 Keys:
 
-* ``type`` (*Unicode string*): ``"lifespan.startup.failed"``.
-* ``message`` (*Unicode string*): Optional; defaults to ``""``.
+* ``type`` (*Unicode string*) -- ``"lifespan.startup.failed"``.
+* ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
 
 
 Shutdown
@@ -105,7 +105,7 @@ active connections.
 
 Keys:
 
-* ``type`` (*Unicode string*):  ``"lifespan.shutdown"``.
+* ``type`` (*Unicode string*) --  ``"lifespan.shutdown"``.
 
 
 Shutdown Complete
@@ -116,7 +116,7 @@ must wait for this message before terminating.
 
 Keys:
 
-* ``type`` (*Unicode string*): ``"lifespan.shutdown.complete"``.
+* ``type`` (*Unicode string*) -- ``"lifespan.shutdown.complete"``.
 
 
 Shutdown Failed
@@ -127,8 +127,8 @@ sees this it should log/print the message provided and then terminate.
 
 Keys:
 
-* ``type`` (*Unicode string*): ``"lifespan.shutdown.failed"``.
-* ``message`` (*Unicode string*): Optional; defaults to ``""``.
+* ``type`` (*Unicode string*) -- ``"lifespan.shutdown.failed"``.
+* ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
 
 
 Version History
