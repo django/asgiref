@@ -9,7 +9,7 @@ some common extensions.
 Websocket Denial Response
 -------------------------
 
-Websocket connections start with the client sending an HTTP request
+Websocket connections start with the client sending a HTTP request
 containing the appropriate upgrade headers. On receipt of this request
 a server can choose to either upgrade the connection or respond with an
 HTTP response (denying the upgrade). The core ASGI specification does

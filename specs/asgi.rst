@@ -60,7 +60,8 @@ Like WSGI, the server hosts the application inside it, and dispatches incoming
 requests to it in a standardized format. Unlike WSGI, however, applications
 are instantiated objects that are fed events rather than simple callables,
 and must run as ``asyncio``-compatible coroutines (on the main thread;
-they are free to use threading or other processes if they need synchronous code).
+they are free to use threading or other processes if they need synchronous
+code).
 
 Unlike WSGI, there are two separate parts to an ASGI connection:
 
@@ -216,10 +217,11 @@ both types as of ASGI 3.0 and gradually drop support by default over time.
 Protocol Specifications
 -----------------------
 
-These describe the standardized scope and message formats for various protocols.
+These describe the standardized scope and message formats for various
+protocols.
 
-The one common key across all scopes and messages is ``type``, a way to indicate
-what type of scope or message is being received.
+The one common key across all scopes and messages is ``type``, a way to
+indicate what type of scope or message is being received.
 
 In scopes, the ``type`` key must be a Unicode string, like ``"http"`` or
 ``"websocket"``, as defined in the relevant protocol specification.
@@ -232,9 +234,9 @@ defined by the protocol spec. Examples of a message ``type`` value include
 .. note::
 
   Applications should actively reject any protocol that they do not understand
-  with an exception (of any type). Failure to do this may result in the server
-  thinking you support a protocol you don't, which can complicate the Lifespan
-  protocol, as the server will wait to start until you tell it.
+  with an `Exception` (of any type). Failure to do this may result in the
+  server thinking you support a protocol you don't, which can complicate the
+  Lifespan protocol, as the server will wait to start until you tell it.
 
 
 Current protocol specifications:
@@ -322,7 +324,7 @@ information that is part of the extension inside this value or, if the
 extension is only to indicate that the server accepts additional events via
 the ``send`` callable, it may just be an empty ``dict``.
 
-As an example, imagine an HTTP protocol server wishes to provide an extension
+As an example, imagine a HTTP protocol server wishes to provide an extension
 that allows a new event to be sent back to the server that tries to flush the
 network send buffer all the way through the OS level. It provides an empty
 entry in the ``extensions`` dictionary to signal that it can handle the event::
