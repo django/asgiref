@@ -2,7 +2,7 @@
 Implementations
 ===============
 
-Complete or upcoming implementations of ASGI---servers, frameworks, and other
+Complete or upcoming implementations of ASGI - servers, frameworks, and other
 useful pieces.
 
 Servers

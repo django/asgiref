@@ -20,7 +20,7 @@ This spec has had two versions:
 * ``2.0``: The first version of the spec, released with ASGI 2.0
 * ``2.1``: Added the ``headers`` key to the WebSocket Accept response
 
-Spec versions let you understand what the server you are using understands---if
+Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
 sending ``headers`` with a WebSocket Accept message is an error, for example.
 
@@ -56,7 +56,7 @@ value of ``http``.
 Connection Scope
 ''''''''''''''''
 
-HTTP connections have a single-request connection scope---that is, your
+HTTP connections have a single-request connection scope - that is, your
 applications will be instantiated at the start of the request, and destroyed
 at the end, even if the underlying socket is still open and serving multiple
 requests.
@@ -189,7 +189,7 @@ Keys:
 WebSocket
 ---------
 
-WebSockets share some HTTP details---they have a path and headers---but also
+WebSockets share some HTTP details - they have a path and headers - but also
 have more state. Again, most of that state is in the scope, which will live
 as long as the socket does.
 

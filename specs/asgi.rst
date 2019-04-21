@@ -114,14 +114,14 @@ Events
 ------
 
 ASGI decomposes protocols into a series of *events* that an application must
-react to. For HTTP, this is as simple as two events in order---``http.request``
+react to. For HTTP, this is as simple as two events in order - ``http.request``
 and ``http.disconnect``. For something like a WebSocket, it could be more like
 ``websocket.connect``, ``websocket.send``, ``websocket.receive``, and finally
 ``websocket.disconnect``.
 
 Each event is a ``dict`` with a top-level ``type`` key that contains a
 Unicode string of the message type. Users are free to invent their own message
-types and send them between application instances for high-level events---for
+types and send them between application instances for high-level events - for
 example, a chat application might send chat messages with a user type of
 ``mychat.message``. It is expected that applications should be able to handle
 a mixed set of events, some sourced from the incoming client connection and
@@ -246,7 +246,7 @@ Current protocol specifications:
 Middleware
 ----------
 
-It is possible to have ASGI "middleware"---code that plays the role of both
+It is possible to have ASGI "middleware" - code that plays the role of both
 server and application, taking in a scope and the send/receive awaitables,
 potentially modifying them, and then calling an inner application.
 
@@ -263,9 +263,9 @@ control to the child application.
 Error Handling
 --------------
 
-If a server receives an invalid event dictionary---for example, having an
+If a server receives an invalid event dictionary - for example, having an
 unknown ``type``, missing keys an event type should have, or with wrong Python
-types for objects (e.g. Unicode strings for HTTP headers), it should raise an
+types for objects (e.g. Unicode strings for HTTP headers) - it should raise an
 exception out of the ``send`` awaitable back to the application.
 
 If an application receives an invalid event dictionary from ``receive``, it
@@ -276,8 +276,8 @@ not raise an exception. This allows non-breaking upgrades to protocol
 specifications over time.
 
 Servers are free to surface errors that bubble up out of application instances
-they are running however they wish---log to console, send to syslog, or other
-options---but they must terminate the application instance and its associated
+they are running however they wish - log to console, send to syslog, or other
+options - but they must terminate the application instance and its associated
 connection if this happens.
 
 Note that messages received by a server after the connection has been
@@ -306,7 +306,7 @@ There are times when protocol servers may want to provide server-specific
 extensions outside of a core ASGI protocol specification, or when a change
 to a specification is being trialled before being rolled in.
 
-For this use case, we define a common pattern for ``extensions``---named
+For this use case, we define a common pattern for ``extensions`` - named
 additions to a protocol specification that are optional but that, if provided
 by the server and understood by the application, can be used to get more
 functionality.
@@ -347,7 +347,7 @@ In this document, and all sub-specifications, *byte string* refers to
 the ``bytes`` type in Python 3. *Unicode string* refers to the ``str`` type
 in Python 3.
 
-This document will never specify just *string*---all strings are one of the
+This document will never specify just *string* - all strings are one of the
 two exact types.
 
 All ``dict`` keys mentioned (including those for *scopes* and *events*) are

@@ -29,7 +29,7 @@ receiving WebSocket frames) can't trigger this.
 How does ASGI work?
 -------------------
 
-ASGI is structured as a double-callable---the first callable takes a
+ASGI is structured as a double-callable - the first callable takes a
 ``scope``, which contains details about the incoming request, and returns a
 second, coroutine callable. This second callable is given ``send`` and
 ``receive`` awaitables that allow the coroutine to monitor incoming events and
