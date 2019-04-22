@@ -29,25 +29,19 @@ receiving WebSocket frames) can't trigger this.
 How does ASGI work?
 -------------------
 
-ASGI is structured as a double-callable - the first callable takes a
-``scope``, which contains details about the incoming request, and returns a
-second, coroutine callable. This second callable is given ``send`` and
-``receive`` awaitables that allow the coroutine to monitor incoming events and
-send outgoing events.
+ASGI is structured as a single, asynchronous callable. It takes
+``scope``, which contains details about the incoming request, ``send``, an
+awaitable that lets you send events to the client, and ``receive``, which
+lets you receive events from the client.
 
 This not only allows multiple incoming events and outgoing events for each
 application, but also allows for a background coroutine so the application can
 do other things (such as listening for events on an external trigger, like a
 Redis queue).
 
-In its simplest form, an application can be written as a class, like this::
+In its simplest form, an application can be written as a function, like this::
 
-    class Application:
-
-        def __init__(self, scope):
-            self.scope = scope
-
-        async def __call__(self, receive, send):
+    async def application(scope, receive, send):
             event = await receive()
             ...
             await send({"type": "websocket.send", ...})
