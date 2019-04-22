@@ -5,11 +5,11 @@ Lifespan Protocol
 **Version**: 2.0 (2019-03-20)
 
 The Lifespan ASGI sub-specification outlines how to communicate
-lifespan events such as startup and shutdown within ASGI. The lifespan
-being referred to is that of main event loop. In a multi-process
-environment there will be lifespan events in each process.
+lifespan events such as startup and shutdown within ASGI. This refers to the
+lifespan of the main event loop. In a multi-process environment there will be
+lifespan events in each process.
 
-The lifespan messages allow for a application to initialise and
+The lifespan messages allow for an application to initialise and
 shutdown in the context of a running event loop. An example of this
 would be creating a connection pool and subsequently closing the
 connection pool to release the connections.
@@ -33,7 +33,7 @@ A possible implementation of this protocol is given below::
                         await send({'type': 'lifespan.shutdown.complete'})
                         return
             else:
-                pass # Handle other types
+                pass  # Handle other types
 
         async def startup(self):
             ...
@@ -48,18 +48,19 @@ Scope
 The lifespan scope exists for the duration of the event loop. The
 scope itself contains basic metadata:
 
-* ``type``: ``lifespan``
-* ``asgi["version"]``: The version of the ASGI spec, as a string.
-* ``asgi["spec_version"]``: The version of this spec being used, as a string. Optional, defaults to ``"1.0"``.
+* ``type`` (*Unicode string*) -- ``"lifespan"``.
+* ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
+* ``asgi["spec_version"]`` (*Unicode string*) -- The version of this spec being
+  used. Optional; defaults to ``"1.0"``.
 
 If an exception is raised when calling the application callable with a
-``lifespan.startup`` message or a scope with type ``lifespan``
+``lifespan.startup`` message or a scope with type ``lifespan``,
 the server must continue but not send any lifespan events.
 
-This allows for compatibility with applications that do not support the lifespan
-protocol. If you want to log an error that occurred during lifespan startup and
-prevent the server from starting, then send back ``lifespan.startup.failed``
-instead.
+This allows for compatibility with applications that do not support the
+lifespan protocol. If you want to log an error that occurs during lifespan
+startup and prevent the server from starting, then send back
+``lifespan.startup.failed`` instead.
 
 
 Startup
@@ -70,7 +71,7 @@ before it has started to do so.
 
 Keys:
 
-* ``type``: ``lifespan.startup``
+* ``type`` (*Unicode string*) -- ``"lifespan.startup"``.
 
 
 Startup Complete
@@ -81,7 +82,7 @@ must wait for this message before it starts processing connections.
 
 Keys:
 
-* ``type``: ``lifespan.startup.complete``
+* ``type`` (*Unicode string*) -- ``"lifespan.startup.complete"``.
 
 
 Startup Failed
@@ -92,8 +93,8 @@ sees this it should log/print the message provided and then exit.
 
 Keys:
 
-* ``type``: ``lifespan.startup.failed``
-* ``message``: Unicode string (optional, defaults to ``""``).
+* ``type`` (*Unicode string*) -- ``"lifespan.startup.failed"``.
+* ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
 
 
 Shutdown
@@ -104,7 +105,7 @@ active connections.
 
 Keys:
 
-* ``type``:  ``lifespan.shutdown``
+* ``type`` (*Unicode string*) --  ``"lifespan.shutdown"``.
 
 
 Shutdown Complete
@@ -115,7 +116,7 @@ must wait for this message before terminating.
 
 Keys:
 
-* ``type``: ``lifespan.shutdown.complete``
+* ``type`` (*Unicode string*) -- ``"lifespan.shutdown.complete"``.
 
 
 Shutdown Failed
@@ -126,8 +127,8 @@ sees this it should log/print the message provided and then terminate.
 
 Keys:
 
-* ``type``: ``lifespan.shutdown.failed``
-* ``message``: Unicode string (optional, defaults to ``""``).
+* ``type`` (*Unicode string*) -- ``"lifespan.shutdown.failed"``.
+* ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
 
 
 Version History

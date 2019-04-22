@@ -18,10 +18,10 @@ Spec Versions
 This spec has had two versions:
 
 * ``2.0``: The first version of the spec, released with ASGI 2.0
-* ``2.1``: Added the ``headers`` key to the WebSocket Accept response.
+* ``2.1``: Added the ``headers`` key to the WebSocket Accept response
 
-Spec versions let you understand what the server you are using understands -
-if a server tells you it only supports version ``2.0`` of this spec, then
+Spec versions let you understand what the server you are using understands. If
+a server tells you it only supports version ``2.0`` of this spec, then
 sending ``headers`` with a WebSocket Accept message is an error, for example.
 
 They are separate from the HTTP version or the ASGI version.
@@ -32,8 +32,8 @@ HTTP
 
 The HTTP format covers HTTP/1.0, HTTP/1.1 and HTTP/2, as the changes in
 HTTP/2 are largely on the transport level. A protocol server should give
-different requests on the same HTTP/2 connection different scopes, and
-correctly multiplex the responses back into the same stream as they come in.
+different scopes to different requests on the same HTTP/2 connection, and
+correctly multiplex the responses back to the same stream in which they came.
 The HTTP version is available as a string in the scope.
 
 Multiple header fields with the same name are complex in HTTP. RFC 7230
@@ -66,44 +66,46 @@ persist until the response closes from either the client or server side.
 
 The connection scope contains:
 
-* ``type``: ``http``
+* ``type`` (*Unicode string*) -- ``"http"``.
 
-* ``asgi["version"]``: The version of the ASGI spec, as a string.
+* ``asgi["version"]`` (*Unicode string*) -- Version of the ASGI spec.
 
-* ``asgi['spec_version']``: Version of the ASGI HTTP spec this server understands
-   as a string; one of ``2.0`` or ``2.1``. Optional, if missing assume ``2.0``.
+* ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI HTTP spec
+  this server understands; one of ``"2.0"`` or ``"2.1"``. Optional; if missing
+  assume ``2.0``.
 
-* ``http_version``: Unicode string, one of ``1.0``, ``1.1`` or ``2``.
+* ``http_version`` (*Unicode string*) -- One of ``"1.0"``, ``"1.1"`` or ``"2"``.
 
-* ``method``: Unicode string HTTP method name, uppercased.
+* ``method`` (*Unicode string*) -- The HTTP method name, uppercased.
 
-* ``scheme``: Unicode string URL scheme portion (likely ``http`` or ``https``).
-  Optional (but must not be empty), default is ``"http"``.
+* ``scheme`` (*Unicode string*) -- URL scheme portion (likely ``"http"`` or
+  ``"https"``). Optional (but must not be empty); default is ``"http"``.
 
-* ``path``: Unicode string HTTP request target excluding any query
-  string, with percent escapes decoded and UTF-8 byte sequences
+* ``path`` (*Unicode string*) -- HTTP request target excluding any query
+  string, with percent-encoded sequences and UTF-8 byte sequences
   decoded into characters.
 
-* ``query_string``: Byte string URL portion after the ``?``, not url-decoded.
+* ``query_string`` (*byte string*) -- URL portion after the ``?``,
+  percent-encoded.
 
-* ``root_path``: Unicode string that indicates the root path this application
-  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional, defaults
+* ``root_path`` (*Unicode string*) -- The root path this application
+  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; defaults
   to ``""``.
 
-* ``headers``: An iterable of ``[name, value]`` two-item iterables, where
-  ``name`` is the byte string header name, and ``value`` is the byte string
-  header value. Order of header values must be preserved from the original HTTP
-  request; order of header names is not important. Duplicates are possible and
-  must be preserved in the message as received.
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
+  ``[name, value]`` two-item iterables, where ``name`` is the header name, and
+  ``value`` is the header value. Order of header values must be preserved from
+  the original HTTP request; order of header names is not important. Duplicates
+  are possible and must be preserved in the message as received.
   Header names must be lowercased.
 
-* ``client``: A two-item iterable of ``[host, port]``, where ``host``
-  is a unicode string of the remote host's IPv4 or IPv6 address, and
-  ``port`` is the remote port as an integer. Optional, defaults to ``None``.
+* ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
+  ``[host, port]``, where ``host`` the remote host's IPv4 or IPv6 address, and
+  ``port`` is the remote port as an integer. Optional; defaults to ``None``.
 
-* ``server``: A two-item iterable of ``[host, port]``, where ``host``
-  is the listening address for this server as a unicode string, and ``port``
-  is the integer listening port. Optional, defaults to ``None``.
+* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
+  ``[host, port]``, where ``host`` is the listening address for this server,
+  and ``port`` is the integer listening port. Optional; defaults to ``None``.
 
 
 Request
@@ -116,17 +118,17 @@ should not trigger on a connection opening alone).
 
 Keys:
 
-* ``type``: ``http.request``
+* ``type`` (*Unicode string*) -- ``"http.request"``.
 
-* ``body``: Body of the request, as a byte string. Optional, defaults to ``b""``.
-  If ``more_body`` is set, treat as start of body and concatenate
+* ``body`` (*byte string*) -- Body of the request. Optional; defaults to
+  ``b""``. If ``more_body`` is set, treat as start of body and concatenate
   on further chunks.
 
-* ``more_body``: Boolean value signifying if there is additional content
+* ``more_body`` (*bool*) -- Signifies if there is additional content
   to come (as part of a Request message). If ``True``, the consuming
   application should wait until it gets a chunk with this set to ``False``. If
-  ``False``, the request is complete and should be processed. Optional, defaults
-  to ``False``.
+  ``False``, the request is complete and should be processed. Optional;
+  defaults to ``False``.
 
 
 Response Start
@@ -134,18 +136,19 @@ Response Start
 
 Starts sending a response to the client. Needs to be followed by at least
 one response content message. The protocol server must not start sending the
-response to the client until it has received at least one *Response Body* event.
+response to the client until it has received at least one *Response Body*
+event.
 
 Keys:
 
-* ``type``: ``http.response.start``
+* ``type`` (*Unicode string*) -- ``"http.response.start"``.
 
-* ``status``: Integer HTTP status code.
+* ``status`` (*int*) -- HTTP status code.
 
-* ``headers``: A list of ``[name, value]`` lists, where ``name`` is the
-  byte string header name, and ``value`` is the byte string
-  header value. Order must be preserved in the HTTP response. Header names
-  must be lowercased. Optional, defaults to an empty list.
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- A iterable of
+  ``[name, value]`` two-item iterables, where ``name`` is the header name, and
+  ``value`` is the header value. Order must be preserved in the HTTP response.
+  Header names must be lowercased. Optional; defaults to an empty list.
 
 
 Response Body
@@ -158,29 +161,29 @@ close the connection.
 
 Keys:
 
-* ``type``: ``http.response.body``
+* ``type`` (*Unicode string*) -- ``"http.response.body"``.
 
-* ``body``: Byte string of HTTP body content. Concatenated onto any previous
-  ``body`` values sent in this connection scope. Optional, defaults to
+* ``body`` (*byte string*) -- HTTP body content. Concatenated onto any previous
+  ``body`` values sent in this connection scope. Optional; defaults to
   ``b""``.
 
-* ``more_body``: Boolean value signifying if there is additional content
+* ``more_body`` (*bool*) -- Signifies if there is additional content
   to come (as part of a Response Body message). If ``False``, response will
-  be taken as complete and closed off, and any further messages on the channel
-  will be ignored. Optional, defaults to ``False``.
+  be taken as complete and closed, and any further messages on the channel
+  will be ignored. Optional; defaults to ``False``.
 
 
 Disconnect
 ''''''''''
 
-Sent to the application when a HTTP connection is closed or if receive
+Sent to the application when a HTTP connection is closed or if ``receive``
 is called after a response has been sent. This is mainly useful for
 long-polling, where you may want to trigger cleanup code if the
 connection closes early.
 
 Keys:
 
-* ``type``: ``http.disconnect``
+* ``type`` (*Unicode string*) -- ``"http.disconnect"``.
 
 
 WebSocket
@@ -207,46 +210,47 @@ WebSocket connections' scope lives as long as the socket itself - if the
 application dies the socket should be closed, and vice-versa. The scope
 contains the initial connection metadata (mostly from the HTTP handshake):
 
-* ``type``: ``websocket``
+* ``type`` (*Unicode string*) -- ``"websocket"``.
 
-* ``asgi["version"]``: The version of the ASGI spec, as a string.
+* ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 
-* ``asgi['spec_version']``: Version of the ASGI HTTP spec this server understands
-   as a string; one of ``2.0`` or ``2.1``. Optional, if missing assume ``2.0``.
+* ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI HTTP spec
+  this server understands; one of ``"2.0"`` or ``"2.1"``. Optional; if missing
+  assume ``"2.0"``.
 
-* ``http_version``: Unicode string, one of ``1.1`` or ``2``. Optional,
-  default is ``1.1``.
+* ``http_version`` (*Unicode string*) -- One of ``"1.1"`` or ``"2"``. Optional;
+  default is ``"1.1"``.
 
-* ``scheme``: Unicode string URL scheme portion (likely ``ws`` or ``wss``).
-  Optional (but must not be empty), default is ``ws``.
+* ``scheme`` (*Unicode string*) -- URL scheme portion (likely ``"ws"`` or
+  ``"wss"``). Optional (but must not be empty); default is ``"ws"``.
 
-* ``path``: Unicode string HTTP request target excluding any query
-  string, with percent escapes decoded and UTF-8 byte sequences
+* ``path`` (*Unicode string*) -- HTTP request target excluding any query
+  string, with percent-encoded sequences and UTF-8 byte sequences
   decoded into characters.
 
-* ``query_string``: Byte string URL portion after the ``?``. Optional, default
-  is empty string.
+* ``query_string`` (*byte string*) -- URL portion after the ``?``. Optional;
+  default is empty string.
 
-* ``root_path``: Byte string that indicates the root path this application
-  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional, defaults
+* ``root_path`` (*byte string*) -- The root path this application
+  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; defaults
   to empty string.
 
-* ``headers``: An iterable of ``[name, value]`` two-item iterables, where
-  ``name`` is the header name as byte string and ``value`` is the header value
-  as a byte string. Order should be preserved from the original HTTP request;
-  duplicates are possible and must be preserved in the message as received.
-  Header names must be lowercased.
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
+  ``[name, value]`` two-item iterables, where ``name`` is the header name and
+  ``value`` is the header value. Order should be preserved from the original
+  HTTP request; duplicates are possible and must be preserved in the message
+  as received. Header names must be lowercased.
 
-* ``client``: A two-item iterable of ``[host, port]``, where ``host``
-  is a unicode string of the remote host's IPv4 or IPv6 address, and
-  ``port`` is the remote port as an integer. Optional, defaults to ``None``.
+* ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
+  ``[host, port]``, where ``host`` is the remote host's IPv4 or IPv6 address,
+  and ``port`` is the remote port. Optional; defaults to ``None``.
 
-* ``server``: A two-item iterable of ``[host, port]``, where ``host``
-  is the listening address for this server as a unicode string, and ``port``
-  is the integer listening port. Optional, defaults to ``None``.
+* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
+  ``[host, port]``, where ``host`` is the listening address for this server,
+  and ``port`` is the integer listening port. Optional; defaults to ``None``.
 
-* ``subprotocols``: List of subprotocols the client advertised as unicode
-  strings. Optional, defaults to empty list.
+* ``subprotocols`` (*Iterable[Unicode string]*) -- Subprotocols the client
+  advertised. Optional; defaults to empty list.
 
 
 Connection
@@ -264,7 +268,7 @@ denied.
 
 Keys:
 
-* ``type``: ``websocket.connect``
+* ``type`` (*Unicode string*) -- ``"websocket.connect"``.
 
 
 Accept
@@ -272,17 +276,17 @@ Accept
 
 Sent by the application when it wishes to accept an incoming connection.
 
-* ``type``: ``websocket.accept``
+* ``type`` (*Unicode string*) -- ``"websocket.accept"``.
 
-* ``subprotocol``: The subprotocol the server wishes to accept, as a unicode
-  string. Optional, defaults to ``None``.
+* ``subprotocol`` (*Unicode string*) -- The subprotocol the server wishes to
+  accept. Optional; defaults to ``None``.
 
-* ``headers``: A list of ``[name, value]`` lists, where ``name`` is
-  the byte string header name, and ``value`` is the byte string header
-  value. Order must be preserved in the HTTP response. Header names
-  must be lowercased. Must not include a ``sec-websocket-protocol``
-  named header, use the ``subprotocol`` key instead.  Optional,
-  defaults to an empty list. *Added in spec version 2.1*
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
+  ``[name, value]`` two-item iterables, where ``name`` is the header name, and
+  ``value`` is the header value. Order must be preserved in the HTTP response.
+  Header names must be lowercased. Must not include a header named
+  ``sec-websocket-protocol``; use the ``subprotocol`` key instead. Optional;
+  defaults to an empty list. *Added in spec version 2.1*.
 
 
 Receive
@@ -292,12 +296,12 @@ Sent when a data message is received from the client.
 
 Keys:
 
-* ``type``: ``websocket.receive``
+* ``type`` (*Unicode string*) -- ``"websocket.receive"``.
 
-* ``bytes``: Byte string of the message content, if it was binary mode, or
+* ``bytes`` (*byte string*) -- The message content, if it was binary mode, or
   ``None``. Optional; if missing, it is equivalent to ``None``.
 
-* ``text``: Unicode string of the message content, if it was text mode, or
+* ``text`` (*Unicode string*) -- The message content, if it was text mode, or
   ``None``. Optional; if missing, it is equivalent to ``None``.
 
 Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
@@ -311,12 +315,12 @@ Sends a data message to the client.
 
 Keys:
 
-* ``type``: ``websocket.send``
+* ``type`` (*Unicode string*) -- ``"websocket.send"``.
 
-* ``bytes``: Byte string of binary message content, or ``None``.
+* ``bytes`` (*byte string*) -- Binary message content, or ``None``.
    Optional; if missing, it is equivalent to ``None``.
 
-* ``text``: Unicode string of text message content, or ``None``.
+* ``text`` (*Unicode string*) -- Text message content, or ``None``.
    Optional; if missing, it is equivalent to ``None``.
 
 Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
@@ -332,9 +336,9 @@ socket.
 
 Keys:
 
-* ``type``: ``websocket.disconnect``
+* ``type`` (*Unicode string*) -- ``"websocket.disconnect"``
 
-* ``code``: The WebSocket close code (integer), as per the WebSocket spec.
+* ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec.
 
 
 Close
@@ -350,10 +354,10 @@ browsers as a different WebSocket error code (such as 1006, Abnormal Closure).
 If this is sent after the socket is accepted, the server must close the socket
 with the close code passed in the message (or 1000 if none is specified).
 
-* ``type``: ``websocket.close``
+* ``type`` (*Unicode string*) -- ``"websocket.close"``.
 
-* ``code``: The WebSocket close code (integer), as per the WebSocket spec.
-  Optional, defaults to ``1000``.
+* ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec.
+  Optional; defaults to ``1000``.
 
 
 WSGI Compatibility
@@ -371,7 +375,7 @@ lifetime.
 There is an almost direct mapping for the various special keys in
 WSGI's ``environ`` variable to the ``http`` scope:
 
-* ``REQUEST_METHOD`` is the ``method`` key
+* ``REQUEST_METHOD`` is the ``method``
 * ``SCRIPT_NAME`` is ``root_path``
 * ``PATH_INFO`` can be derived from ``path`` and ``root_path``
 * ``QUERY_STRING`` is ``query_string``
@@ -381,7 +385,7 @@ WSGI's ``environ`` variable to the ``http`` scope:
 * ``REMOTE_HOST``/``REMOTE_ADDR`` and ``REMOTE_PORT`` are in ``client``
 * ``SERVER_PROTOCOL`` is encoded in ``http_version``
 * ``wsgi.url_scheme`` is ``scheme``
-* ``wsgi.input`` is a StringIO based around the ``http.request`` messages
+* ``wsgi.input`` is a ``StringIO`` based around the ``http.request`` messages
 * ``wsgi.errors`` is directed by the wrapper as needed
 
 The ``start_response`` callable maps similarly to ``http.response.start``:
@@ -402,24 +406,25 @@ codepoints in the ISO-8859-1 ("latin-1") range. This was due to it originally
 being designed for Python 2 and its different set of string types.
 
 The ASGI HTTP and WebSocket specifications instead specify each entry of the
-``scope`` dict as either a bytestring or a unicode string. HTTP, being an older
-protocol, is sometimes imperfect at specifying encoding, so some decisions
-of what is unicode versus bytes may not be obvious.
+``scope`` dict as either a byte string or a Unicode string. HTTP, being an
+older protocol, is sometimes imperfect at specifying encoding, so some
+decisions of what is Unicode versus bytes may not be obvious.
 
 * ``path``: URLs can have both percent-encoded and UTF-8 encoded sections.
   Because decoding these is often done by the underlying server (or sometimes
-  even proxies in the path), this is a unicode string, fully decoded from both
+  even proxies in the path), this is a Unicode string, fully decoded from both
   UTF-8 encoding and percent encodings.
 
-* ``headers``: These are bytestrings of the exact byte sequences sent by the
+* ``headers``: These are byte strings of the exact byte sequences sent by the
   client/to be sent by the server. While modern HTTP standards say that headers
   should be ASCII, older ones did not and allowed a wider range of characters.
   Frameworks/applications should decode headers as they deem appropriate.
 
 * ``query_string``: Unlike the ``path``, this is not as subject to server
-  interference and so is presented as its raw bytestring version, undecoded.
+  interference and so is presented as its raw byte string version,
+  percent-encoded.
 
-* ``root_path``: Unicode to match ``path``.
+* ``root_path``: Unicode string to match ``path``.
 
 
 Version History

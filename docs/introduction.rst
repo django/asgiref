@@ -29,11 +29,11 @@ receiving WebSocket frames) can't trigger this.
 How does ASGI work?
 -------------------
 
-ASGI is structured as a double-callable - the first callable takes a ``scope``,
-which contains details about the incoming request, and returns a second,
-coroutine callable. This second callable gets given ``send`` and ``receive``
-awaitables that allow the coroutine to monitor incoming events and send
-outgoing events.
+ASGI is structured as a double-callable - the first callable takes a
+``scope``, which contains details about the incoming request, and returns a
+second, coroutine callable. This second callable is given ``send`` and
+``receive`` awaitables that allow the coroutine to monitor incoming events and
+send outgoing events.
 
 This not only allows multiple incoming events and outgoing events for each
 application, but also allows for a background coroutine so the application can
@@ -56,9 +56,9 @@ Every *event* that you send or receive is a Python ``dict``, with a predefined
 format. It's these event formats that form the basis of the standard, and allow
 applications to be swappable between servers.
 
-These *events* each have a defined ``type`` key, so you know what it is to look
-for. Here's an example event for sending the start of a HTTP response that
-you might get from ``receive``::
+These *events* each have a defined ``type`` key, which can be used to infer
+the event's structure. Here's an example event for sending the start of a HTTP
+response that you might get from ``receive``::
 
     {
         "type": "http.response.start",
