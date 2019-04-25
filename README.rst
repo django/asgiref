@@ -97,11 +97,36 @@ Contributing
 Please refer to the
 `main Channels contributing docs <https://github.com/django/channels/blob/master/CONTRIBUTING.rst>`_.
 
+
+Testing
+'''''''
+
 To run tests, make sure you have installed the ``tests`` extra with the package::
 
     cd asgiref/
     pip install -e .[tests]
     pytest
+
+
+Building the documentation
+'''''''''''''''''''''''''
+
+The documentation uses `Sphinx <http://www.sphinx-doc.org>`_::
+
+    cd asgiref/docs/
+    pip install sphinx
+
+To build the docs, you can use the default tools::
+
+    sphinx-build -b html . _build/html  # or `make html`, if you've got make set up
+    cd _build/html
+    python -m http.server
+
+...or you can use ``sphinx-autobuild`` to run a server and rebuild/reload
+your documentation changes automatically::
+
+    pip install sphinx-autobuild
+    sphinx-autobuild . _build/html
 
 
 Maintenance and Security
