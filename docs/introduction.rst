@@ -42,9 +42,9 @@ Redis queue).
 In its simplest form, an application can be written as a function, like this::
 
     async def application(scope, receive, send):
-            event = await receive()
-            ...
-            await send({"type": "websocket.send", ...})
+        event = await receive()
+        ...
+        await send({"type": "websocket.send", ...})
 
 Every *event* that you send or receive is a Python ``dict``, with a predefined
 format. It's these event formats that form the basis of the standard, and allow
