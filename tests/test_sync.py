@@ -10,7 +10,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 
 
 @pytest.mark.asyncio
-async def test_sync_to_async():
+async def test_sync_to_async(monkeypatch):
     """
     Tests we can call sync functions from an async thread
     (even if the number of thread workers is less than the number of calls)
@@ -29,18 +29,15 @@ async def test_sync_to_async():
     end = time.monotonic()
     assert result == 42
     assert end - start >= 1
+
     # Set workers to 1, call it twice and make sure that works right
-    loop = asyncio.get_event_loop()
-    old_executor = loop._default_executor
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
-    try:
-        start = time.monotonic()
-        await asyncio.wait([async_function(), async_function()])
-        end = time.monotonic()
-        # It should take at least 2 seconds as there's only one worker.
-        assert end - start >= 2
-    finally:
-        loop.set_default_executor(old_executor)
+    monkeypatch.setattr(sync_to_async, "executor", ThreadPoolExecutor(max_workers=1))
+    async_function = sync_to_async(sync_function)
+    start = time.monotonic()
+    await asyncio.wait([async_function(), async_function()])
+    end = time.monotonic()
+    # It should take at least 2 seconds as there's only one worker.
+    assert end - start >= 2
 
 
 @pytest.mark.asyncio

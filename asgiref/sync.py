@@ -179,13 +179,7 @@ class SyncToAsync:
     with a CurrentThreadExecutor while AsyncToSync is blocking its sync parent,
     rather than just blocking.
     """
-
-    # If they've set ASGI_THREADS, update the default asyncio executor for now
-    if "ASGI_THREADS" in os.environ:
-        loop = asyncio.get_event_loop()
-        loop.set_default_executor(
-            ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
-        )
+    executor = None
 
     # Maps launched threads to the coroutines that spawned them
     launch_map = {}
@@ -205,6 +199,19 @@ class SyncToAsync:
         except AttributeError:
             pass
 
+        if self.__class__.executor is None:
+            if "ASGI_THREADS" in os.environ:
+                executor_kwargs = {
+                    "max_workers": int(os.environ["ASGI_THREADS"]),
+                }
+            else:
+                executor_kwargs = {}
+
+            if sys.version_info >= (3, 6):
+                executor_kwargs["thread_name_prefix"] = "sync_to_async"
+
+            self.__class__.executor = ThreadPoolExecutor(**executor_kwargs)
+
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
 
@@ -217,7 +224,7 @@ class SyncToAsync:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
         else:
-            executor = None  # Use default
+            executor = self.__class__.executor  # Use default
 
         if contextvars is not None:
             context = contextvars.copy_context()
