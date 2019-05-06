@@ -15,8 +15,8 @@ script:
   - pytest
 
 stages:
-  - lint
   - test
+  - lint
   - name: release
     if: tag IS present
 
@@ -30,7 +30,7 @@ jobs:
       install: pip install -U -e .[tests] black pyflakes isort
       script:
         - pyflakes asgiref tests
-        - black --check asgiref tests
+        - black --check --diff asgiref tests
         - isort --check-only --diff --recursive asgiref tests
 
     - stage: deploy
