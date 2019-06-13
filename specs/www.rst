@@ -86,9 +86,8 @@ The connection scope contains:
   decoded into characters.
 
 * ``raw_path`` (*byte string*) -- The original HTTP path component unmodified
-  from the bytes that were received by the web server. This field is optional
-  because some web server implementations may not be able to support it: they
-  should signal their lack of support by omitting the key entirely.
+  from the bytes that were received by the web server. Some web server
+  implementations may be unable to provide this. Optional; defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the ``?``,
   percent-encoded.
@@ -234,9 +233,8 @@ contains the initial connection metadata (mostly from the HTTP handshake):
   decoded into characters.
 
 * ``raw_path`` (*byte string*) -- The original HTTP path component unmodified
-  from the bytes that were received by the web server. This field is optional
-  because some web server implementations may not be able to support it: they
-  should signal their lack of support by omitting the key entirely.
+  from the bytes that were received by the web server. Some web server
+  implementations may be unable to provide this. Optional; defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the ``?``. Optional;
   default is empty string.
