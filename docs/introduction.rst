@@ -31,8 +31,8 @@ How does ASGI work?
 
 ASGI is structured as a single, asynchronous callable. It takes
 ``scope``, which contains details about the incoming request, ``send``, an
-awaitable that lets you send events to the client, and ``receive``, which
-lets you receive events from the client.
+awaitable that lets you send events to the client, and ``receive``, an
+awaitable which lets you receive events from the client.
 
 This not only allows multiple incoming events and outgoing events for each
 application, but also allows for a background coroutine so the application can
