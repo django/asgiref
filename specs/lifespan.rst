@@ -16,6 +16,7 @@ connection pool to release the connections.
 
 A possible implementation of this protocol is given below::
 
+<<<<<<< HEAD
     class App:
 
         def __init__(self, scope):
@@ -40,6 +41,21 @@ A possible implementation of this protocol is given below::
 
         async def shutdown(self):
             ...
+=======
+    async def app(scope, receive, send):
+        if scope['type'] == 'lifespan':
+            while True:
+                message = await receive()
+                if message['type'] == 'lifespan.startup':
+                    ... # Do some startup here!
+                    await send({'type': 'lifespan.startup.complete'})
+                elif message['type'] == 'lifespan.shutdown':
+                    ... # Do some shutdown here!
+                    await send({'type': 'lifespan.shutdown.complete'})
+                    return
+        else:
+            pass # Handle other types
+>>>>>>> Fixed #97: Reworked Lifespan example to ASGI 3
 
 
 Scope
@@ -48,10 +64,17 @@ Scope
 The lifespan scope exists for the duration of the event loop. The
 scope itself contains basic metadata:
 
+<<<<<<< HEAD
 * ``type`` (*Unicode string*) -- ``"lifespan"``.
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 * ``asgi["spec_version"]`` (*Unicode string*) -- The version of this spec being
   used. Optional; defaults to ``"1.0"``.
+=======
+* ``type``: ``lifespan``
+* ``asgi["version"]``: The version of the ASGI spec, as a string.
+* ``asgi["spec_version"]``: The version of this spec being used, as a string.
+  If not present, assume ``"1.0"``.
+>>>>>>> Fixed #97: Reworked Lifespan example to ASGI 3
 
 If an exception is raised when calling the application callable with a
 ``lifespan.startup`` message or a scope with type ``lifespan``,
