@@ -38,16 +38,11 @@ class AsyncToSync:
 
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
-        try:
-            event_loop = asyncio.get_event_loop()
-        except RuntimeError:
-            pass
-        else:
-            if event_loop.is_running():
-                raise RuntimeError(
-                    "You cannot use AsyncToSync in the same thread as an async event loop - "
-                    "just await the async function directly."
-                )
+        if asyncio._get_running_loop() is not None:
+            raise RuntimeError(
+                "You cannot use AsyncToSync in the same thread as an async event loop - "
+                "just await the async function directly."
+            )
         # Make a future for the return information
         call_result = Future()
         # Get the source thread
