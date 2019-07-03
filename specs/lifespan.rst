@@ -16,32 +16,6 @@ connection pool to release the connections.
 
 A possible implementation of this protocol is given below::
 
-<<<<<<< HEAD
-    class App:
-
-        def __init__(self, scope):
-            self.scope = scope
-
-        async def __call__(self, receive, send):
-            if self.scope['type'] == 'lifespan':
-                while True:
-                    message = await receive()
-                    if message['type'] == 'lifespan.startup':
-                        await self.startup()
-                        await send({'type': 'lifespan.startup.complete'})
-                    elif message['type'] == 'lifespan.shutdown':
-                        await self.shutdown()
-                        await send({'type': 'lifespan.shutdown.complete'})
-                        return
-            else:
-                pass  # Handle other types
-
-        async def startup(self):
-            ...
-
-        async def shutdown(self):
-            ...
-=======
     async def app(scope, receive, send):
         if scope['type'] == 'lifespan':
             while True:
@@ -55,7 +29,6 @@ A possible implementation of this protocol is given below::
                     return
         else:
             pass # Handle other types
->>>>>>> Fixed #97: Reworked Lifespan example to ASGI 3
 
 
 Scope
@@ -64,17 +37,10 @@ Scope
 The lifespan scope exists for the duration of the event loop. The
 scope itself contains basic metadata:
 
-<<<<<<< HEAD
 * ``type`` (*Unicode string*) -- ``"lifespan"``.
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 * ``asgi["spec_version"]`` (*Unicode string*) -- The version of this spec being
   used. Optional; defaults to ``"1.0"``.
-=======
-* ``type``: ``lifespan``
-* ``asgi["version"]``: The version of the ASGI spec, as a string.
-* ``asgi["spec_version"]``: The version of this spec being used, as a string.
-  If not present, assume ``"1.0"``.
->>>>>>> Fixed #97: Reworked Lifespan example to ASGI 3
 
 If an exception is raised when calling the application callable with a
 ``lifespan.startup`` message or a scope with type ``lifespan``,
