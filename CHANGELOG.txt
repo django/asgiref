@@ -1,3 +1,11 @@
+3.1.3 (2019-07-05)
+------------------
+
+* async_timeout has been removed as a dependency, so there are now no required
+  dependencies.
+* The WSGI adapter now sets ``REMOTE_ADDR`` from the ASGI ``client``.
+
+
 3.1.2 (2019-04-17)
 ------------------
 
