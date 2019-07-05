@@ -25,9 +25,6 @@ setup(
             "pytest-asyncio~=0.10.0",
         ],
     },
-    install_requires=[
-        'async_timeout>=2.0,<4.0',
-    ],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Web Environment',

@@ -2,9 +2,8 @@ import asyncio
 import time
 from concurrent.futures import CancelledError
 
-import async_timeout
-
 from .compatibility import guarantee_single_callable
+from .timeout import timeout as async_timeout
 
 
 class ApplicationCommunicator:
@@ -27,7 +26,7 @@ class ApplicationCommunicator:
         Waits for the application to stop itself and returns any exceptions.
         """
         try:
-            async with async_timeout.timeout(timeout):
+            async with async_timeout(timeout):
                 try:
                     await self.future
                     self.future.result()
@@ -72,7 +71,7 @@ class ApplicationCommunicator:
             self.future.result()
         # Wait and receive the message
         try:
-            async with async_timeout.timeout(timeout):
+            async with async_timeout(timeout):
                 return await self.output_queue.get()
         except asyncio.TimeoutError as e:
             # See if we have another error to raise inside
