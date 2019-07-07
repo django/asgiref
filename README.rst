@@ -109,7 +109,7 @@ To run tests, make sure you have installed the ``tests`` extra with the package:
 
 
 Building the documentation
-'''''''''''''''''''''''''
+''''''''''''''''''''''''''
 
 The documentation uses `Sphinx <http://www.sphinx-doc.org>`_::
 

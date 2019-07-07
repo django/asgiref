@@ -1,3 +1,9 @@
+3.1.4 (2019-07-07)
+------------------
+
+* Fixed an incompatibility with Python 3.5 introduced in the last release.
+
+
 3.1.3 (2019-07-05)
 ------------------
 

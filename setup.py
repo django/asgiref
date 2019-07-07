@@ -15,6 +15,7 @@ setup(
     author_email='foundation@djangoproject.com',
     description='ASGI specs, helper code, and adapters',
     long_description=open(readme_path).read(),
+    long_description_content_type='text/x-rst',
     license='BSD',
     zip_safe=False,
     packages=find_packages(exclude=['tests']),
