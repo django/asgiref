@@ -197,9 +197,7 @@ def test_async_to_sync_in_thread():
     assert result["worked"]
 
 
-
 class ASGITest(TestCase):
-
     @async_to_sync
     async def test_wrapped_case_is_collected(self):
         self.assertTrue(True)

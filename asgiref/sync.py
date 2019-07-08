@@ -82,7 +82,8 @@ class AsyncToSync:
         """
         Include self for methods
         """
-        return functools.partial(self.__call__, parent)
+        func = functools.partial(self.__call__, parent)
+        return functools.update_wrapper(func, self.awaitable)
 
     async def main_wrap(self, args, kwargs, call_result, source_thread):
         """
