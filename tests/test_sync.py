@@ -2,6 +2,7 @@ import asyncio
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from unittest import TestCase
 
 import pytest
 
@@ -194,3 +195,9 @@ def test_async_to_sync_in_thread():
 
     # Run it
     assert result["worked"]
+
+
+class ASGITest(TestCase):
+    @async_to_sync
+    async def test_wrapped_case_is_collected(self):
+        self.assertTrue(True)
