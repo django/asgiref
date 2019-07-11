@@ -31,12 +31,14 @@ class WsgiToAsgiInstance:
 
     async def __call__(self, scope, receive, send):
         self.scope = scope
-        # Alright, wait for the http.request message
-        message = await receive()
-        if message["type"] != "http.request":
-            raise ValueError("WSGI wrapper received a non-HTTP-request message")
         # Wrap send so it can be called from the subthread
         self.sync_send = AsyncToSync(send)
+        message = await receive()
+        if message["type"] == 'give-me-the-application-instance-please':
+            return await send(self.wsgi_application)
+        # Alright, wait for the http.request message
+        elif message["type"] != "http.request":
+            raise ValueError("WSGI wrapper received a non-HTTP-request message")
         # Call the WSGI app
         await self.run_wsgi_app(message)
 

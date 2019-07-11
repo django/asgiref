@@ -17,9 +17,10 @@ class ApplicationCommunicator:
         self.scope = scope
         self.input_queue = asyncio.Queue()
         self.output_queue = asyncio.Queue()
-        self.future = asyncio.ensure_future(
-            self.application(scope, self.input_queue.get, self.output_queue.put)
+        self.instance = self.application(
+            scope, self.input_queue.get, self.output_queue.put
         )
+        self.future = asyncio.ensure_future(self.instance)
 
     async def wait(self, timeout=1):
         """
@@ -96,3 +97,10 @@ class ApplicationCommunicator:
                 return False
             await asyncio.sleep(interval)
         return self.output_queue.empty()
+
+
+    async def receive_application_instance(self):
+        await self.input_queue.put({
+            'type': 'give-me-the-application-instance-please'
+        })
+        return await self.output_queue.get()

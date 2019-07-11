@@ -4,8 +4,20 @@ from asgiref.testing import ApplicationCommunicator
 from asgiref.wsgi import WsgiToAsgi
 
 
+@pytest.fixture
+def default_payload():
+    return {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/foo/",
+        "query_string": b"bar=baz",
+        "headers": [],
+    }
+
+
 @pytest.mark.asyncio
-async def test_receive_nothing():
+async def test_receive_nothing(default_payload):
     """
     Tests ApplicationCommunicator.receive_nothing to return the correct value.
     """
@@ -15,31 +27,42 @@ async def test_receive_nothing():
         yield b"content"
 
     application = WsgiToAsgi(wsgi_application)
-    instance = ApplicationCommunicator(
-        application,
-        {
-            "type": "http",
-            "http_version": "1.0",
-            "method": "GET",
-            "path": "/foo/",
-            "query_string": b"bar=baz",
-            "headers": [],
-        },
-    )
+    communicator = ApplicationCommunicator(application, default_payload)
 
     # No event
-    assert await instance.receive_nothing() is True
+    assert await communicator.receive_nothing() is True
 
     # Produce 3 events to receive
-    await instance.send_input({"type": "http.request"})
+    await communicator.send_input({"type": "http.request"})
     # Start event of the response
-    assert await instance.receive_nothing() is False
-    await instance.receive_output()
+    assert await communicator.receive_nothing() is False
+    await communicator.receive_output()
     # First body event of the response announcing further body event
-    assert await instance.receive_nothing() is False
-    await instance.receive_output()
+    assert await communicator.receive_nothing() is False
+    await communicator.receive_output()
     # Last body event of the response
-    assert await instance.receive_nothing() is False
-    await instance.receive_output()
+    assert await communicator.receive_nothing() is False
+    await communicator.receive_output()
     # Response received completely
-    assert await instance.receive_nothing(0.01) is True
+    assert await communicator.receive_nothing(0.01) is True
+
+
+@pytest.mark.asyncio
+async def test_communicator_instance(default_payload):
+    """
+    Tests ApplicationCommunicator.instance is exposed
+    """
+
+    class WsgiApplication:
+
+        def __call__(self, environ, start_response):
+            start_response('200 OK', [('Content-Type', 'text/plain')])
+            yield "Hello World!\n"
+
+
+    application = WsgiToAsgi(WsgiApplication())
+    communicator = ApplicationCommunicator(application, default_payload)
+
+    application_instance = await communicator.receive_application_instance()
+
+    assert isinstance(application_instance, WsgiApplication)
