@@ -18,8 +18,11 @@ async def test_sync_to_async():
     # Define sync function
     def sync_function():
         time.sleep(1)
+        assert sync_to_async._is_outermost_sync() == False
         return 42
 
+    # Ensure outermost detection works
+    assert sync_to_async._is_outermost_sync() == False
     # Wrap it
     async_function = sync_to_async(sync_function)
     # Check it works right
@@ -86,6 +89,7 @@ async def test_async_to_sync_to_async():
 
     # Define async function
     async def inner_async_function():
+        assert sync_to_async._is_outermost_sync() == False
         result["worked"] = True
         return 65
 
@@ -110,11 +114,13 @@ def test_async_to_sync():
     # Define async function
     async def inner_async_function():
         await asyncio.sleep(0)
+        assert sync_to_async._is_outermost_sync() == True
         result["worked"] = True
         return 84
 
     # Run it
     sync_function = async_to_sync(inner_async_function)
+    assert sync_to_async._is_outermost_sync() == True
     number = sync_function()
     assert number == 84
     assert result["worked"]
@@ -168,6 +174,7 @@ async def test_async_to_sync_in_async():
 
     # Define async function
     async def inner_async_function():
+        assert sync_to_async._is_outermost_sync() == False
         return 84
 
     # Run it
@@ -186,18 +193,80 @@ def test_async_to_sync_in_thread():
     @async_to_sync
     async def test_function():
         await asyncio.sleep(0)
+        assert sync_to_async._is_outermost_sync() == True
         result["worked"] = True
 
-    # Make a thread
+    # Make a thread and run it
     thread = threading.Thread(target=test_function)
     thread.start()
     thread.join()
-
-    # Run it
     assert result["worked"]
 
 
+def test_thread_sensitive_outside_sync():
+    """
+    Tests that thread_sensitive SyncToAsync where the outside is sync code runs
+    in the main thread.
+    """
+
+    result = {}
+
+    # Middle async function
+    @async_to_sync
+    async def middle():
+        await inner()
+
+    # Inner sync function
+    def inner():
+        result["thread"] = threading.current_thread()
+
+    inner = sync_to_async(inner, thread_sensitive=True)
+
+    # Run it
+    assert result["worked"]
+    middle()
+    assert result["thread"] == threading.current_thread()
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_outside_async():
+    """
+    Tests that thread_sensitive SyncToAsync where the outside is async code runs
+    in a single, separate thread.
+    """
+
+    result_1 = {}
+    result_2 = {}
+
+    # Outer sync function
+    @sync_to_async
+    def outer(result):
+        middle(result)
+
+    # Middle async function
+    @async_to_sync
+    async def middle(result):
+        await inner(result)
+
+    # Inner sync function
+    def inner(result):
+        result["thread"] = threading.current_thread()
+
+    inner = sync_to_async(inner, thread_sensitive=True)
+
+    # Run it (in supposed parallel!)
+    await asyncio.wait([outer(result_1), inner(result_2)])
+
+    # They should not have run in the main thread, but in the same thread
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] == result_2["thread"]
+
+
 class ASGITest(TestCase):
+    """
+    Tests collection of async cases inside classes
+    """
+
     @async_to_sync
     async def test_wrapped_case_is_collected(self):
         self.assertTrue(True)

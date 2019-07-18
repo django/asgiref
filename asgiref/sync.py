@@ -107,6 +107,19 @@ class SyncToAsync:
     Utility class which turns a synchronous callable into an awaitable that
     runs in a threadpool. It also sets a threadlocal inside the thread so
     calls to AsyncToSync can escape it.
+
+    If thread_sensitive is passed, the code will run in the same thread as any
+    outer code. This is needed for underlying Python code that is not
+    threadsafe (for example, code which handles SQLite database connections).
+
+    If the outermost program is async (i.e. SyncToAsync is outermost), then
+    this will be a dedicated single sub-thread that all sync code runs in,
+    one after the other. If the outermost program is sync (i.e. AsyncToSync is
+    outermost), this will just be the main thread and will block the async loop,
+    as it's likely the sync code wants to be on the main thread anyway.
+
+    Determining "outermostness" is done by looking at the launch_map pairs
+    for the current thread/task.
     """
 
     # If they've set ASGI_THREADS, update the default asyncio executor for now
@@ -122,8 +135,12 @@ class SyncToAsync:
     # Storage for main event loop references
     threadlocal = threading.local()
 
-    def __init__(self, func):
+    # Single-thread executor for thread-sensitive code
+    single_thread_executor = ThreadPoolExecutor(max_workers=1)
+
+    def __init__(self, func, thread_sensitive=False):
         self.func = func
+        self._thread_sensitive = thread_sensitive
 
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
@@ -137,8 +154,20 @@ class SyncToAsync:
         else:
             func = self.func
 
+        # Work out what thread to run the code in
+        if self._thread_sensitive:
+            if self._is_outermost_sync():
+                # Program has outermost layer as sync, so run the code blocking.
+                return self.func(*args, **kwargs)
+            else:
+                # Program has outermost layer as async, so use the single-thread pool.
+                executor = self.single_thread_executor
+        else:
+            executor = None  # Use default
+
+        # Run the code in the right thread
         future = loop.run_in_executor(
-            None,
+            executor,
             functools.partial(
                 self.thread_handler,
                 loop,
@@ -187,6 +216,30 @@ class SyncToAsync:
                 return asyncio.Task.current_task()
         except RuntimeError:
             return None
+
+    @classmethod
+    def _is_outermost_sync(cls):
+        """
+        Determines if the outermost call is AsyncToSync
+        """
+        # Get starting conditions
+        current_task = cls.get_current_task()
+        current_thread = threading.current_thread()
+        frame_is_sync = current_task is None
+        # Step up through each task/thread to its parent, stopping when we run out of parents
+        # Where we stop determines what the outermost type of call is
+        for i in range(1000):
+            if frame_is_sync:
+                current_task = SyncToAsync.launch_map.get(current_thread, None)
+                frame_is_sync = False
+                if current_task is None:
+                    return True
+            else:
+                current_thread = AsyncToSync.launch_map.get(current_task, None)
+                frame_is_sync = True
+                if current_thread is None:
+                    return False
+        raise Exception("Infinite loop determining outermost sync type")
 
 
 # Lowercase is more sensible for most things
