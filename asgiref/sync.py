@@ -145,15 +145,6 @@ class SyncToAsync:
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
 
-        if contextvars is not None:
-            context = contextvars.copy_context()
-            child = functools.partial(self.func, *args, **kwargs)
-            func = context.run
-            args = (child,)
-            kwargs = {}
-        else:
-            func = self.func
-
         # Work out what thread to run the code in
         if self._thread_sensitive:
             if self._is_outermost_sync():
@@ -164,6 +155,15 @@ class SyncToAsync:
                 executor = self.single_thread_executor
         else:
             executor = None  # Use default
+
+        if contextvars is not None:
+            context = contextvars.copy_context()
+            child = functools.partial(self.func, *args, **kwargs)
+            func = context.run
+            args = (child,)
+            kwargs = {}
+        else:
+            func = self.func
 
         # Run the code in the right thread
         future = loop.run_in_executor(
