@@ -223,7 +223,6 @@ def test_thread_sensitive_outside_sync():
     inner = sync_to_async(inner, thread_sensitive=True)
 
     # Run it
-    assert result["worked"]
     middle()
     assert result["thread"] == threading.current_thread()
 
