@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import threading
 import time
 
@@ -52,7 +53,7 @@ class Local:
         if self._thread_critical:
             return context_id
         # Now, take those and see if we can resolve them through the launch maps
-        for i in range(1000):
+        for i in range(sys.getrecursionlimit()):
             try:
                 if isinstance(context_id, threading.Thread):
                     # Threads have a source task in SyncToAsync

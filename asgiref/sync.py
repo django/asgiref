@@ -64,8 +64,9 @@ class AsyncToSync:
         call_result = Future()
         # Get the source thread
         source_thread = threading.current_thread()
-        # Make a CurrentThreadExecutor we'll use to idle in this thread if
-        # there is not already one defined
+        # Make a CurrentThreadExecutor we'll use to idle in this thread - we
+        # need one for every sync frame, even if there's one above us in the
+        # same thread.
         if hasattr(self.executors, "current"):
             old_current_executor = self.executors.current
         else:
