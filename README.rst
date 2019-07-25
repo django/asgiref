@@ -41,6 +41,10 @@ one style to the other. In the case of Channels, we wrap the (synchronous)
 Django view system with SyncToAsync to allow it to run inside the (asynchronous)
 ASGI server.
 
+Note that exactly what threads things run in is very specific, and aimed to
+keep maximum compatibility with old synchronous code. See
+"Synchronous code & Threads" below for a full explanation.
+
 
 Threadlocal replacement
 -----------------------
@@ -127,6 +131,57 @@ your documentation changes automatically::
 
     pip install sphinx-autobuild
     sphinx-autobuild . _build/html
+
+
+Implementation Details
+----------------------
+
+Synchronous code & threads
+''''''''''''''''''''''''''
+
+The ``asgiref.sync`` module provides two wrappers that let you go between
+asynchronous and synchronous code at will, while taking care of the rough edges
+for you.
+
+Unfortunately, the rough edges are numerous, and the code has to work especially
+hard to keep things in the same thread as much as possible. Notably, the
+restrictions we are working with are:
+
+* All synchronous code called through ``SyncToAsync`` and marked with
+  ``thread_sensitive`` should run in the same thread as each other (and if the
+  outer layer of the program is synchronous, the main thread)
+
+* If a thread already has a running async loop, ``AsyncToSync`` can't run things
+  on that loop if it's blocked on synchronous code that is above you in the
+  call stack.
+
+The first compromise you get to might be that ``thread_sensitive`` code should
+just run in the same thread and not spawn in a sub-thread, fulfilling the first
+restriction, but that immediately runs you into the second restriction.
+
+The only real solution is to essentially have a variant of ThreadPoolExecutor
+that executes any ``thread_sensitive`` code on the outermost synchronous
+thread - either the main thread, or a single spawned subthread.
+
+This means you now have two basic states:
+
+* If the outermost layer of your program is synchronous, then all async code
+  run through ``AsyncToSync`` will run in a per-call event loop in arbitary
+  sub-threads, while all ``thread_sensitive`` code will run in the main thread.
+
+* If the outermost layer of your program is asynchronous, then all async code
+  runs on the main thread's event loop, and all ``thread_sensitive`` synchronous
+  code will run in a single shared sub-thread.
+
+Cruicially, this means that in both cases there is a thread which is a shared
+resource that all ``thread_sensitive`` code must run on, and there is a chance
+that this thread is currently blocked on its own ``AsyncToSync`` call. Thus,
+``AsyncToSync`` needs to act as an executor for thread code while it's blocking.
+
+The ``CurrentThreadExecutor`` class provides this functionality; rather than
+simply waiting on a Future, you can call its ``run_until_future`` method and
+it will run submitted code until that Future is done. This means that code
+inside the call can then run code on your thread.
 
 
 Maintenance and Security

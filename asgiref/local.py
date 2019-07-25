@@ -2,8 +2,6 @@ import asyncio
 import threading
 import time
 
-from .sync import AsyncToSync, SyncToAsync
-
 
 class Local:
     """
@@ -42,6 +40,9 @@ class Local:
         """
         Get the ID we should use for looking up variables
         """
+        # Prevent a circular reference
+        from .sync import AsyncToSync, SyncToAsync
+
         # First, pull the current task if we can
         context_id = SyncToAsync.get_current_task()
         # OK, let's try for a thread ID
@@ -51,7 +52,7 @@ class Local:
         if self._thread_critical:
             return context_id
         # Now, take those and see if we can resolve them through the launch maps
-        while True:
+        for i in range(1000):
             try:
                 if isinstance(context_id, threading.Thread):
                     # Threads have a source task in SyncToAsync
@@ -61,6 +62,10 @@ class Local:
                     context_id = AsyncToSync.launch_map[context_id]
             except KeyError:
                 break
+        else:
+            # Catch infinite loops (they happen if you are screwing around
+            # with AsyncToSync implementations)
+            raise RuntimeError("Infinite launch_map loops")
         return context_id
 
     def _cleanup(self):

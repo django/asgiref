@@ -18,11 +18,9 @@ async def test_sync_to_async():
     # Define sync function
     def sync_function():
         time.sleep(1)
-        assert sync_to_async._is_outermost_sync() == False
         return 42
 
     # Ensure outermost detection works
-    assert sync_to_async._is_outermost_sync() == False
     # Wrap it
     async_function = sync_to_async(sync_function)
     # Check it works right
@@ -89,8 +87,8 @@ async def test_async_to_sync_to_async():
 
     # Define async function
     async def inner_async_function():
-        assert sync_to_async._is_outermost_sync() == False
         result["worked"] = True
+        result["thread"] = threading.current_thread()
         return 65
 
     # Define sync function
@@ -103,6 +101,8 @@ async def test_async_to_sync_to_async():
     number = await async_function()
     assert number == 65
     assert result["worked"]
+    # Make sure that it didn't needlessly make a new async loop
+    assert result["thread"] == threading.current_thread()
 
 
 def test_async_to_sync():
@@ -114,13 +114,11 @@ def test_async_to_sync():
     # Define async function
     async def inner_async_function():
         await asyncio.sleep(0)
-        assert sync_to_async._is_outermost_sync() == True
         result["worked"] = True
         return 84
 
     # Run it
     sync_function = async_to_sync(inner_async_function)
-    assert sync_to_async._is_outermost_sync() == True
     number = sync_function()
     assert number == 84
     assert result["worked"]
@@ -174,7 +172,6 @@ async def test_async_to_sync_in_async():
 
     # Define async function
     async def inner_async_function():
-        assert sync_to_async._is_outermost_sync() == False
         return 84
 
     # Run it
@@ -193,7 +190,6 @@ def test_async_to_sync_in_thread():
     @async_to_sync
     async def test_function():
         await asyncio.sleep(0)
-        assert sync_to_async._is_outermost_sync() == True
         result["worked"] = True
 
     # Make a thread and run it
@@ -238,9 +234,10 @@ async def test_thread_sensitive_outside_async():
     result_2 = {}
 
     # Outer sync function
-    @sync_to_async
     def outer(result):
         middle(result)
+
+    outer = sync_to_async(outer, thread_sensitive=True)
 
     # Middle async function
     @async_to_sync
@@ -259,6 +256,77 @@ async def test_thread_sensitive_outside_async():
     # They should not have run in the main thread, but in the same thread
     assert result_1["thread"] != threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
+
+
+def test_thread_sensitive_double_nested_sync():
+    """
+    Tests that thread_sensitive SyncToAsync nests inside itself where the
+    outside is sync.
+    """
+
+    result = {}
+
+    # Async level 1
+    @async_to_sync
+    async def level1():
+        await level2()
+
+    # Sync level 2
+    def level2():
+        level3()
+
+    level2 = sync_to_async(level2, thread_sensitive=True)
+
+    # Async level 3
+    @async_to_sync
+    async def level3():
+        await level4()
+
+    # Sync level 2
+    def level4():
+        result["thread"] = threading.current_thread()
+
+    level4 = sync_to_async(level4, thread_sensitive=True)
+
+    # Run it
+    level1()
+    assert result["thread"] == threading.current_thread()
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_double_nested_async():
+    """
+    Tests that thread_sensitive SyncToAsync nests inside itself where the
+    outside is async.
+    """
+
+    result = {}
+
+    # Sync level 1
+    def level1():
+        level2()
+
+    level1 = sync_to_async(level1, thread_sensitive=True)
+
+    # Async level 2
+    @async_to_sync
+    async def level2():
+        await level3()
+
+    # Sync level 3
+    def level3():
+        level4()
+
+    level3 = sync_to_async(level3, thread_sensitive=True)
+
+    # Async level 4
+    @async_to_sync
+    async def level4():
+        result["thread"] = threading.current_thread()
+
+    # Run it
+    await level1()
+    assert result["thread"] == threading.current_thread()
 
 
 class ASGITest(TestCase):

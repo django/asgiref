@@ -4,6 +4,9 @@ import os
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 
+from .current_thread_executor import CurrentThreadExecutor
+from .local import Local
+
 try:
     import contextvars  # Python 3.7+ only.
 except ImportError:
@@ -15,11 +18,20 @@ class AsyncToSync:
     Utility class which turns an awaitable that only works on the thread with
     the event loop into a synchronous callable that works in a subthread.
 
-    Must be initialised from the main thread.
+    If the call stack contains an async loop, the code runs there.
+    Otherwise, the code runs in a new loop in a new thread.
+
+    Either way, this thread then pauses and waits to run any thread_sensitive
+    code called from further down the call stack using SyncToAsync, before
+    finally exiting once the async task returns.
     """
 
-    # Maps launched Tasks to the threads that launched them
+    # Maps launched Tasks to the threads that launched them (for locals impl)
     launch_map = {}
+
+    # Keeps track of which CurrentThreadExecutor to use. This uses an asgiref
+    # Local, not a threadlocal, so that tasks can work out what their parent used.
+    executors = Local()
 
     def __init__(self, awaitable, force_new_loop=False):
         self.awaitable = awaitable
@@ -52,31 +64,64 @@ class AsyncToSync:
         call_result = Future()
         # Get the source thread
         source_thread = threading.current_thread()
+        # Make a CurrentThreadExecutor we'll use to idle in this thread if
+        # there is not already one defined
+        if hasattr(self.executors, "current"):
+            old_current_executor = self.executors.current
+        else:
+            old_current_executor = None
+        current_executor = CurrentThreadExecutor()
+        self.executors.current = current_executor
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread if it's there, otherwise make a new loop
         # in this thread.
-        if not (self.main_event_loop and self.main_event_loop.is_running()):
-            # Make our own event loop and run inside that.
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(
-                    self.main_wrap(args, kwargs, call_result, source_thread)
+        try:
+            if not (self.main_event_loop and self.main_event_loop.is_running()):
+                # Make our own event loop - in a new thread - and run inside that.
+                loop = asyncio.new_event_loop()
+                loop_executor = ThreadPoolExecutor(max_workers=1)
+                loop_future = loop_executor.submit(
+                    self._run_event_loop,
+                    loop,
+                    self.main_wrap(args, kwargs, call_result, source_thread),
                 )
-            finally:
-                try:
-                    if hasattr(loop, "shutdown_asyncgens"):
-                        loop.run_until_complete(loop.shutdown_asyncgens())
-                finally:
-                    loop.close()
-                    asyncio.set_event_loop(self.main_event_loop)
-        else:
-            self.main_event_loop.call_soon_threadsafe(
-                self.main_event_loop.create_task,
-                self.main_wrap(args, kwargs, call_result, source_thread),
-            )
+                if current_executor:
+                    # Run the CurrentThreadExecutor until the future is done
+                    current_executor.run_until_future(loop_future)
+                # Wait for future and/or allow for exception propagation
+                loop_future.result()
+            else:
+                # Call it inside the existing loop
+                self.main_event_loop.call_soon_threadsafe(
+                    self.main_event_loop.create_task,
+                    self.main_wrap(args, kwargs, call_result, source_thread),
+                )
+                if current_executor:
+                    # Run the CurrentThreadExecutor until the future is done
+                    current_executor.run_until_future(call_result)
+        finally:
+            # Clean up any executor we were running
+            if hasattr(self.executors, "current"):
+                del self.executors.current
+            if old_current_executor:
+                self.executors.current = old_current_executor
         # Wait for results from the future.
         return call_result.result()
+
+    def _run_event_loop(self, loop, coro):
+        """
+        Runs the given event loop (designed to be called in a thread).
+        """
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(coro)
+        finally:
+            try:
+                if hasattr(loop, "shutdown_asyncgens"):
+                    loop.run_until_complete(loop.shutdown_asyncgens())
+            finally:
+                loop.close()
+                asyncio.set_event_loop(self.main_event_loop)
 
     def __get__(self, parent, objtype):
         """
@@ -115,11 +160,9 @@ class SyncToAsync:
     If the outermost program is async (i.e. SyncToAsync is outermost), then
     this will be a dedicated single sub-thread that all sync code runs in,
     one after the other. If the outermost program is sync (i.e. AsyncToSync is
-    outermost), this will just be the main thread and will block the async loop,
-    as it's likely the sync code wants to be on the main thread anyway.
-
-    Determining "outermostness" is done by looking at the launch_map pairs
-    for the current thread/task.
+    outermost), this will just be the main thread. This is achieved by idling
+    with a CurrentThreadExecutor while AsyncToSync is blocking its sync parent,
+    rather than just blocking.
     """
 
     # If they've set ASGI_THREADS, update the default asyncio executor for now
@@ -147,11 +190,11 @@ class SyncToAsync:
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
-            if self._is_outermost_sync():
-                # Program has outermost layer as sync, so run the code blocking.
-                return self.func(*args, **kwargs)
+            if hasattr(AsyncToSync.executors, "current"):
+                # If we have a parent sync thread above somewhere, use that
+                executor = AsyncToSync.executors.current
             else:
-                # Program has outermost layer as async, so use the single-thread pool.
+                # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
         else:
             executor = None  # Use default
@@ -193,12 +236,21 @@ class SyncToAsync:
         self.threadlocal.main_event_loop = loop
         # Set the task mapping (used for the locals module)
         current_thread = threading.current_thread()
-        self.launch_map[current_thread] = source_task
+        if AsyncToSync.launch_map.get(source_task) == current_thread:
+            # Our parent task was launched from this same thread, so don't make
+            # a launch map entry - let it shortcut over us! (and stop infinite loops)
+            parent_set = False
+        else:
+            self.launch_map[current_thread] = source_task
+            parent_set = True
         # Run the function
         try:
             return func(*args, **kwargs)
         finally:
-            del self.launch_map[current_thread]
+            # Only delete the launch_map parent if we set it, otherwise it is
+            # from someone else.
+            if parent_set:
+                del self.launch_map[current_thread]
 
     @staticmethod
     def get_current_task():
@@ -216,30 +268,6 @@ class SyncToAsync:
                 return asyncio.Task.current_task()
         except RuntimeError:
             return None
-
-    @classmethod
-    def _is_outermost_sync(cls):
-        """
-        Determines if the outermost call is AsyncToSync
-        """
-        # Get starting conditions
-        current_task = cls.get_current_task()
-        current_thread = threading.current_thread()
-        frame_is_sync = current_task is None
-        # Step up through each task/thread to its parent, stopping when we run out of parents
-        # Where we stop determines what the outermost type of call is
-        for i in range(1000):
-            if frame_is_sync:
-                current_task = SyncToAsync.launch_map.get(current_thread, None)
-                frame_is_sync = False
-                if current_task is None:
-                    return True
-            else:
-                current_thread = AsyncToSync.launch_map.get(current_task, None)
-                frame_is_sync = True
-                if current_thread is None:
-                    return False
-        raise Exception("Infinite loop determining outermost sync type")
 
 
 # Lowercase is more sensible for most things
