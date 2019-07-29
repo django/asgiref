@@ -1,3 +1,10 @@
+3.2.0 (2019-07-29)
+------------------
+
+* New "thread_sensitive" argument to SyncToAsync allows for pinning of code into
+  the same thread as other thread_sensitive code.
+* Test collection on Python 3.7 fixed
+
 3.1.4 (2019-07-07)
 ------------------
 
