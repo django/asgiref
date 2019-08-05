@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import os
+import sys
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 
@@ -84,7 +85,9 @@ class AsyncToSync:
                 loop_future = loop_executor.submit(
                     self._run_event_loop,
                     loop,
-                    self.main_wrap(args, kwargs, call_result, source_thread),
+                    self.main_wrap(
+                        args, kwargs, call_result, source_thread, sys.exc_info()
+                    ),
                 )
                 if current_executor:
                     # Run the CurrentThreadExecutor until the future is done
@@ -95,7 +98,9 @@ class AsyncToSync:
                 # Call it inside the existing loop
                 self.main_event_loop.call_soon_threadsafe(
                     self.main_event_loop.create_task,
-                    self.main_wrap(args, kwargs, call_result, source_thread),
+                    self.main_wrap(
+                        args, kwargs, call_result, source_thread, sys.exc_info()
+                    ),
                 )
                 if current_executor:
                     # Run the CurrentThreadExecutor until the future is done
@@ -131,7 +136,7 @@ class AsyncToSync:
         func = functools.partial(self.__call__, parent)
         return functools.update_wrapper(func, self.awaitable)
 
-    async def main_wrap(self, args, kwargs, call_result, source_thread):
+    async def main_wrap(self, args, kwargs, call_result, source_thread, exc_info):
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
@@ -139,7 +144,15 @@ class AsyncToSync:
         current_task = SyncToAsync.get_current_task()
         self.launch_map[current_task] = source_thread
         try:
-            result = await self.awaitable(*args, **kwargs)
+            # If we have an exception, run the function inside the except block
+            # after raising it so exc_info is correctly populated.
+            if exc_info[1]:
+                try:
+                    raise exc_info[1]
+                except:
+                    result = await self.awaitable(*args, **kwargs)
+            else:
+                result = await self.awaitable(*args, **kwargs)
         except Exception as e:
             call_result.set_exception(e)
         else:
@@ -216,6 +229,7 @@ class SyncToAsync:
                 self.thread_handler,
                 loop,
                 self.get_current_task(),
+                sys.exc_info(),
                 func,
                 *args,
                 **kwargs
@@ -229,7 +243,7 @@ class SyncToAsync:
         """
         return functools.partial(self.__call__, parent)
 
-    def thread_handler(self, loop, source_task, func, *args, **kwargs):
+    def thread_handler(self, loop, source_task, exc_info, func, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
@@ -246,7 +260,15 @@ class SyncToAsync:
             parent_set = True
         # Run the function
         try:
-            return func(*args, **kwargs)
+            # If we have an exception, run the function inside the except block
+            # after raising it so exc_info is correctly populated.
+            if exc_info[1]:
+                try:
+                    raise exc_info[1]
+                except:
+                    return func(*args, **kwargs)
+            else:
+                return func(*args, **kwargs)
         finally:
             # Only delete the launch_map parent if we set it, otherwise it is
             # from someone else.
