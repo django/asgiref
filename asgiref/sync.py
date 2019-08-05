@@ -198,6 +198,10 @@ class SyncToAsync:
     def __init__(self, func, thread_sensitive=False):
         self.func = func
         self._thread_sensitive = thread_sensitive
+        try:
+            self.__self__ = func.__self__
+        except AttributeError:
+            pass
 
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
