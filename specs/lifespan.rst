@@ -92,6 +92,9 @@ Shutdown
 Sent when the server has stopped accepting connections and closed all
 active connections.
 
+Alternatively this is sent by the application when it wants the server
+to gracefully shutdown.
+
 Keys:
 
 * ``type`` (*Unicode string*) --  ``"lifespan.shutdown"``.
@@ -123,6 +126,8 @@ Keys:
 Version History
 ===============
 
+* 3.0 (2019-08-11): Allow applications to send ``lifespan.shutdown``
+  messages to a server to initiate shutdown of the server.
 * 2.0 (2019-03-04): Added startup.failed and shutdown.failed,
   clarified exception handling during startup phase.
 * 1.0 (2018-09-06): Updated ASGI spec with a lifespan protocol.
