@@ -1,4 +1,5 @@
 import asyncio
+import asyncio.coroutines
 import functools
 import os
 import sys
@@ -198,6 +199,7 @@ class SyncToAsync:
     def __init__(self, func, thread_sensitive=False):
         self.func = func
         self._thread_sensitive = thread_sensitive
+        self._is_coroutine = asyncio.coroutines._is_coroutine
         try:
             self.__self__ = func.__self__
         except AttributeError:
