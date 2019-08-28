@@ -61,10 +61,10 @@ class WsgiToAsgiInstance:
         # Get server name and port - required in WSGI, not in ASGI
         if "server" in scope:
             environ["SERVER_NAME"] = scope["server"][0]
-            environ["SERVER_PORT"] = scope["server"][1]
+            environ["SERVER_PORT"] = str(scope["server"][1])
         else:
             environ["SERVER_NAME"] = "localhost"
-            environ["SERVER_PORT"] = 80
+            environ["SERVER_PORT"] = "80"
 
         if "client" in scope:
             environ["REMOTE_ADDR"] = scope["client"][0]
