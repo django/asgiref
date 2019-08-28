@@ -30,6 +30,8 @@ class WsgiToAsgiInstance:
         self.response_started = False
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            raise ValueError("WSGI wrapper received a non-HTTP scope")
         self.scope = scope
         # Alright, wait for the http.request message
         message = await receive()
