@@ -1,3 +1,14 @@
+3.2.2 (2019-08-29)
+------------------
+
+* WsgiToAsgi maps multi-part request bodies into a single WSGI input file
+* WsgiToAsgi passes the `root_path` scope as SCRIPT_NAME
+* WsgiToAsgi now checks the scope type to handle `lifespan` better
+* WsgiToAsgi now passes the server port as a string, like WSGI
+* SyncToAsync values are now identified as coroutine functions by asyncio
+* SyncToAsync now handles __self__ correctly for methods
+
+
 3.2.1 (2019-08-05)
 ------------------
 
