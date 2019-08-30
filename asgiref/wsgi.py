@@ -1,4 +1,5 @@
 from io import BytesIO
+from tempfile import SpooledTemporaryFile
 
 from asgiref.sync import AsyncToSync, sync_to_async
 
@@ -33,18 +34,24 @@ class WsgiToAsgiInstance:
         if scope["type"] != "http":
             raise ValueError("WSGI wrapper received a non-HTTP scope")
         self.scope = scope
-        # Alright, wait for the http.request message
-        message = await receive()
-        if message["type"] != "http.request":
-            raise ValueError("WSGI wrapper received a non-HTTP-request message")
-        # Wrap send so it can be called from the subthread
-        self.sync_send = AsyncToSync(send)
-        # Call the WSGI app
-        await self.run_wsgi_app(message)
+        with SpooledTemporaryFile(max_size=65536) as body:
+            # Alright, wait for the http.request messages
+            while True:
+                message = await receive()
+                if message["type"] != "http.request":
+                    raise ValueError("WSGI wrapper received a non-HTTP-request message")
+                body.write(message.get("body", b""))
+                if not message.get("more_body"):
+                    break
+            body.seek(0)
+            # Wrap send so it can be called from the subthread
+            self.sync_send = AsyncToSync(send)
+            # Call the WSGI app
+            await self.run_wsgi_app(body)
 
-    def build_environ(self, scope, message):
+    def build_environ(self, scope, body):
         """
-        Builds a scope and request message into a WSGI environ object.
+        Builds a scope and request body into a WSGI environ object.
         """
         environ = {
             "REQUEST_METHOD": scope["method"],
@@ -54,7 +61,7 @@ class WsgiToAsgiInstance:
             "SERVER_PROTOCOL": "HTTP/%s" % scope["http_version"],
             "wsgi.version": (1, 0),
             "wsgi.url_scheme": scope.get("scheme", "http"),
-            "wsgi.input": BytesIO(message.get("body", b"")),
+            "wsgi.input": body,
             "wsgi.errors": BytesIO(),
             "wsgi.multithread": True,
             "wsgi.multiprocess": True,
@@ -115,13 +122,13 @@ class WsgiToAsgiInstance:
         }
 
     @sync_to_async
-    def run_wsgi_app(self, message):
+    def run_wsgi_app(self, body):
         """
         Called in a subthread to run the WSGI app. We encapsulate like
         this so that the start_response callable is called in the same thread.
         """
-        # Translate the scope and incoming message into a WSGI environ
-        environ = self.build_environ(self.scope, message)
+        # Translate the scope and incoming request body into a WSGI environ
+        environ = self.build_environ(self.scope, body)
         # Run the WSGI app
         for output in self.wsgi_application(environ, self.start_response):
             # If this is the first response, include the response headers

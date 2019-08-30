@@ -82,3 +82,43 @@ async def test_wsgi_empty_body():
     }
 
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
+async def test_wsgi_multi_body():
+    """
+    Verify that multiple http.request events with body parts are all delivered
+    to the WSGI application.
+    """
+
+    def wsgi_application(environ, start_response):
+        infp = environ["wsgi.input"]
+        body = infp.read(12)
+        assert body == b"Hello World!"
+        start_response("200 OK", [])
+        return []
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "POST",
+            "path": "/",
+            "query_string": b"",
+            "headers": [[b"content-length", b"12"]],
+        },
+    )
+    await instance.send_input(
+        {"type": "http.request", "body": b"Hello ", "more_body": True}
+    )
+    await instance.send_input({"type": "http.request", "body": b"World!"})
+
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [],
+    }
+
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}
