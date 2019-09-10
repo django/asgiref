@@ -70,6 +70,9 @@ Keys:
   ``value`` is the header value. Header names must be lowercased.
 
 The ASGI server should then attempt to send a server push (or push
-promise) to the client. If the client accepts, the server should create
-a new connection to a new instance of the application and treat it as
-if the client had made a request.
+promise) to the client. If the client supports server push, the server
+should create a new connection to a new instance of the application
+and treat it as if the client had made a request.
+
+The ASGI server should set the pseudo ``:authority`` header value to
+be the same value as the request that triggered the push promise.
