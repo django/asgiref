@@ -100,8 +100,11 @@ The connection scope contains:
   ``[name, value]`` two-item iterables, where ``name`` is the header name, and
   ``value`` is the header value. Order of header values must be preserved from
   the original HTTP request; order of header names is not important. Duplicates
-  are possible and must be preserved in the message as received.
-  Header names must be lowercased.
+  are possible and must be preserved in the message as received. Header names
+  must be lowercased. Pseudo headers (present in HTTP/2 and HTTP/3) must be
+  removed; if ``:authority`` is present its value must be added to the start of
+  the iterable with ``host`` as the header name or replace any existing host
+  header already present.
 
 * ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
   ``[host, port]``, where ``host`` the remote host's IPv4 or IPv6 address, and
@@ -152,7 +155,8 @@ Keys:
 * ``headers`` (*Iterable[[byte string, byte string]]*) -- A iterable of
   ``[name, value]`` two-item iterables, where ``name`` is the header name, and
   ``value`` is the header value. Order must be preserved in the HTTP response.
-  Header names must be lowercased. Optional; defaults to an empty list.
+  Header names must be lowercased. Optional; defaults to an empty list. Pseudo
+  headers (present in HTTP/2 and HTTP/3) must not be present.
 
 
 Response Body
@@ -247,7 +251,10 @@ contains the initial connection metadata (mostly from the HTTP handshake):
   ``[name, value]`` two-item iterables, where ``name`` is the header name and
   ``value`` is the header value. Order should be preserved from the original
   HTTP request; duplicates are possible and must be preserved in the message
-  as received. Header names must be lowercased.
+  as received. Header names must be lowercased. Pseudo headers (present in
+  HTTP/2 and HTTP/3) must be removed; if ``:authority`` is present its value
+  must be added to the start of the iterable with ``host`` as the header name
+  or replace any existing host header already present.
 
 * ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
   ``[host, port]``, where ``host`` is the remote host's IPv4 or IPv6 address,
@@ -294,7 +301,8 @@ Sent by the application when it wishes to accept an incoming connection.
   ``value`` is the header value. Order must be preserved in the HTTP response.
   Header names must be lowercased. Must not include a header named
   ``sec-websocket-protocol``; use the ``subprotocol`` key instead. Optional;
-  defaults to an empty list. *Added in spec version 2.1*.
+  defaults to an empty list. *Added in spec version 2.1*. Pseudo headers
+  (present in HTTP/2 and HTTP/3) must not be present.
 
 
 Receive
