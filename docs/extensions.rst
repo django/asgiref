@@ -67,7 +67,8 @@ Keys:
 
 * ``headers`` (*Iterable[[byte string, byte string]]*): An iterable of
   ``[name, value]`` two-item iterables, where ``name`` is the header name, and
-  ``value`` is the header value. Header names must be lowercased.
+  ``value`` is the header value. Header names must be lowercased. Pseudo
+  headers (present in HTTP/2 and HTTP/3) must not be present.
 
 The ASGI server should then attempt to send a server push (or push
 promise) to the client. If the client supports server push, the server
