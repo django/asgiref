@@ -41,6 +41,29 @@ async def test_sync_to_async(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_sync_to_async_ASGI_THREADS(monkeypatch):
+    def sync_function():
+        time.sleep(0.5)
+        return 42
+
+    # Set workers to 1 via env, call it twice and make sure that works right
+    monkeypatch.setenv("ASGI_THREADS", 1)
+    monkeypatch.setattr(sync_to_async, "executor", None)
+
+    async_function = sync_to_async(sync_function)
+    assert async_function.executor._max_workers == 1
+    start = time.monotonic()
+    await asyncio.wait([async_function(), async_function()])
+    end = time.monotonic()
+    # It should take at least 1 second as there's only one worker.
+    assert end - start >= 1
+
+    monkeypatch.setenv("ASGI_THREADS", 99)
+    async_function = sync_to_async(sync_function)
+    assert async_function.executor._max_workers == 1
+
+
+@pytest.mark.asyncio
 async def test_sync_to_async_decorator():
     """
     Tests sync_to_async as a decorator
