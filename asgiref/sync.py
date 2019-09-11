@@ -179,6 +179,7 @@ class SyncToAsync:
     with a CurrentThreadExecutor while AsyncToSync is blocking its sync parent,
     rather than just blocking.
     """
+
     executor = None
 
     # Maps launched threads to the coroutines that spawned them
@@ -200,16 +201,11 @@ class SyncToAsync:
             pass
 
         if self.__class__.executor is None:
+            executor_kwargs = {}
             if "ASGI_THREADS" in os.environ:
-                executor_kwargs = {
-                    "max_workers": int(os.environ["ASGI_THREADS"]),
-                }
-            else:
-                executor_kwargs = {}
-
+                executor_kwargs["max_workers"] = int(os.environ["ASGI_THREADS"])
             if sys.version_info >= (3, 6):
                 executor_kwargs["thread_name_prefix"] = "sync_to_async"
-
             self.__class__.executor = ThreadPoolExecutor(**executor_kwargs)
 
     async def __call__(self, *args, **kwargs):
