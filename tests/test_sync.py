@@ -58,9 +58,15 @@ async def test_sync_to_async_ASGI_THREADS(monkeypatch):
     # It should take at least 1 second as there's only one worker.
     assert end - start >= 1
 
+    # Uses existing executor instance on class.
     monkeypatch.setenv("ASGI_THREADS", 99)
+    orig_executor = async_function.executor
     async_function = sync_to_async(sync_function)
-    assert async_function.executor._max_workers == 1
+    assert async_function.executor is orig_executor
+
+    monkeypatch.setattr(sync_to_async, "executor", None)
+    async_function = sync_to_async(sync_function)
+    assert async_function.executor is not orig_executor
 
 
 @pytest.mark.asyncio
