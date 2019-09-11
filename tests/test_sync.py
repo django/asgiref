@@ -17,7 +17,7 @@ async def test_sync_to_async():
     """
     # Define sync function
     def sync_function():
-        time.sleep(1)
+        time.sleep(0.1)
         return 42
 
     # Ensure outermost detection works
@@ -28,17 +28,17 @@ async def test_sync_to_async():
     result = await async_function()
     end = time.monotonic()
     assert result == 42
-    assert end - start >= 1
+    assert end - start >= 0.1
     # Set workers to 1, call it twice and make sure that works right
     loop = asyncio.get_event_loop()
     old_executor = loop._default_executor
     loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
     try:
         start = time.monotonic()
-        await asyncio.wait([async_function(), async_function()])
+        await asyncio.wait([async_function(), async_function(), async_function()])
         end = time.monotonic()
-        # It should take at least 2 seconds as there's only one worker.
-        assert end - start >= 2
+        # It should take at least 0.3 seconds as there's only one worker.
+        assert end - start >= 0.3
     finally:
         loop.set_default_executor(old_executor)
 
@@ -51,7 +51,6 @@ async def test_sync_to_async_decorator():
     # Define sync function
     @sync_to_async
     def test_function():
-        time.sleep(1)
         return 43
 
     # Check it works right
@@ -68,7 +67,6 @@ async def test_sync_to_async_method_decorator():
     class TestClass:
         @sync_to_async
         def test_method(self):
-            time.sleep(1)
             return 44
 
     # Check it works right
@@ -86,7 +84,6 @@ async def test_sync_to_async_method_self_attribute():
     # Define sync function
     class TestClass:
         def test_method(self):
-            time.sleep(0.1)
             return 45
 
     # Check it works right
