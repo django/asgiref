@@ -150,7 +150,7 @@ class AsyncToSync:
             if exc_info[1]:
                 try:
                     raise exc_info[1]
-                except:
+                except:  # noqa: E722
                     result = await self.awaitable(*args, **kwargs)
             else:
                 result = await self.awaitable(*args, **kwargs)
@@ -271,7 +271,7 @@ class SyncToAsync:
             if exc_info[1]:
                 try:
                     raise exc_info[1]
-                except:
+                except:  # noqa: E722
                     return func(*args, **kwargs)
             else:
                 return func(*args, **kwargs)
