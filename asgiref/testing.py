@@ -1,6 +1,5 @@
 import asyncio
 import time
-from concurrent.futures import CancelledError
 
 from .compatibility import guarantee_single_callable
 from .timeout import timeout as async_timeout
@@ -30,14 +29,14 @@ class ApplicationCommunicator:
                 try:
                     await self.future
                     self.future.result()
-                except CancelledError:
+                except asyncio.CancelledError:
                     pass
         finally:
             if not self.future.done():
                 self.future.cancel()
                 try:
                     await self.future
-                except CancelledError:
+                except asyncio.CancelledError:
                     pass
 
     def stop(self, exceptions=True):
@@ -81,7 +80,7 @@ class ApplicationCommunicator:
                 self.future.cancel()
                 try:
                     await self.future
-                except CancelledError:
+                except asyncio.CancelledError:
                     pass
             raise e
 
