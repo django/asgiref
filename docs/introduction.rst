@@ -57,7 +57,7 @@ response that you might get from ``receive``::
     {
         "type": "http.response.start",
         "status": 200,
-        "headers": [b"X-Header", b"Amazing Value"],
+        "headers": [(b"X-Header", b"Amazing Value")],
     }
 
 And here's an example of an event you might pass to ``send`` to send an
