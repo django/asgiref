@@ -65,6 +65,7 @@ async def test_nested_sync_to_async_retains_wrapped_function_attributes():
     """
     Tests that attributes of functions wrapped by sync_to_async are retained
     """
+
     def enclosing_decorator(attr_value):
         @wraps(attr_value)
         def wrapper(f):
@@ -75,7 +76,8 @@ async def test_nested_sync_to_async_retains_wrapped_function_attributes():
 
     @enclosing_decorator("test_name_attribute")
     @sync_to_async
-    def test_function(): pass
+    def test_function():
+        pass
 
     assert test_function.attr_name == "test_name_attribute"
     assert test_function.__name__ == "test_function"
