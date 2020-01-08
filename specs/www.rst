@@ -114,6 +114,12 @@ The connection scope contains:
   ``[host, port]``, where ``host`` is the listening address for this server,
   and ``port`` is the integer listening port. Optional; defaults to ``None``.
 
+Servers are responsible for handling inbound and outbound chunked transfer
+encodings. A request with a ``chunked`` encoded body should be automatically
+de-chunked by the server and presented to the application as plain body bytes;
+a response that is given to the server with no ``Content-Length`` may be chunked
+as the server sees fit.
+
 
 Request
 '''''''
@@ -122,6 +128,10 @@ Sent to indicate an incoming request. Most of the request information is in
 the connection scope; the body message serves as a way to stream large incoming
 HTTP bodies in chunks, and as a trigger to actually run request code (as you
 should not trigger on a connection opening alone).
+
+Note that if the request is being sent using ``Transfer-Encoding: chunked``,
+the server is responsible for handling this encoding. The ``http.request``
+messages should contain just the decoded contents of each chunk.
 
 Keys:
 
@@ -145,6 +155,15 @@ Starts sending a response to the client. Needs to be followed by at least
 one response content message. The protocol server must not start sending the
 response to the client until it has received at least one *Response Body*
 event.
+
+You may send a ``Transfer-Encoding`` header in this message, but the server
+must ignore it. Servers handle ``Transfer-Encoding`` themselves, and may opt
+to use ``Transfer-Encoding: chunked`` if the application presents a response
+that has no ``Content-Length`` set.
+
+Note that this is not the same as ``Content-Encoding``, which the application
+still controls, and which is the appropriate place to set ``gzip`` or other
+compression flags.
 
 Keys:
 
