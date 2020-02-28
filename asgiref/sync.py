@@ -138,7 +138,7 @@ class AsyncToSync:
                             {
                                 "message": "unhandled exception during loop shutdown",
                                 "exception": task.exception(),
-                                "task": task
+                                "task": task,
                             }
                         )
                 if hasattr(loop, "shutdown_asyncgens"):
