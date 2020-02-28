@@ -134,11 +134,13 @@ class AsyncToSync:
                     if task.cancelled():
                         continue
                     if task.exception() is not None:
-                        loop.call_exception_handler({
-                            'message': 'unhandled exception during loop shutdown',
-                            'exception': task.exception(),
-                            'task': task
-                        })
+                        loop.call_exception_handler(
+                            {
+                                'message': 'unhandled exception during loop shutdown',
+                                'exception': task.exception(),
+                                'task': task
+                            }
+                        )
                 if hasattr(loop, "shutdown_asyncgens"):
                     loop.run_until_complete(loop.shutdown_asyncgens())
             finally:
