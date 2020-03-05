@@ -8,3 +8,4 @@ __pycache__/
 *~
 .cache
 .eggs
+.python-version
