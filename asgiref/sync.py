@@ -265,7 +265,10 @@ class SyncToAsync:
             # Check for changes in contextvars, and set them to the current
             # context for downstream consumers
             for cvar in context:
-                if cvar.get() != context.get(cvar):
+                try:
+                    if cvar.get() != context.get(cvar):
+                        cvar.set(context.get(cvar))
+                except LookupError:
                     cvar.set(context.get(cvar))
 
         return ret
