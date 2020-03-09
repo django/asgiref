@@ -259,7 +259,19 @@ class SyncToAsync:
                 **kwargs
             ),
         )
-        return await asyncio.wait_for(future, timeout=None)
+        ret = await asyncio.wait_for(future, timeout=None)
+
+        if contextvars is not None:
+            # Check for changes in contextvars, and set them to the current
+            # context for downstream consumers
+            for cvar in context:
+                try:
+                    if cvar.get() != context.get(cvar):
+                        cvar.set(context.get(cvar))
+                except LookupError:
+                    cvar.set(context.get(cvar))
+
+        return ret
 
     def __get__(self, parent, objtype):
         """
