@@ -1,3 +1,11 @@
+3.2.4 (2020-03-10)
+------------------
+
+* Pending tasks/async generators are now cancelled when async_to_sync exits
+* Contextvars now propagate changes both ways through sync_to_async
+* sync_to_async now preserves attributes on functions it wraps
+
+
 3.2.3 (2019-10-23)
 ------------------
 
