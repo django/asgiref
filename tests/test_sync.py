@@ -262,7 +262,7 @@ def test_async_to_async_method_self_attribute():
     assert number == 45
 
     # Check __self__ has been copied.
-    assert sync_function.__self__ == instance
+    assert sync_function.__self__ is instance
 
 
 def test_thread_sensitive_outside_sync():
