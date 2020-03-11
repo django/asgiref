@@ -37,6 +37,10 @@ class AsyncToSync:
 
     def __init__(self, awaitable, force_new_loop=False):
         self.awaitable = awaitable
+        try:
+            self.__self__ = self.awaitable.__self__
+        except AttributeError:
+            pass
         if force_new_loop:
             # They have asked that we always run in a new sub-loop.
             self.main_event_loop = None
