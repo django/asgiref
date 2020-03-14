@@ -37,6 +37,10 @@ class AsyncToSync:
 
     def __init__(self, awaitable, force_new_loop=False):
         self.awaitable = awaitable
+        try:
+            self.__self__ = self.awaitable.__self__
+        except AttributeError:
+            pass
         if force_new_loop:
             # They have asked that we always run in a new sub-loop.
             self.main_event_loop = None
@@ -262,7 +266,19 @@ class SyncToAsync:
                 **kwargs
             ),
         )
-        return await asyncio.wait_for(future, timeout=None)
+        ret = await asyncio.wait_for(future, timeout=None)
+
+        if contextvars is not None:
+            # Check for changes in contextvars, and set them to the current
+            # context for downstream consumers
+            for cvar in context:
+                try:
+                    if cvar.get() != context.get(cvar):
+                        cvar.set(context.get(cvar))
+                except LookupError:
+                    cvar.set(context.get(cvar))
+
+        return ret
 
     def __get__(self, parent, objtype):
         """

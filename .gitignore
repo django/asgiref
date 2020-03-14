@@ -8,3 +8,6 @@ __pycache__/
 *~
 .cache
 .eggs
+.python-version
+.pytest_cache/
+.vscode/
