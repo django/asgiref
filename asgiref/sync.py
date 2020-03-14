@@ -131,7 +131,7 @@ class AsyncToSync:
                 # mimic asyncio.run() behavior
                 # cancel unexhausted async generators
                 if sys.version_info >= (3, 7, 0):
-                    tasks = asyncio.all_tasks()
+                    tasks = asyncio.all_tasks(loop)
                 else:
                     tasks = asyncio.Task.all_tasks(loop)
                 for task in tasks:
