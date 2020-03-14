@@ -130,7 +130,10 @@ class AsyncToSync:
             try:
                 # mimic asyncio.run() behavior
                 # cancel unexhausted async generators
-                tasks = asyncio.Task.all_tasks(loop)
+                if sys.version_info >= (3, 7, 0):
+                    tasks = asyncio.all_tasks(loop)
+                else:
+                    tasks = asyncio.Task.all_tasks(loop)
                 for task in tasks:
                     task.cancel()
                 loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
