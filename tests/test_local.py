@@ -1,4 +1,3 @@
-import asyncio
 import threading
 
 import pytest
@@ -256,33 +255,3 @@ async def test_local_threads_and_tasks():
 
     await sync_to_async(sync_function)(5)
     assert test_local.counter == 6
-
-
-@pytest.mark.asyncio
-async def test_local_cleanup():
-    """
-    Tests that local cleans up dead threads and tasks
-    """
-    # Set up the local
-    test_local = Local()
-    # Assign in a thread
-    class TestThread(threading.Thread):
-        def run(self):
-            test_local.foo = 456
-
-    thread = TestThread()
-    thread.start()
-    thread.join()
-    # Assign in a Task
-    async def test_task():
-        test_local.foo = 456
-
-    test_future = asyncio.ensure_future(test_task())
-    await test_future
-    # Check there are two things in the storage
-    assert len(test_local._storage) == 2
-    # Force cleanup
-    test_local._last_cleanup = 0
-    test_local.foo = 1
-    # There should now only be one thing (this task) in the storage
-    assert len(test_local._storage) == 1
