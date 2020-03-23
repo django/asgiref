@@ -1,3 +1,11 @@
+3.2.6 (2020-03-23)
+------------------
+
+* local.Local now works in all threading situations, no longer requires
+  periodic garbage collection, and works with libraries that monkeypatch
+  threading (like gevent)
+
+
 3.2.5 (2020-03-11)
 ------------------
 
