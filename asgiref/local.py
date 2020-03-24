@@ -1,5 +1,8 @@
+import random
+import string
 import sys
 import threading
+import weakref
 
 
 class Local:
@@ -31,7 +34,14 @@ class Local:
 
     def __init__(self, thread_critical=False):
         self._thread_critical = thread_critical
-        self._attr_name = "_asgiref_local_impl_%s" % id(self)
+        self._thread_lock = threading.RLock()
+        self._context_refs = []
+        # Random suffixes stop accidental reuse between different Locals,
+        # though we try to force deletion as well.
+        self._attr_name = "_asgiref_local_impl_%s_%s" % (
+            id(self),
+            "".join(random.choice(string.ascii_letters) for i in range(8)),
+        )
 
     def _get_context_id(self):
         """
@@ -73,24 +83,37 @@ class Local:
         context_obj = self._get_context_id()
         if not hasattr(context_obj, self._attr_name):
             setattr(context_obj, self._attr_name, {})
+            self._context_refs.append(weakref.ref(context_obj))
         return getattr(context_obj, self._attr_name)
 
+    def __del__(self):
+        for ref in self._context_refs:
+            context_obj = ref()
+            if context_obj:
+                try:
+                    delattr(context_obj, self._attr_name)
+                except AttributeError:
+                    pass
+
     def __getattr__(self, key):
-        storage = self._get_storage()
-        if key in storage:
-            return storage[key]
-        else:
-            raise AttributeError("%r object has no attribute %r" % (self, key))
+        with self._thread_lock:
+            storage = self._get_storage()
+            if key in storage:
+                return storage[key]
+            else:
+                raise AttributeError("%r object has no attribute %r" % (self, key))
 
     def __setattr__(self, key, value):
-        if key in ("_thread_critical", "_attr_name",):
+        if key in ("_context_refs", "_thread_critical", "_thread_lock", "_attr_name"):
             return super().__setattr__(key, value)
-        storage = self._get_storage()
-        storage[key] = value
+        with self._thread_lock:
+            storage = self._get_storage()
+            storage[key] = value
 
     def __delattr__(self, key):
-        storage = self._get_storage()
-        if key in storage:
-            del storage[key]
-        else:
-            raise AttributeError("%r object has no attribute %r" % (self, key))
+        with self._thread_lock:
+            storage = self._get_storage()
+            if key in storage:
+                del storage[key]
+            else:
+                raise AttributeError("%r object has no attribute %r" % (self, key))
