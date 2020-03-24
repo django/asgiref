@@ -1,3 +1,10 @@
+3.2.7 (2020-03-24)
+------------------
+
+* Bug fixed in local.Local where deleted Locals would occasionally inherit
+  their storage into new Locals due to memory reuse.
+
+
 3.2.6 (2020-03-23)
 ------------------
 
