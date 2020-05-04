@@ -35,7 +35,7 @@ class Local:
     def __init__(self, thread_critical=False):
         self._thread_critical = thread_critical
         self._thread_lock = threading.RLock()
-        self._context_refs = []
+        self._context_refs = weakref.WeakSet()
         # Random suffixes stop accidental reuse between different Locals,
         # though we try to force deletion as well.
         self._attr_name = "_asgiref_local_impl_%s_%s" % (
@@ -83,17 +83,15 @@ class Local:
         context_obj = self._get_context_id()
         if not hasattr(context_obj, self._attr_name):
             setattr(context_obj, self._attr_name, {})
-            self._context_refs.append(weakref.ref(context_obj))
+            self._context_refs.add(context_obj)
         return getattr(context_obj, self._attr_name)
 
     def __del__(self):
-        for ref in self._context_refs:
-            context_obj = ref()
-            if context_obj:
-                try:
-                    delattr(context_obj, self._attr_name)
-                except AttributeError:
-                    pass
+        for context_obj in self._context_refs:
+            try:
+                delattr(context_obj, self._attr_name)
+            except AttributeError:
+                pass
 
     def __getattr__(self, key):
         with self._thread_lock:
