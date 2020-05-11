@@ -1,6 +1,7 @@
 import asyncio
 import asyncio.coroutines
 import functools
+import inspect
 import os
 import sys
 import threading
@@ -8,6 +9,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
+from .sync_to_async import sync_iterable_to_async, sync_generator_to_async
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -301,5 +303,33 @@ class SyncToAsync:
 
 
 # Lowercase is more sensible for most things
-sync_to_async = SyncToAsync
 async_to_sync = AsyncToSync
+
+
+def sync_to_async(sync_thing, impl=SyncToAsync, thread_sensitive=False):
+    """
+    Convert a sync "thing" into an async version of it.
+
+    :param sync_thing:
+        Any one of the following -
+
+            1. Function
+            2. Iterable (any object that implements ``__iter__`` or ``__getitem__``)
+            3. Generator function
+
+    :param impl:
+        The ``SyncToAsync`` implementation to use.
+
+    :param thread_sensitive:
+        Passed to ``cls``.
+    """
+
+    is_iterable = hasattr(sync_thing, "__iter__") or hasattr(sync_thing, "__getitem__")
+    if is_iterable:
+        return sync_iterable_to_async(sync_thing, impl, thread_sensitive)
+
+    is_generator = inspect.isgeneratorfunction(sync_thing)
+    if is_generator:
+        return sync_generator_to_async(sync_thing, impl, thread_sensitive)
+
+    return SyncToAsync(sync_thing, thread_sensitive)

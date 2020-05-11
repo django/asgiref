@@ -61,6 +61,48 @@ async def test_sync_to_async_decorator():
 
 
 @pytest.mark.asyncio
+async def test_sync_iterable_to_async():
+    """
+    Tests that sync_to_async delegates to sync_iterable_to_async,
+    and that sync_iterable_to_async works as expected using in-built range() function
+    """
+    # Define iterable
+    it_sync = range(10)
+
+    # convert it to async
+    it_async = sync_to_async(it_sync)
+
+    # get return values from them
+    ret_sync = list(it_sync)
+    ret_async = [i async for i in it_async]
+
+    # Check it works right
+    assert ret_sync == ret_async
+
+
+@pytest.mark.asyncio
+async def test_sync_generator_to_async():
+    """
+    Tests that sync_to_async delegates to sync_generator_to_async,
+    and that sync_generator_to_async works as expected
+    """
+    # Define generator
+    def gen_sync():
+        for i in range(10):
+            yield i
+
+    # convert it to async
+    gen_async = sync_to_async(gen_sync)
+
+    # get return values from them
+    ret_sync = list(gen_sync())
+    ret_async = [i async for i in gen_async()]
+
+    # Check it works right
+    assert ret_sync == ret_async
+
+
+@pytest.mark.asyncio
 async def test_nested_sync_to_async_retains_wrapped_function_attributes():
     """
     Tests that attributes of functions wrapped by sync_to_async are retained
