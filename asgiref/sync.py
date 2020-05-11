@@ -39,6 +39,10 @@ class AsyncToSync:
 
     def __init__(self, awaitable, force_new_loop=False):
         self.awaitable = awaitable
+        try:
+            self.__self__ = self.awaitable.__self__
+        except AttributeError:
+            pass
         if force_new_loop:
             # They have asked that we always run in a new sub-loop.
             self.main_event_loop = None
@@ -126,6 +130,26 @@ class AsyncToSync:
             loop.run_until_complete(coro)
         finally:
             try:
+                # mimic asyncio.run() behavior
+                # cancel unexhausted async generators
+                if sys.version_info >= (3, 7, 0):
+                    tasks = asyncio.all_tasks(loop)
+                else:
+                    tasks = asyncio.Task.all_tasks(loop)
+                for task in tasks:
+                    task.cancel()
+                loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                for task in tasks:
+                    if task.cancelled():
+                        continue
+                    if task.exception() is not None:
+                        loop.call_exception_handler(
+                            {
+                                "message": "unhandled exception during loop shutdown",
+                                "exception": task.exception(),
+                                "task": task,
+                            }
+                        )
                 if hasattr(loop, "shutdown_asyncgens"):
                     loop.run_until_complete(loop.shutdown_asyncgens())
             finally:
@@ -244,7 +268,19 @@ class SyncToAsync:
                 **kwargs
             ),
         )
-        return await asyncio.wait_for(future, timeout=None)
+        ret = await asyncio.wait_for(future, timeout=None)
+
+        if contextvars is not None:
+            # Check for changes in contextvars, and set them to the current
+            # context for downstream consumers
+            for cvar in context:
+                try:
+                    if cvar.get() != context.get(cvar):
+                        cvar.set(context.get(cvar))
+                except LookupError:
+                    cvar.set(context.get(cvar))
+
+        return ret
 
     def __get__(self, parent, objtype):
         """

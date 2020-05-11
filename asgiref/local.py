@@ -1,7 +1,8 @@
-import asyncio
+import random
+import string
 import sys
 import threading
-import time
+import weakref
 
 
 class Local:
@@ -32,10 +33,15 @@ class Local:
     CLEANUP_INTERVAL = 60  # seconds
 
     def __init__(self, thread_critical=False):
-        self._storage = {}
-        self._last_cleanup = time.time()
-        self._clean_lock = threading.Lock()
         self._thread_critical = thread_critical
+        self._thread_lock = threading.RLock()
+        self._context_refs = weakref.WeakSet()
+        # Random suffixes stop accidental reuse between different Locals,
+        # though we try to force deletion as well.
+        self._attr_name = "_asgiref_local_impl_%s_%s" % (
+            id(self),
+            "".join(random.choice(string.ascii_letters) for i in range(8)),
+        )
 
     def _get_context_id(self):
         """
@@ -46,21 +52,25 @@ class Local:
 
         # First, pull the current task if we can
         context_id = SyncToAsync.get_current_task()
+        context_is_async = True
         # OK, let's try for a thread ID
         if context_id is None:
             context_id = threading.current_thread()
+            context_is_async = False
         # If we're thread-critical, we stop here, as we can't share contexts.
         if self._thread_critical:
             return context_id
         # Now, take those and see if we can resolve them through the launch maps
         for i in range(sys.getrecursionlimit()):
             try:
-                if isinstance(context_id, threading.Thread):
-                    # Threads have a source task in SyncToAsync
-                    context_id = SyncToAsync.launch_map[context_id]
-                else:
+                if context_is_async:
                     # Tasks have a source thread in AsyncToSync
                     context_id = AsyncToSync.launch_map[context_id]
+                    context_is_async = False
+                else:
+                    # Threads have a source task in SyncToAsync
+                    context_id = SyncToAsync.launch_map[context_id]
+                    context_is_async = True
             except KeyError:
                 break
         else:
@@ -69,43 +79,39 @@ class Local:
             raise RuntimeError("Infinite launch_map loops")
         return context_id
 
-    def _cleanup(self):
-        """
-        Cleans up any references to dead threads or tasks
-        """
-        for key in list(self._storage.keys()):
-            if isinstance(key, threading.Thread):
-                if not key.is_alive():
-                    del self._storage[key]
-            elif isinstance(key, asyncio.Task):
-                if key.done():
-                    del self._storage[key]
-        self._last_cleanup = time.time()
+    def _get_storage(self):
+        context_obj = self._get_context_id()
+        if not hasattr(context_obj, self._attr_name):
+            setattr(context_obj, self._attr_name, {})
+            self._context_refs.add(context_obj)
+        return getattr(context_obj, self._attr_name)
 
-    def _maybe_cleanup(self):
-        """
-        Cleans up if enough time has passed
-        """
-        if time.time() - self._last_cleanup > self.CLEANUP_INTERVAL:
-            with self._clean_lock:
-                self._cleanup()
+    def __del__(self):
+        for context_obj in self._context_refs:
+            try:
+                delattr(context_obj, self._attr_name)
+            except AttributeError:
+                pass
 
     def __getattr__(self, key):
-        context_id = self._get_context_id()
-        if key in self._storage.get(context_id, {}):
-            return self._storage[context_id][key]
-        else:
-            raise AttributeError("%r object has no attribute %r" % (self, key))
+        with self._thread_lock:
+            storage = self._get_storage()
+            if key in storage:
+                return storage[key]
+            else:
+                raise AttributeError("%r object has no attribute %r" % (self, key))
 
     def __setattr__(self, key, value):
-        if key in ("_storage", "_last_cleanup", "_clean_lock", "_thread_critical"):
+        if key in ("_context_refs", "_thread_critical", "_thread_lock", "_attr_name"):
             return super().__setattr__(key, value)
-        self._maybe_cleanup()
-        self._storage.setdefault(self._get_context_id(), {})[key] = value
+        with self._thread_lock:
+            storage = self._get_storage()
+            storage[key] = value
 
     def __delattr__(self, key):
-        context_id = self._get_context_id()
-        if key in self._storage.get(context_id, {}):
-            del self._storage[context_id][key]
-        else:
-            raise AttributeError("%r object has no attribute %r" % (self, key))
+        with self._thread_lock:
+            storage = self._get_storage()
+            if key in storage:
+                del storage[key]
+            else:
+                raise AttributeError("%r object has no attribute %r" % (self, key))
