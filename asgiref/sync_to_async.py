@@ -1,7 +1,11 @@
+import sys
 from functools import wraps
 
 
 def sync_generator_to_async(sync_generator_fn, impl, thread_sensitive=False):
+    if sys.version_info <= (3, 5):
+        raise RuntimeError("async generators aren't supported on python <= 3.5")
+
     # the generator func might do blocking operations before it "yields",
     # so convert the function itself (not the generator!) to async first
     async_fn = impl(sync_generator_fn, thread_sensitive)

@@ -368,4 +368,4 @@ def sync_to_async(sync_thing, impl=SyncToAsync, thread_sensitive=False):
     if is_generator:
         return sync_generator_to_async(sync_thing, impl, thread_sensitive)
 
-    return SyncToAsync(sync_thing, thread_sensitive)
+    return impl(sync_thing, thread_sensitive)

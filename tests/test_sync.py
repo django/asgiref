@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -80,6 +81,7 @@ async def test_sync_iterable_to_async():
     assert ret_sync == ret_async
 
 
+@pytest.mark.skipif(not sys.version_info > (3, 5), reason="requires python > 3.5")
 @pytest.mark.asyncio
 async def test_sync_generator_to_async():
     """
@@ -100,6 +102,23 @@ async def test_sync_generator_to_async():
 
     # Check it works right
     assert ret_sync == ret_async
+
+
+@pytest.mark.skipif(not sys.version_info <= (3, 5), reason="requires python <= 3.5")
+def test_sync_generator_to_async_py35():
+    """
+    Tests that sync_to_async delegates to sync_generator_to_async,
+    and that sync_generator_to_async raises RuntimeError on python <= 3.5
+    """
+
+    # Define generator
+    def gen_sync():
+        for i in range(10):
+            yield i
+
+    # make sure it fails
+    with pytest.raises(RuntimeError):
+        sync_to_async(gen_sync)
 
 
 @pytest.mark.asyncio
