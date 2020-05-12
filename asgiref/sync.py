@@ -9,7 +9,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
-from .sync_to_async import sync_iterable_to_async, sync_generator_to_async
+from .sync_iter import sync_iterable_to_async, sync_generator_fn_to_async
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -366,6 +366,6 @@ def sync_to_async(sync_thing, impl=SyncToAsync, thread_sensitive=False):
 
     is_generator = inspect.isgeneratorfunction(sync_thing)
     if is_generator:
-        return sync_generator_to_async(sync_thing, impl, thread_sensitive)
+        return sync_generator_fn_to_async(sync_thing, impl, thread_sensitive)
 
     return impl(sync_thing, thread_sensitive)

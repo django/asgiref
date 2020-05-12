@@ -1,5 +1,4 @@
 import asyncio
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -75,50 +74,38 @@ async def test_sync_iterable_to_async():
 
     # get return values from them
     ret_sync = list(it_sync)
-    ret_async = [i async for i in it_async]
+
+    ret_async = []
+    async for i in it_async:
+        ret_async.append(i)
 
     # Check it works right
     assert ret_sync == ret_async
 
 
-@pytest.mark.skipif(not sys.version_info > (3, 5), reason="requires python > 3.5")
 @pytest.mark.asyncio
-async def test_sync_generator_to_async():
+async def test_sync_generator_fn_to_async():
     """
-    Tests that sync_to_async delegates to sync_generator_to_async,
-    and that sync_generator_to_async works as expected
+    Tests that sync_to_async delegates to sync_generator_fn_to_async,
+    and that sync_generator_fn_to_async works as expected
     """
-    # Define generator
-    def gen_sync():
+    # Define generator function
+    def gen_fn_sync():
         for i in range(10):
             yield i
 
     # convert it to async
-    gen_async = sync_to_async(gen_sync)
+    gen_fn_async = sync_to_async(gen_fn_sync)
 
     # get return values from them
-    ret_sync = list(gen_sync())
-    ret_async = [i async for i in gen_async()]
+    ret_sync = list(gen_fn_sync())
+
+    ret_async = []
+    async for i in gen_fn_async():
+        ret_async.append(i)
 
     # Check it works right
     assert ret_sync == ret_async
-
-
-@pytest.mark.skipif(not sys.version_info <= (3, 5), reason="requires python <= 3.5")
-def test_sync_generator_to_async_py35():
-    """
-    Tests that sync_to_async delegates to sync_generator_to_async,
-    and that sync_generator_to_async raises RuntimeError on python <= 3.5
-    """
-
-    # Define generator
-    def gen_sync():
-        for i in range(10):
-            yield i
-
-    # make sure it fails
-    with pytest.raises(RuntimeError):
-        sync_to_async(gen_sync)
 
 
 @pytest.mark.asyncio
