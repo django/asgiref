@@ -9,7 +9,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
-from .sync_iter import sync_iterable_to_async, sync_generator_fn_to_async
+from .sync_iter import sync_generator_fn_to_async, sync_iterable_to_async
 
 try:
     import contextvars  # Python 3.7+ only.
