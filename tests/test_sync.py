@@ -89,19 +89,21 @@ async def test_sync_generator_fn_to_async():
     Tests that sync_to_async delegates to sync_generator_fn_to_async,
     and that sync_generator_fn_to_async works as expected
     """
+    count = 10
+
     # Define generator function
-    def gen_fn_sync():
-        for i in range(10):
+    def gen_fn_sync(x):
+        for i in range(x):
             yield i
 
     # convert it to async
     gen_fn_async = sync_to_async(gen_fn_sync)
 
     # get return values from them
-    ret_sync = list(gen_fn_sync())
+    ret_sync = list(gen_fn_sync(count))
 
     ret_async = []
-    async for i in gen_fn_async():
+    async for i in gen_fn_async(count):
         ret_async.append(i)
 
     # Check it works right
