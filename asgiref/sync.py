@@ -225,6 +225,7 @@ class SyncToAsync:
     single_thread_executor = ThreadPoolExecutor(max_workers=1)
 
     def __new__(cls, sync_thing, thread_sensitive=False):
+        # small hack to make __init__() and __new__() work together nicely
         def __init__(func):
             self = super(SyncToAsync, cls).__new__(cls)
             self._init_(func, thread_sensitive)
