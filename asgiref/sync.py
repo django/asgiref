@@ -9,7 +9,6 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
-from .sync_iter import sync_generator_fn_to_async, sync_iterable_to_async
 
 try:
     import contextvars  # Python 3.7+ only.
@@ -204,6 +203,9 @@ class SyncToAsync:
     outermost), this will just be the main thread. This is achieved by idling
     with a CurrentThreadExecutor while AsyncToSync is blocking its sync parent,
     rather than just blocking.
+
+    Additionally, this will also convert synchronous generator functions and iterables
+    to their async counterparts.
     """
 
     # If they've set ASGI_THREADS, update the default asyncio executor for now
@@ -222,7 +224,23 @@ class SyncToAsync:
     # Single-thread executor for thread-sensitive code
     single_thread_executor = ThreadPoolExecutor(max_workers=1)
 
-    def __init__(self, func, thread_sensitive=False):
+    def __new__(cls, sync_thing, thread_sensitive=False):
+        def __init__(func):
+            self = super(SyncToAsync, cls).__new__(cls)
+            self._init_(func, thread_sensitive)
+            return self
+
+        is_iter = hasattr(sync_thing, "__iter__") or hasattr(sync_thing, "__getitem__")
+        if is_iter:
+            return _sync_iterable_to_async(__init__, sync_thing)
+
+        is_gen_fn = inspect.isgeneratorfunction(sync_thing)
+        if is_gen_fn:
+            return _sync_generator_fn_to_async(__init__, sync_thing)
+
+        return __init__(sync_thing)
+
+    def _init_(self, func, thread_sensitive):
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
@@ -339,33 +357,64 @@ class SyncToAsync:
 
 
 # Lowercase is more sensible for most things
+sync_to_async = SyncToAsync
 async_to_sync = AsyncToSync
 
 
-def sync_to_async(sync_thing, impl=SyncToAsync, thread_sensitive=False):
-    """
-    Convert a sync "thing" into an async version of it.
+def _sync_iterable_to_async(to_async, sync_iterable):
+    async def get_sync_iterable():
+        return sync_iterable
 
-    :param sync_thing:
-        Any one of the following -
+    return _SyncIterableToAsync(to_async, get_sync_iterable)
 
-            1. Function
-            2. Iterable (any object that implements ``__iter__`` or ``__getitem__``)
-            3. Generator function
 
-    :param impl:
-        The ``SyncToAsync`` implementation to use.
+def _sync_generator_fn_to_async(to_async, sync_generator_fn):
+    # the generator func might do blocking operations before it "yields",
+    # so convert the function itself (not the generator!) to async first
+    async_generator_fn = to_async(sync_generator_fn)
 
-    :param thread_sensitive:
-        Passed to ``cls``.
-    """
+    @functools.wraps(sync_generator_fn)
+    def wrapper(*args, **kwargs):
+        async def get_sync_iterable():
+            # the async generator function should return a sync generator.
+            # since a generator is also an iterable, it is compatible with SyncToAsyncIterable
+            return await async_generator_fn(*args, **kwargs)
 
-    is_iterable = hasattr(sync_thing, "__iter__") or hasattr(sync_thing, "__getitem__")
-    if is_iterable:
-        return sync_iterable_to_async(sync_thing, impl, thread_sensitive)
+        return _SyncIterableToAsync(to_async, get_sync_iterable)
 
-    is_generator = inspect.isgeneratorfunction(sync_thing)
-    if is_generator:
-        return sync_generator_fn_to_async(sync_thing, impl, thread_sensitive)
+    return wrapper
 
-    return impl(sync_thing, thread_sensitive)
+
+class _SyncIterableToAsync:
+    def __init__(self, to_async, get_sync_iterable):
+        """
+        Functions as an async version of the iterable returned by ``get_sync_iterable``.
+        """
+
+        self.get_sync_iterable = get_sync_iterable
+
+        # async versions of the `next` and `iter` functions
+        self.next_async = to_async(self.next)
+        self.iter_async = to_async(iter)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if not hasattr(self, "sync_iterator"):
+            # one-time setup of the internal iterator
+            sync_iterable = await self.get_sync_iterable()
+            self.sync_iterator = await self.iter_async(sync_iterable)
+
+        return await self.next_async(self.sync_iterator)
+
+    @staticmethod
+    def next(it):
+        """
+        asyncio expects `StopAsyncIteration` in place of `StopIteration`,
+        so here's a modified in-built `next` function that can handle this.
+        """
+        try:
+            return next(it)
+        except StopIteration:
+            raise StopAsyncIteration
