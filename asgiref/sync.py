@@ -378,7 +378,7 @@ def _sync_generator_fn_to_async(to_async, sync_generator_fn):
     def wrapper(*args, **kwargs):
         async def get_sync_iterable():
             # the async generator function should return a sync generator.
-            # since a generator is also an iterable, it is compatible with SyncToAsyncIterable
+            # since a generator is also an iterable, it is compatible with _SyncIterableToAsync
             return await async_generator_fn(*args, **kwargs)
 
         return _SyncIterableToAsync(to_async, get_sync_iterable)
