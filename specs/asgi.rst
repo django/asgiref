@@ -53,13 +53,16 @@ ASGI consists of two different components:
 - A *protocol server*, which terminates sockets and translates them into
   connections and per-connection event messages.
 
-- An *application*, which lives inside a *protocol server*, is instantiated
-  once per connection, and handles event messages as they happen.
+- An *application*, which lives inside a *protocol server*, is called once
+  per connection, and handles event messages as they happen, emitting its own
+  event messages back when necessary.
 
 Like WSGI, the server hosts the application inside it, and dispatches incoming
 requests to it in a standardized format. Unlike WSGI, however, applications
-are instantiated objects that are fed events rather than simple callables,
-and must run as ``asyncio``-compatible coroutines (on the main thread;
+are asynchronous callables rather than simple callables, and they communicate with
+the server by receiving and sending asynchronous event messages rather than receiving
+a single input stream and returning a single iterable. ASGI applications must run as 
+``async`` / ``await`` compatible coroutines (i.e. ``asyncio``-compatible) (on the main thread;
 they are free to use threading or other processes if they need synchronous
 code).
 
@@ -68,18 +71,19 @@ Unlike WSGI, there are two separate parts to an ASGI connection:
 - A *connection scope*, which represents a protocol connection to a user and
   survives until the connection closes.
 
-- *Events*, which are sent to the application as things happen on the
-  connection.
+- *Events*, which are messages sent to the application as things happen on the
+  connection, and messages sent back by the application to be received by the server,
+  including data to be transmitted to the client.
 
-Applications are instantiated with a connection scope, and then run in an
-event loop where they are expected to handle events and send data back to the
-client.
+Applications are called and awaited with a connection ``scope`` and two awaitable
+callables to ``receive`` event messages and ``send`` event messages back. All this
+happening in an asynchronous event loop.
 
-Each application instance maps to a single incoming "socket" or connection, and
-is expected to last the lifetime of that connection plus a little longer if
-there is cleanup to do. Some protocols may not use traditional sockets; ASGI
-specifications for those protocols are expected to define what the scope
-(instance) lifetime is and when it gets shut down.
+Each call of the application callable maps to a single incoming "socket" or
+connection, and is expected to last the lifetime of that connection plus a little
+longer if there is cleanup to do. Some protocols may not use traditional sockets; ASGI
+specifications for those protocols are expected to define what the scope lifetime is
+and when it gets shut down.
 
 
 Specification Details
@@ -88,37 +92,41 @@ Specification Details
 Connection Scope
 ----------------
 
-Every connection by a user to an ASGI application results in an instance of
-that application being created for the connection. How long this lives, and
-what information it receives upon creation, is called the *connection scope*.
+Every connection by a user to an ASGI application results in a call of the
+application callable to handle that connection entirely. How long this lives,
+and the information that describes each specific connection, is called the
+*connection scope*.
 
-For example, under HTTP the connection scope lasts just one request, but it
-contains most of the request data (apart from the HTTP request body, as this
+Closely related, the first argument passed to an application callable is a
+``scope`` dictionary with all the information describing that specific connection.
+
+For example, under HTTP the connection scope lasts just one request, but the ``scope``
+passed contains most of the request data (apart from the HTTP request body, as this
 is streamed in via events).
 
 Under WebSocket, though, the connection scope lasts for as long as the socket
-is connected. The scope contains information like the WebSocket's path, but
+is connected. And the ``scope`` passed contains information like the WebSocket's path, but
 details like incoming messages come through as events instead.
 
-Some protocols may give you a connection scope with very limited information up
+Some protocols may give you a ``scope`` with very limited information up
 front because they encapsulate something like a handshake. Each protocol
 definition must contain information about how long its connection scope lasts,
-and what information you will get inside it.
+and what information you will get in the ``scope`` parameter.
 
-Applications **cannot** communicate with the client when they are
-initialized and given their connection scope; they must wait until their
-event loop is entered and, depending on the protocol spec, may have to
-wait for an initial opening message.
+Depending on the protocol spec, applications may have to wait for an initial
+opening message before communicating with the client.
 
 
 Events
 ------
 
 ASGI decomposes protocols into a series of *events* that an application must
-react to. For HTTP, this is as simple as two events in order - ``http.request``
-and ``http.disconnect``. For something like a WebSocket, it could be more like
-``websocket.connect``, ``websocket.send``, ``websocket.receive``, and finally
-``websocket.disconnect``.
+*receive* and react to, and *events* the application might *send* in response.
+For HTTP, this is as simple as *receiving* two events in order - ``http.request``
+and ``http.disconnect``, and *sending* the corresponding event messages back. For
+something like a WebSocket, it could be more like *receiving* ``websocket.connect``,
+*sending* a ``websocket.send``, *receiving* a ``websocket.receive``, and finally
+*receiving* a ``websocket.disconnect``.
 
 Each event is a ``dict`` with a top-level ``type`` key that contains a
 Unicode string of the message type. Users are free to invent their own message
@@ -156,20 +164,20 @@ ASGI applications should be a single async callable::
 
     coroutine application(scope, receive, send)
 
-* ``scope``: The connection scope, a dictionary that contains at least a
+* ``scope``: The connection scope information, a dictionary that contains at least a
   ``type`` key specifying the protocol that is incoming
-* ``receive``, an awaitable callable that will yield a new event dictionary
+* ``receive``: an awaitable callable that will yield a new event dictionary
   when one is available
-* ``send``, an awaitable callable taking a single event dictionary as a
+* ``send``: an awaitable callable taking a single event dictionary as a
   positional argument that will return once the send has been
   completed or the connection has been closed
 
-The application is called once per "connection." The definition of a connection
+The application is called once per "connection". The definition of a connection
 and its lifespan are dictated by the protocol specification in question. For
 example, with HTTP it is one request, whereas for a WebSocket it is a single
 WebSocket connection.
 
-Both the ``scope`` and the format of the messages you send and receive
+Both the ``scope`` and the format of the event messages you send and receive
 are defined by one of the application protocols. ``scope`` must be a
 ``dict``.  The key ``scope["type"]`` will always be present, and can
 be used to work out which protocol is incoming. The key
@@ -181,7 +189,7 @@ There may also be a spec-specific version present as
 ``scope["asgi"]["spec_version"]``. This allows the individual protocol
 specifications to make enhancements without bumping the overall ASGI version.
 
-The protocol-specific sub-specifications cover these scope and message formats.
+The protocol-specific sub-specifications cover these scope and event message formats.
 They are equivalent to the specification for keys in the ``environ`` dict for
 WSGI.
 
@@ -202,7 +210,7 @@ newer single-callable application, but note that the first callable is
 *synchronous*.
 
 The first callable is called when the connection is started, and then the
-second callable is called immediately afterwards.
+second callable is called and awaited immediately afterwards.
 
 This style was retired in version 3.0 as the two-callable layout was deemed
 unnecessary. It's now legacy, but there are applications out there written in
@@ -221,7 +229,7 @@ These describe the standardized scope and message formats for various
 protocols.
 
 The one common key across all scopes and messages is ``type``, a way to
-indicate what type of scope or message is being received.
+indicate what type of scope or event message is being received.
 
 In scopes, the ``type`` key must be a Unicode string, like ``"http"`` or
 ``"websocket"``, as defined in the relevant protocol specification.
@@ -250,17 +258,16 @@ Middleware
 ----------
 
 It is possible to have ASGI "middleware" - code that plays the role of both
-server and application, taking in a scope and the send/receive awaitables,
+server and application, taking in a ``scope`` and the ``send``/``receive`` awaitable callables,
 potentially modifying them, and then calling an inner application.
 
-When middleware is modifying the scope, it should make a copy of the scope
+When middleware is modifying the ``scope``, it should make a copy of the ``scope``
 object before mutating it and passing it to the inner application, as changes
 may leak upstream otherwise. In particular, you should not assume that the copy
-of the scope you pass down to the application is the one that it ends up using,
+of the ``scope`` you pass down to the application is the one that it ends up using,
 as there may be other middleware in the way; thus, do not keep a reference to
-it and try to mutate it outside of the initial ASGI constructor callable that
-receives ``scope``. Your one and only chance to add to it is before you hand
-control to the child application.
+it and try to mutate it outside of the initial ASGI app call. Your one and only
+chance to add to it is before you hand control to the child application.
 
 
 Error Handling
@@ -294,9 +301,8 @@ Extra Coroutines
 Frameworks or applications may want to run extra coroutines in addition to the
 coroutine launched for each application instance. Since there is no way to
 parent these to the instance's coroutine in Python 3.7, applications should
-ensure that all coroutines launched as part of running an application instance
-are terminated either before or at the same time as the application instance's
-coroutine.
+ensure that all coroutines launched as part of running an application are terminated
+either before or at the same time as the application's coroutine.
 
 Any coroutines that continue to run outside of this window have no guarantees
 about their lifetime and may be killed at any time.
