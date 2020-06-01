@@ -73,5 +73,5 @@ FastAPI
 *Beta* / https://github.com/tiangolo/fastapi
 
 FastAPI is an ASGI web framework (made with Starlette) for building web APIs based on
-standard Python type annotations, based on standards like OpenAPI, JSON Schema, and
-OAuth2. Supports HTTP and WebSockets.
+standard Python type annotations and standards like OpenAPI, JSON Schema, and OAuth2.
+Supports HTTP and WebSockets.
