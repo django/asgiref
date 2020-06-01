@@ -34,8 +34,9 @@ A possible implementation of this protocol is given below::
 Scope
 '''''
 
-The lifespan scope exists for the duration of the event loop. The
-scope itself contains basic metadata:
+The lifespan scope exists for the duration of the event loop.
+
+The scope information passed in ``scope`` contains basic metadata:
 
 * ``type`` (*Unicode string*) -- ``"lifespan"``.
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
@@ -43,7 +44,7 @@ scope itself contains basic metadata:
   used. Optional; defaults to ``"1.0"``.
 
 If an exception is raised when calling the application callable with a
-``lifespan.startup`` message or a scope with type ``lifespan``,
+``lifespan.startup`` message or a ``scope`` with type ``lifespan``,
 the server must continue but not send any lifespan events.
 
 This allows for compatibility with applications that do not support the
@@ -52,19 +53,19 @@ startup and prevent the server from starting, then send back
 ``lifespan.startup.failed`` instead.
 
 
-Startup
-'''''''
+Startup - ``receive`` event
+'''''''''''''''''''''''''''
 
-Sent when the server is ready to startup and receive connections, but
-before it has started to do so.
+Sent to the application when the server is ready to startup and receive connections,
+but before it has started to do so.
 
 Keys:
 
 * ``type`` (*Unicode string*) -- ``"lifespan.startup"``.
 
 
-Startup Complete
-''''''''''''''''
+Startup Complete - ``send`` event
+'''''''''''''''''''''''''''''''''
 
 Sent by the application when it has completed its startup. A server
 must wait for this message before it starts processing connections.
@@ -74,8 +75,8 @@ Keys:
 * ``type`` (*Unicode string*) -- ``"lifespan.startup.complete"``.
 
 
-Startup Failed
-''''''''''''''
+Startup Failed - ``send`` event
+'''''''''''''''''''''''''''''''
 
 Sent by the application when it has failed to complete its startup. If a server
 sees this it should log/print the message provided and then exit.
@@ -86,19 +87,19 @@ Keys:
 * ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
 
 
-Shutdown
-''''''''
+Shutdown - ``receive`` event
+''''''''''''''''''''''''''''
 
-Sent when the server has stopped accepting connections and closed all
-active connections.
+Sent to the application when the server has stopped accepting connections and closed
+all active connections.
 
 Keys:
 
 * ``type`` (*Unicode string*) --  ``"lifespan.shutdown"``.
 
 
-Shutdown Complete
-'''''''''''''''''
+Shutdown Complete - ``send`` event
+''''''''''''''''''''''''''''''''''
 
 Sent by the application when it has completed its cleanup. A server
 must wait for this message before terminating.
@@ -108,8 +109,8 @@ Keys:
 * ``type`` (*Unicode string*) -- ``"lifespan.shutdown.complete"``.
 
 
-Shutdown Failed
-'''''''''''''''
+Shutdown Failed - ``send`` event
+''''''''''''''''''''''''''''''''
 
 Sent by the application when it has failed to complete its cleanup. If a server
 sees this it should log/print the message provided and then terminate.
