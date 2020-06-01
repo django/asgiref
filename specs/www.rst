@@ -56,15 +56,15 @@ value of ``http``.
 Connection Scope
 ''''''''''''''''
 
-HTTP connections have a single-request connection scope - that is, your
-applications will be instantiated at the start of the request, and destroyed
-at the end, even if the underlying socket is still open and serving multiple
-requests.
+HTTP connections have a single-request *connection scope* - that is, your
+application will be called at the start of the request, and will last until
+the end of that specific request, even if the underlying socket is still open
+and serving multiple requests.
 
-If you hold a response open for long-polling or similar, the scope will
-persist until the response closes from either the client or server side.
+If you hold a response open for long-polling or similar, the *connection scope*
+will persist until the response closes from either the client or server side.
 
-The connection scope contains:
+The *connection scope* information passed in ``scope`` contains:
 
 * ``type`` (*Unicode string*) -- ``"http"``.
 
@@ -107,7 +107,7 @@ The connection scope contains:
   header already present.
 
 * ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
-  ``[host, port]``, where ``host`` the remote host's IPv4 or IPv6 address, and
+  ``[host, port]``, where ``host`` is the remote host's IPv4 or IPv6 address, and
   ``port`` is the remote port as an integer. Optional; defaults to ``None``.
 
 * ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
@@ -121,13 +121,13 @@ a response that is given to the server with no ``Content-Length`` may be chunked
 as the server sees fit.
 
 
-Request
-'''''''
+Request - ``receive`` event
+'''''''''''''''''''''''''''
 
-Sent to indicate an incoming request. Most of the request information is in
-the connection scope; the body message serves as a way to stream large incoming
-HTTP bodies in chunks, and as a trigger to actually run request code (as you
-should not trigger on a connection opening alone).
+Sent to the application to indicate an incoming request. Most of the request
+information is in the connection ``scope``; the body message serves as a way to
+stream large incoming HTTP bodies in chunks, and as a trigger to actually run
+request code (as you should not trigger on a connection opening alone).
 
 Note that if the request is being sent using ``Transfer-Encoding: chunked``,
 the server is responsible for handling this encoding. The ``http.request``
@@ -148,13 +148,13 @@ Keys:
   defaults to ``False``.
 
 
-Response Start
-''''''''''''''
+Response Start - ``send`` event
+'''''''''''''''''''''''''''''''
 
-Starts sending a response to the client. Needs to be followed by at least
-one response content message. The protocol server must not start sending the
-response to the client until it has received at least one *Response Body*
-event.
+Sent by the application to start sending a response to the client. Needs to be
+followed by at least one response content message. The protocol server must not
+start sending the response to the client until it has received at least one
+*Response Body* event.
 
 You may send a ``Transfer-Encoding`` header in this message, but the server
 must ignore it. Servers handle ``Transfer-Encoding`` themselves, and may opt
@@ -171,15 +171,15 @@ Keys:
 
 * ``status`` (*int*) -- HTTP status code.
 
-* ``headers`` (*Iterable[[byte string, byte string]]*) -- A iterable of
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
   ``[name, value]`` two-item iterables, where ``name`` is the header name, and
   ``value`` is the header value. Order must be preserved in the HTTP response.
   Header names must be lowercased. Optional; defaults to an empty list. Pseudo
   headers (present in HTTP/2 and HTTP/3) must not be present.
 
 
-Response Body
-'''''''''''''
+Response Body - ``send`` event
+''''''''''''''''''''''''''''''
 
 Continues sending a response to the client. Protocol servers must
 flush any data passed to them into the send buffer before returning from a
@@ -200,8 +200,8 @@ Keys:
   will be ignored. Optional; defaults to ``False``.
 
 
-Disconnect
-''''''''''
+Disconnect - ``receive`` event
+''''''''''''''''''''''''''''''
 
 Sent to the application when a HTTP connection is closed or if ``receive``
 is called after a response has been sent. This is mainly useful for
@@ -217,7 +217,7 @@ WebSocket
 ---------
 
 WebSockets share some HTTP details - they have a path and headers - but also
-have more state. Again, most of that state is in the scope, which will live
+have more state. Again, most of that state is in the ``scope``, which will live
 as long as the socket does.
 
 WebSocket protocol servers should handle PING/PONG messages themselves, and
@@ -234,8 +234,10 @@ Connection Scope
 ''''''''''''''''
 
 WebSocket connections' scope lives as long as the socket itself - if the
-application dies the socket should be closed, and vice-versa. The scope
-contains the initial connection metadata (mostly from the HTTP handshake):
+application dies the socket should be closed, and vice-versa.
+
+The *connection scope* information passed in ``scope`` contains initial connection
+metadata (mostly from the HTTP handshake):
 
 * ``type`` (*Unicode string*) -- ``"websocket"``.
 
@@ -287,11 +289,11 @@ contains the initial connection metadata (mostly from the HTTP handshake):
   advertised. Optional; defaults to empty list.
 
 
-Connection
-''''''''''
+Connect - ``receive`` event
+'''''''''''''''''''''''''''
 
-Sent when the client initially opens a connection and is about to finish the
-WebSocket handshake.
+Sent to the application when the client initially opens a connection and is about
+to finish the WebSocket handshake.
 
 This message must be responded to with either an *Accept* message
 or a *Close* message before the socket will pass ``websocket.receive``
@@ -305,8 +307,8 @@ Keys:
 * ``type`` (*Unicode string*) -- ``"websocket.connect"``.
 
 
-Accept
-''''''
+Accept - ``send`` event
+'''''''''''''''''''''''
 
 Sent by the application when it wishes to accept an incoming connection.
 
@@ -324,10 +326,10 @@ Sent by the application when it wishes to accept an incoming connection.
   (present in HTTP/2 and HTTP/3) must not be present.
 
 
-Receive
-'''''''
+Receive - ``receive`` event
+'''''''''''''''''''''''''''
 
-Sent when a data message is received from the client.
+Sent to the application when a data message is received from the client.
 
 Keys:
 
@@ -343,10 +345,10 @@ Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
 keys may be present, however.
 
 
-Send
-''''
+Send - ``send`` event
+'''''''''''''''''''''
 
-Sends a data message to the client.
+Sent by the application to send a data message to the client.
 
 Keys:
 
@@ -362,11 +364,11 @@ Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
 keys may be present, however.
 
 
-Disconnection
-'''''''''''''
+Disconnect - ``receive`` event
+''''''''''''''''''''''''''''''
 
-Sent when either connection to the client is lost, either from the client
-closing the connection, the server closing the connection, or loss of the
+Sent to the application when either connection to the client is lost, either from
+the client closing the connection, the server closing the connection, or loss of the
 socket.
 
 Keys:
@@ -376,10 +378,10 @@ Keys:
 * ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec.
 
 
-Close
-'''''
+Close - ``send`` event
+''''''''''''''''''''''
 
-Tells the server to close the connection.
+Sent by the application to tell the server to close the connection.
 
 If this is sent before the socket is accepted, the server
 must close the connection with a HTTP 403 error code
