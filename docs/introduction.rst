@@ -29,17 +29,19 @@ receiving WebSocket frames) can't trigger this.
 How does ASGI work?
 -------------------
 
-ASGI is structured as a single, asynchronous callable. It takes
-``scope``, which contains details about the incoming request, ``send``, an
-awaitable that lets you send events to the client, and ``receive``, an
-awaitable which lets you receive events from the client.
+ASGI is structured as a single, asynchronous callable. It takes a ``scope``, 
+which is a ``dict`` containing details about the specific connection,
+``send``, an asynchronous callable, that lets the application send event messages
+to the client, and ``receive``, an asynchronous callable which lets the application
+receive event messages from the client.
 
 This not only allows multiple incoming events and outgoing events for each
 application, but also allows for a background coroutine so the application can
 do other things (such as listening for events on an external trigger, like a
 Redis queue).
 
-In its simplest form, an application can be written as a function, like this::
+In its simplest form, an application can be written as an asynchronous function,
+like this::
 
     async def application(scope, receive, send):
         event = await receive()
@@ -51,13 +53,13 @@ format. It's these event formats that form the basis of the standard, and allow
 applications to be swappable between servers.
 
 These *events* each have a defined ``type`` key, which can be used to infer
-the event's structure. Here's an example event for sending the start of a HTTP
-response that you might get from ``receive``::
+the event's structure. Here's an example event that you might receive from
+``receive`` with the body from a HTTP request::
 
     {
-        "type": "http.response.start",
-        "status": 200,
-        "headers": [(b"X-Header", b"Amazing Value")],
+        "type": "http.request",
+        "body": b"Hello World",
+        "more_body": False,
     }
 
 And here's an example of an event you might pass to ``send`` to send an
