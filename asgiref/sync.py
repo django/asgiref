@@ -26,18 +26,6 @@ def _restore_context(context):
             cvar.set(context.get(cvar))
 
 
-def _awaitable_with_context(awaitable, context):
-    gen = awaitable.__await__()
-
-    while True:
-        try:
-            chunk = context.run(next, gen)
-        except StopIteration:
-            break
-
-        yield chunk
-
-
 class AsyncToSync:
     """
     Utility class which turns an awaitable that only works on the thread with
@@ -115,7 +103,7 @@ class AsyncToSync:
             )
 
             if contextvars is not None:
-                awaitable = _awaitable_with_context(awaitable, context)
+                awaitable = self._awaitable_with_context(awaitable, context)
 
             if not (self.main_event_loop and self.main_event_loop.is_running()):
                 # Make our own event loop - in a new thread - and run inside that.
@@ -214,6 +202,18 @@ class AsyncToSync:
             call_result.set_result(result)
         finally:
             del self.launch_map[current_task]
+
+    @staticmethod
+    def _awaitable_with_context(awaitable, context):
+        gen = awaitable.__await__()
+
+        while True:
+            try:
+                chunk = context.run(next, gen)
+            except StopIteration:
+                break
+
+            yield chunk
 
 
 class SyncToAsync:
