@@ -65,3 +65,11 @@ Starlette
 
 Starlette is a minimalist ASGI library for writing against basic but powerful
 ``Request`` and ``Response`` classes. Supports HTTP.
+
+FastAPI
+---------
+
+https://github.com/tiangolo/fastapi
+
+FastAPI is a modern, fast (high-performance), web framework for building APIs with Python 3.6+ based on standard Python type hints. It uses `Starlette <https://github.com/encode/starlette>`_ and `Pydantic <https://github.com/samuelcolvin/pydantic/>`_
+underneath. 
