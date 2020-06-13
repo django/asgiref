@@ -48,6 +48,16 @@ original driving force behind the ASGI project. Supports HTTP and WebSockets
 with Django integration, and any protocol with ASGI-native code.
 
 
+FastAPI
+-------
+
+*Beta* / https://github.com/tiangolo/fastapi
+
+FastAPI is an ASGI web framework (made with Starlette) for building web APIs based on
+standard Python type annotations and standards like OpenAPI, JSON Schema, and OAuth2.
+Supports HTTP and WebSockets.
+
+
 Quart
 -----
 
