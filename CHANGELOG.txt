@@ -1,3 +1,10 @@
+3.2.8 (2020-06-15)
+------------------
+
+* Fixed small memory leak in local.Local
+* contextvars are now persisted through AsyncToSync
+
+
 3.2.7 (2020-03-24)
 ------------------
 
