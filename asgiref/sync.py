@@ -15,6 +15,17 @@ except ImportError:
     contextvars = None
 
 
+def _restore_context(context):
+    # Check for changes in contextvars, and set them to the current
+    # context for downstream consumers
+    for cvar in context:
+        try:
+            if cvar.get() != context.get(cvar):
+                cvar.set(context.get(cvar))
+        except LookupError:
+            cvar.set(context.get(cvar))
+
+
 class AsyncToSync:
     """
     Utility class which turns an awaitable that only works on the thread with
@@ -66,6 +77,10 @@ class AsyncToSync:
                     "You cannot use AsyncToSync in the same thread as an async event loop - "
                     "just await the async function directly."
                 )
+
+        if contextvars is not None:
+            context = contextvars.copy_context()
+
         # Make a future for the return information
         call_result = Future()
         # Get the source thread
@@ -83,16 +98,19 @@ class AsyncToSync:
         # main event loop's thread if it's there, otherwise make a new loop
         # in this thread.
         try:
+            awaitable = self.main_wrap(
+                args, kwargs, call_result, source_thread, sys.exc_info()
+            )
+
+            if contextvars is not None:
+                awaitable = self._awaitable_with_context(awaitable, context)
+
             if not (self.main_event_loop and self.main_event_loop.is_running()):
                 # Make our own event loop - in a new thread - and run inside that.
                 loop = asyncio.new_event_loop()
                 loop_executor = ThreadPoolExecutor(max_workers=1)
                 loop_future = loop_executor.submit(
-                    self._run_event_loop,
-                    loop,
-                    self.main_wrap(
-                        args, kwargs, call_result, source_thread, sys.exc_info()
-                    ),
+                    self._run_event_loop, loop, awaitable
                 )
                 if current_executor:
                     # Run the CurrentThreadExecutor until the future is done
@@ -102,10 +120,7 @@ class AsyncToSync:
             else:
                 # Call it inside the existing loop
                 self.main_event_loop.call_soon_threadsafe(
-                    self.main_event_loop.create_task,
-                    self.main_wrap(
-                        args, kwargs, call_result, source_thread, sys.exc_info()
-                    ),
+                    self.main_event_loop.create_task, awaitable
                 )
                 if current_executor:
                     # Run the CurrentThreadExecutor until the future is done
@@ -116,6 +131,9 @@ class AsyncToSync:
                 del self.executors.current
             if old_current_executor:
                 self.executors.current = old_current_executor
+            if contextvars is not None:
+                _restore_context(context)
+
         # Wait for results from the future.
         return call_result.result()
 
@@ -184,6 +202,18 @@ class AsyncToSync:
             call_result.set_result(result)
         finally:
             del self.launch_map[current_task]
+
+    @staticmethod
+    def _awaitable_with_context(awaitable, context):
+        gen = awaitable.__await__()
+
+        while True:
+            try:
+                chunk = context.run(next, gen)
+            except StopIteration:
+                break
+
+            yield chunk
 
 
 class SyncToAsync:
@@ -269,14 +299,7 @@ class SyncToAsync:
         ret = await asyncio.wait_for(future, timeout=None)
 
         if contextvars is not None:
-            # Check for changes in contextvars, and set them to the current
-            # context for downstream consumers
-            for cvar in context:
-                try:
-                    if cvar.get() != context.get(cvar):
-                        cvar.set(context.get(cvar))
-                except LookupError:
-                    cvar.set(context.get(cvar))
+            _restore_context(context)
 
         return ret
 
