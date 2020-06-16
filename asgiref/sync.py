@@ -79,7 +79,11 @@ class AsyncToSync:
                 )
 
         if contextvars is not None:
-            context = contextvars.copy_context()
+            # Wrapping context in list so it can be reassigned from within
+            # `main_wrap`.
+            context = [contextvars.copy_context()]
+        else:
+            context = None
 
         # Make a future for the return information
         call_result = Future()
@@ -99,11 +103,8 @@ class AsyncToSync:
         # in this thread.
         try:
             awaitable = self.main_wrap(
-                args, kwargs, call_result, source_thread, sys.exc_info()
+                args, kwargs, call_result, source_thread, sys.exc_info(), context
             )
-
-            if contextvars is not None:
-                awaitable = self._awaitable_with_context(awaitable, context)
 
             if not (self.main_event_loop and self.main_event_loop.is_running()):
                 # Make our own event loop - in a new thread - and run inside that.
@@ -132,7 +133,7 @@ class AsyncToSync:
             if old_current_executor:
                 self.executors.current = old_current_executor
             if contextvars is not None:
-                _restore_context(context)
+                _restore_context(context[0])
 
         # Wait for results from the future.
         return call_result.result()
@@ -179,11 +180,16 @@ class AsyncToSync:
         func = functools.partial(self.__call__, parent)
         return functools.update_wrapper(func, self.awaitable)
 
-    async def main_wrap(self, args, kwargs, call_result, source_thread, exc_info):
+    async def main_wrap(
+        self, args, kwargs, call_result, source_thread, exc_info, context
+    ):
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
         """
+        if context is not None:
+            _restore_context(context[0])
+
         current_task = SyncToAsync.get_current_task()
         self.launch_map[current_task] = source_thread
         try:
@@ -203,17 +209,8 @@ class AsyncToSync:
         finally:
             del self.launch_map[current_task]
 
-    @staticmethod
-    def _awaitable_with_context(awaitable, context):
-        gen = awaitable.__await__()
-
-        while True:
-            try:
-                chunk = context.run(next, gen)
-            except StopIteration:
-                break
-
-            yield chunk
+            if context is not None:
+                context[0] = contextvars.copy_context()
 
 
 class SyncToAsync:
