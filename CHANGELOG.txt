@@ -1,3 +1,9 @@
+3.2.9 (2020-06-16)
+------------------
+
+* Fixed regression with exception handling in 3.2.8 related to the contextvars fix.
+
+
 3.2.8 (2020-06-15)
 ------------------
 
