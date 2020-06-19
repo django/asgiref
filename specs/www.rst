@@ -237,7 +237,7 @@ WebSocket connections' scope lives as long as the socket itself - if the
 application dies the socket should be closed, and vice-versa.
 
 The *connection scope* information passed in ``scope`` contains initial connection
-metadata (mostly from the HTTP handshake):
+metadata (mostly from the HTTP request line and headers):
 
 * ``type`` (*Unicode string*) -- ``"websocket"``.
 
