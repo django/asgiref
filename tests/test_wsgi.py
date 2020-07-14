@@ -51,6 +51,48 @@ async def test_basic_wsgi():
 
 
 @pytest.mark.asyncio
+async def test_wsgi_path_encoding():
+    """
+    Makes sure the WSGI wrapper has basic functionality.
+    """
+    # Define WSGI app
+    def wsgi_application(environ, start_response):
+        assert environ["SCRIPT_NAME"] == "/中国".encode("utf8").decode("latin-1")
+        assert environ["PATH_INFO"] == "/中文".encode("utf8").decode("latin-1")
+        start_response("200 OK", [])
+        yield b""
+
+    # Wrap it
+    application = WsgiToAsgi(wsgi_application)
+    # Launch it as a test application
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/中文",
+            "root_path": "/中国",
+            "query_string": b"bar=baz",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    # Check they send stuff
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
 async def test_wsgi_empty_body():
     """
     Makes sure WsgiToAsgi handles an empty body response correctly
