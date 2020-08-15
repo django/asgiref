@@ -465,12 +465,14 @@ decisions of what is Unicode versus bytes may not be obvious.
 
 
 Version History
-===============
+---------------
+
 
 * 2.0 (2017-11-28): Initial non-channel-layer based ASGI spec
 
 
 Copyright
-=========
+---------
+
 
 This document has been placed in the public domain.
