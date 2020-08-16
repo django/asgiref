@@ -364,6 +364,8 @@ Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
 keys may be present, however.
 
 
+.. _disconnect-receive-event-ws:
+
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
 
