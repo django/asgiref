@@ -53,8 +53,8 @@ The HTTP protocol should be signified to ASGI applications with a ``type``
 value of ``http``.
 
 
-Connection Scope
-''''''''''''''''
+HTTP Connection Scope
+'''''''''''''''''''''
 
 HTTP connections have a single-request *connection scope* - that is, your
 application will be called at the start of the request, and will last until
@@ -230,8 +230,8 @@ The WebSocket protocol should be signified to ASGI applications with
 a ``type`` value of ``websocket``.
 
 
-Connection Scope
-''''''''''''''''
+Websocket Connection Scope
+''''''''''''''''''''''''''
 
 WebSocket connections' scope lives as long as the socket itself - if the
 application dies the socket should be closed, and vice-versa.
@@ -363,6 +363,8 @@ Keys:
 Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
 keys may be present, however.
 
+
+.. _disconnect-receive-event-ws:
 
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
