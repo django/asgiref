@@ -41,7 +41,7 @@ The scope information passed in ``scope`` contains basic metadata:
 * ``type`` (*Unicode string*) -- ``"lifespan"``.
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 * ``asgi["spec_version"]`` (*Unicode string*) -- The version of this spec being
-  used. Optional; defaults to ``"1.0"``.
+  used. Optional; if missing defaults to ``"1.0"``.
 
 If an exception is raised when calling the application callable with a
 ``lifespan.startup`` message or a ``scope`` with type ``lifespan``,
@@ -84,7 +84,7 @@ sees this it should log/print the message provided and then exit.
 Keys:
 
 * ``type`` (*Unicode string*) -- ``"lifespan.startup.failed"``.
-* ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
+* ``message`` (*Unicode string*) -- Optional; if missing defaults to ``""``.
 
 
 Shutdown - ``receive`` event
@@ -118,7 +118,7 @@ sees this it should log/print the message provided and then terminate.
 Keys:
 
 * ``type`` (*Unicode string*) -- ``"lifespan.shutdown.failed"``.
-* ``message`` (*Unicode string*) -- Optional; defaults to ``""``.
+* ``message`` (*Unicode string*) -- Optional; if missing defaults to ``""``.
 
 
 Version History

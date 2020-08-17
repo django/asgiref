@@ -70,9 +70,9 @@ The *connection scope* information passed in ``scope`` contains:
 
 * ``asgi["version"]`` (*Unicode string*) -- Version of the ASGI spec.
 
-* ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI HTTP spec
-  this server understands; one of ``"2.0"`` or ``"2.1"``. Optional; if missing
-  assume ``2.0``.
+* ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI
+  HTTP spec this server understands; one of ``"2.0"`` or
+  ``"2.1"``. Optional; if missing assume ``2.0``.
 
 * ``http_version`` (*Unicode string*) -- One of ``"1.0"``, ``"1.1"`` or ``"2"``.
 
@@ -85,16 +85,17 @@ The *connection scope* information passed in ``scope`` contains:
   string, with percent-encoded sequences and UTF-8 byte sequences
   decoded into characters.
 
-* ``raw_path`` (*byte string*) -- The original HTTP path component unmodified
-  from the bytes that were received by the web server. Some web server
-  implementations may be unable to provide this. Optional; defaults to ``None``.
+* ``raw_path`` (*byte string*) -- The original HTTP path component
+  unmodified from the bytes that were received by the web server. Some
+  web server implementations may be unable to provide this. Optional;
+  if missing defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the ``?``,
   percent-encoded.
 
 * ``root_path`` (*Unicode string*) -- The root path this application
-  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; defaults
-  to ``""``.
+  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; if missing
+  defaults to ``""``.
 
 * ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
   ``[name, value]`` two-item iterables, where ``name`` is the header name, and
@@ -106,13 +107,15 @@ The *connection scope* information passed in ``scope`` contains:
   the iterable with ``host`` as the header name or replace any existing host
   header already present.
 
-* ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
-  ``[host, port]``, where ``host`` is the remote host's IPv4 or IPv6 address, and
-  ``port`` is the remote port as an integer. Optional; defaults to ``None``.
+* ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable
+  of ``[host, port]``, where ``host`` is the remote host's IPv4 or
+  IPv6 address, and ``port`` is the remote port as an
+  integer. Optional; if missing defaults to ``None``.
 
-* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
-  ``[host, port]``, where ``host`` is the listening address for this server,
-  and ``port`` is the integer listening port. Optional; defaults to ``None``.
+* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable
+  of ``[host, port]``, where ``host`` is the listening address for
+  this server, and ``port`` is the integer listening port. Optional;
+  if missing defaults to ``None``.
 
 Servers are responsible for handling inbound and outbound chunked transfer
 encodings. A request with a ``chunked`` encoded body should be automatically
@@ -137,15 +140,15 @@ Keys:
 
 * ``type`` (*Unicode string*) -- ``"http.request"``.
 
-* ``body`` (*byte string*) -- Body of the request. Optional; defaults to
-  ``b""``. If ``more_body`` is set, treat as start of body and concatenate
-  on further chunks.
+* ``body`` (*byte string*) -- Body of the request. Optional; if
+  missing defaults to ``b""``. If ``more_body`` is set, treat as start
+  of body and concatenate on further chunks.
 
 * ``more_body`` (*bool*) -- Signifies if there is additional content
   to come (as part of a Request message). If ``True``, the consuming
-  application should wait until it gets a chunk with this set to ``False``. If
-  ``False``, the request is complete and should be processed. Optional;
-  defaults to ``False``.
+  application should wait until it gets a chunk with this set to
+  ``False``. If ``False``, the request is complete and should be
+  processed. Optional; if missing defaults to ``False``.
 
 
 Response Start - ``send`` event
@@ -171,10 +174,11 @@ Keys:
 
 * ``status`` (*int*) -- HTTP status code.
 
-* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
-  ``[name, value]`` two-item iterables, where ``name`` is the header name, and
-  ``value`` is the header value. Order must be preserved in the HTTP response.
-  Header names must be lowercased. Optional; defaults to an empty list. Pseudo
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable
+  of ``[name, value]`` two-item iterables, where ``name`` is the
+  header name, and ``value`` is the header value. Order must be
+  preserved in the HTTP response.  Header names must be
+  lowercased. Optional; if missing defaults to an empty list. Pseudo
   headers (present in HTTP/2 and HTTP/3) must not be present.
 
 
@@ -190,14 +194,15 @@ Keys:
 
 * ``type`` (*Unicode string*) -- ``"http.response.body"``.
 
-* ``body`` (*byte string*) -- HTTP body content. Concatenated onto any previous
-  ``body`` values sent in this connection scope. Optional; defaults to
-  ``b""``.
+* ``body`` (*byte string*) -- HTTP body content. Concatenated onto any
+  previous ``body`` values sent in this connection scope. Optional; if
+  missing defaults to ``b""``.
 
 * ``more_body`` (*bool*) -- Signifies if there is additional content
-  to come (as part of a Response Body message). If ``False``, response will
-  be taken as complete and closed, and any further messages on the channel
-  will be ignored. Optional; defaults to ``False``.
+  to come (as part of a Response Body message). If ``False``, response
+  will be taken as complete and closed, and any further messages on
+  the channel will be ignored. Optional; if missing defaults to
+  ``False``.
 
 
 Disconnect - ``receive`` event
@@ -243,12 +248,12 @@ metadata (mostly from the HTTP request line and headers):
 
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 
-* ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI HTTP spec
-  this server understands; one of ``"2.0"`` or ``"2.1"``. Optional; if missing
-  assume ``"2.0"``.
+* ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI
+  HTTP spec this server understands; one of ``"2.0"`` or
+  ``"2.1"``. Optional; if missing assume ``"2.0"``.
 
-* ``http_version`` (*Unicode string*) -- One of ``"1.1"`` or ``"2"``. Optional;
-  default is ``"1.1"``.
+* ``http_version`` (*Unicode string*) -- One of ``"1.1"`` or
+  ``"2"``. Optional; if missing default is ``"1.1"``.
 
 * ``scheme`` (*Unicode string*) -- URL scheme portion (likely ``"ws"`` or
   ``"wss"``). Optional (but must not be empty); default is ``"ws"``.
@@ -257,16 +262,17 @@ metadata (mostly from the HTTP request line and headers):
   string, with percent-encoded sequences and UTF-8 byte sequences
   decoded into characters.
 
-* ``raw_path`` (*byte string*) -- The original HTTP path component unmodified
-  from the bytes that were received by the web server. Some web server
-  implementations may be unable to provide this. Optional; defaults to ``None``.
+* ``raw_path`` (*byte string*) -- The original HTTP path component
+  unmodified from the bytes that were received by the web server. Some
+  web server implementations may be unable to provide this. Optional;
+  if missing defaults to ``None``.
 
-* ``query_string`` (*byte string*) -- URL portion after the ``?``. Optional;
-  default is empty string.
+* ``query_string`` (*byte string*) -- URL portion after the
+  ``?``. Optional; if missing default is empty string.
 
-* ``root_path`` (*byte string*) -- The root path this application
-  is mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; defaults
-  to empty string.
+* ``root_path`` (*byte string*) -- The root path this application is
+  mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; if missing
+  defaults to empty string.
 
 * ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
   ``[name, value]`` two-item iterables, where ``name`` is the header name and
@@ -277,16 +283,18 @@ metadata (mostly from the HTTP request line and headers):
   must be added to the start of the iterable with ``host`` as the header name
   or replace any existing host header already present.
 
-* ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
-  ``[host, port]``, where ``host`` is the remote host's IPv4 or IPv6 address,
-  and ``port`` is the remote port. Optional; defaults to ``None``.
+* ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable
+  of ``[host, port]``, where ``host`` is the remote host's IPv4 or
+  IPv6 address, and ``port`` is the remote port. Optional; if missing
+  defaults to ``None``.
 
-* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable of
-  ``[host, port]``, where ``host`` is the listening address for this server,
-  and ``port`` is the integer listening port. Optional; defaults to ``None``.
+* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable
+  of ``[host, port]``, where ``host`` is the listening address for
+  this server, and ``port`` is the integer listening port. Optional;
+  if missing defaults to ``None``.
 
-* ``subprotocols`` (*Iterable[Unicode string]*) -- Subprotocols the client
-  advertised. Optional; defaults to empty list.
+* ``subprotocols`` (*Iterable[Unicode string]*) -- Subprotocols the
+  client advertised. Optional; if missing defaults to empty list.
 
 
 Connect - ``receive`` event
@@ -314,16 +322,18 @@ Sent by the application when it wishes to accept an incoming connection.
 
 * ``type`` (*Unicode string*) -- ``"websocket.accept"``.
 
-* ``subprotocol`` (*Unicode string*) -- The subprotocol the server wishes to
-  accept. Optional; defaults to ``None``.
+* ``subprotocol`` (*Unicode string*) -- The subprotocol the server
+  wishes to accept. Optional; if missing defaults to ``None``.
 
-* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable of
-  ``[name, value]`` two-item iterables, where ``name`` is the header name, and
-  ``value`` is the header value. Order must be preserved in the HTTP response.
-  Header names must be lowercased. Must not include a header named
-  ``sec-websocket-protocol``; use the ``subprotocol`` key instead. Optional;
-  defaults to an empty list. *Added in spec version 2.1*. Pseudo headers
-  (present in HTTP/2 and HTTP/3) must not be present.
+* ``headers`` (*Iterable[[byte string, byte string]]*) -- An iterable
+  of ``[name, value]`` two-item iterables, where ``name`` is the
+  header name, and ``value`` is the header value. Order must be
+  preserved in the HTTP response.  Header names must be
+  lowercased. Must not include a header named
+  ``sec-websocket-protocol``; use the ``subprotocol`` key
+  instead. Optional; if missing defaults to an empty list. *Added in
+  spec version 2.1*. Pseudo headers (present in HTTP/2 and HTTP/3)
+  must not be present.
 
 
 Receive - ``receive`` event
@@ -335,11 +345,13 @@ Keys:
 
 * ``type`` (*Unicode string*) -- ``"websocket.receive"``.
 
-* ``bytes`` (*byte string*) -- The message content, if it was binary mode, or
-  ``None``. Optional; if missing, it is equivalent to ``None``.
+* ``bytes`` (*byte string*) -- The message content, if it was binary
+  mode, or ``None``. Optional; if missing, it is equivalent to
+  ``None``.
 
-* ``text`` (*Unicode string*) -- The message content, if it was text mode, or
-  ``None``. Optional; if missing, it is equivalent to ``None``.
+* ``text`` (*Unicode string*) -- The message content, if it was text
+  mode, or ``None``. Optional; if missing, it is equivalent to
+  ``None``.
 
 Exactly one of ``bytes`` or ``text`` must be non-``None``. One or both
 keys may be present, however.
@@ -395,8 +407,8 @@ with the close code passed in the message (or 1000 if none is specified).
 
 * ``type`` (*Unicode string*) -- ``"websocket.close"``.
 
-* ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec.
-  Optional; defaults to ``1000``.
+* ``code`` (*int*) -- The WebSocket close code, as per the WebSocket
+  spec.  Optional; if missing defaults to ``1000``.
 
 
 WSGI Compatibility
