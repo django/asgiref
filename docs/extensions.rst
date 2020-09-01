@@ -77,3 +77,37 @@ and treat it as if the client had made a request.
 
 The ASGI server should set the pseudo ``:authority`` header value to
 be the same value as the request that triggered the push promise.
+
+Sendfile
+------------------
+
+Sendfile allows you to send the contents of a file descriptor to the
+HTTP client with zero copy. ASGI servers that implement this extension will
+provide ``http.response.sendfile`` in the extensions part of the scope::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.sendfile": {},
+        },
+    }
+
+An ASGI framework can call ``sendfile`` by sending a message with
+the following keys. This message can be sent at any time after the
+*Response Start* message but before the final *Response Body* message.
+
+Keys:
+
+* ``type`` (*Unicode string*): ``"http.response.sendfile"``
+
+* ``file`` (*file descriptor object*): An open file descriptor object:
+  like file or socket.
+
+* ``offset`` (*int*): Optional. If this value exists, it will specify
+  the offset at which sendfile starts to read data from ``file``.
+  Otherwise, it will be read from the current position of ``file``.
+
+* ``count`` (*int*): Optional. ``count`` is the number of bytes to
+  copy between the file descriptors.
+
+
