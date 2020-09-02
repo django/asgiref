@@ -65,7 +65,7 @@ document.  The value will be a dictionary with the following entries:
   certificate then it will be an empty iterable.  Some web server
   implementations may be unable to provide this (e.g. if TLS is terminated by a
   separate proxy or load balancer); in that case this shall be an empty
-  iterable. Optional; defaults to empty iterable.
+  iterable. Optional; if missing defaults to empty iterable.
 
 * ``client_cert_name`` (*Optional[Unicode string]*) -- The x509 Distinguished
   Name of the Subject of the client certificate, as a single string encoded as
@@ -77,8 +77,8 @@ document.  The value will be a dictionary with the following entries:
   is consistent with ``client_cert_chain[0]``.  Note that under some setups,
   (e.g. where TLS is terminated by a separate proxy or load balancer and that
   device forwards the client certificate name to the web server), this field
-  may be set even where ``client_cert_chain`` is not set.  Optional; defaults
-  to ``None``.
+  may be set even where ``client_cert_chain`` is not set.  Optional; if missing
+  defaults to ``None``.
 
 * ``client_cert_error`` (*Optional[Unicode string]*) -- ``None`` if a client
   certificate was provided and successfully verified, or was not provided.
@@ -90,8 +90,8 @@ document.  The value will be a dictionary with the following entries:
   configured to allow the connection anyway.  This is especially useful when
   testing that client certificates are supported properly by the client - it
   allows a response containing an error message that can be presented to a
-  human, instead of just refusing the connection. Optional; defaults to
-  ``None``.
+  human, instead of just refusing the connection. Optional; if missing defaults
+  to ``None``.
 
 * ``tls_version`` (*Optional[int]*) -- The TLS version in use.  This is one of
   the version numbers as defined in the TLS specifications, which is an
