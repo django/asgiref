@@ -1,90 +1,86 @@
-==================================
-TLS Connection Information in ASGI
-==================================
+==================
+ASGI TLS Extension
+==================
 
-**Version**: 0.1 (2020-09-02)
+**Version**: 0.2 (2020-09-02)
 
-**Status: This is a draft specification.**
+This specification outlines how to report TLS (or SSL) connection information
+in the ASGI *connection scope* object.
 
-This TLS ASGI sub-specification outlines how to transport TLS (or SSL)
-connection information in the ASGI *connection scope* object.
-
-The Inner Protocol
-------------------
+The Base Protocol
+-----------------
 
 TLS is not usable on its own, it always wraps another protocol.
-So this ASGI sub-specification is not designed to be usable on its own,
-it must be used as an addon to another ASGI sub-specification.
-That other ASGI sub-specification is referred to as the *inner protocol
+So this specification is not designed to be usable on its own,
+it must be used as an extension to another ASGI specification.
+That other ASGI specification is referred to as the *base protocol
 specification*.
 
-For HTTP-over-TLS (HTTPS), use this TLS sub-specification and the
-ASGI HTTP sub-specification.  The *inner protocol specification* is the
-ASGI HTTP sub-specification.
+For HTTP-over-TLS (HTTPS), use this TLS specification and the
+ASGI HTTP specification.  The *base protocol specification* is the
+ASGI HTTP specification.
 
-For WebSockets-over-TLS (wss:// protocol), use this TLS sub-specification
-and the ASGI WebSockets sub-specification.  The *inner protocol specification*
-is the ASGI WebSockets sub-specification.
+For WebSockets-over-TLS (wss:// protocol), use this TLS specification
+and the ASGI WebSockets specification.  The *base protocol specification*
+is the ASGI WebSockets specification.
 
-When to use this specification
-------------------------------
+If using this extension with other protocols (not HTTPS or WebSockets), note
+that the *base protocol specification* must define the *connection scope* in a
+way that ensures it covers at most one TLS connection.  If not, you cannot use
+this extension.
 
-This specification, and the connection scope keys defined here, must only be
-used for TLS connections.
+When to use this extension
+--------------------------
 
-For non-TLS connections, the ASGI server is forbidden from providing any of
-the connection scope keys defined here.
+This extension must only be used for TLS connections.
 
-So an ASGI application can check for the presence of the ``tls_used`` key in
-the connection scope.  If present, the server supports this specification and
-the connection is over TLS.  If not present, either the server does not support
-this specification or the connection is not over TLS.
+For non-TLS connections, the ASGI server is forbidden from providing this
+extension.
+
+An ASGI application can check for the presence of the ``"tls"`` extension in
+the ``extensions`` dictionary in the connection scope.  If present, the server
+supports this extension and the connection is over TLS.  If not present,
+either the server does not support this extension or the connection is not
+over TLS.
 
 TLS Connection Scope
 --------------------
 
-The lifetime of the *connection scope* is defined in the *inner protocol
-specification*.  However, the *inner protocol specification* must define the 
-*connection scope* in a way that ensures it covers at most one TLS connection.
+The *connection scope* information passed in ``scope`` contains an
+``"extensions"`` key, which contains a dictionary of extensions.  Inside that
+dictionary, the key ``"tls"`` identifies the extension specified in this
+document.  The value will be a dictionary with the following entries:
 
-The *connection scope* information passed in ``scope`` contains the following
-extra values, as well as the ones defined in the *inner protocol
-specification*:
-
-* ``tls_used`` (*bool*) -- Must be ``True`` to indicate that this connection is
-  over TLS.  Mandatory.
-
-* ``tls_server_cert`` (*Optional[Unicode string]*) -- The PEM-encoded conversion
+* ``server_cert`` (*Optional[Unicode string]*) -- The PEM-encoded conversion
   of the x509 certificate sent by the server when establishing the TLS
   connection.  Some web server implementations may be unable to provide this
   (e.g. if TLS is terminated by a separate proxy or load balancer); in that
-  case this shall be ``None``.  Optional; defaults to ``None``.
+  case this shall be ``None``.  Mandatory.
 
-* ``tls_client_cert_chain`` (*Iterable[Unicode string]*) -- An iterable of
+* ``client_cert_chain`` (*Iterable[Unicode string]*) -- An iterable of
   Unicode strings, where each string is a PEM-encoded x509 certificate.
   The first certificate is the client certificate.  Any subsequent certificates
   are part of the certificate chain sent by the client, with each certificate
-  signing the preceeding one.  Only applicable if the connection was over TLS;
-  for non-TLS connections or if the client did not provide a client certificate
-  then it will be an empty iterable.  Some web server implementations may be
-  unable to provide this (e.g. if TLS is terminated by a separate proxy or
-  load balancer); in that case this shall be an empty list. Optional; defaults
-  to empty list.
+  signing the preceeding one.  If the client did not provide a client
+  certificate then it will be an empty iterable.  Some web server
+  implementations may be unable to provide this (e.g. if TLS is terminated by a
+  separate proxy or load balancer); in that case this shall be an empty
+  iterable. Optional; defaults to empty iterable.
 
-* ``tls_client_cert_name`` (*Optional[Unicode string]*) -- The x509 Distinguished
+* ``client_cert_name`` (*Optional[Unicode string]*) -- The x509 Distinguished
   Name of the Subject of the client certificate, as a single string encoded as
   defined in RFC4514.  If the client did not provide a client certificate then
   it will be ``None``. Some web server implementations may be unable to provide
   this (e.g. if TLS is terminated by a separate proxy or load balancer); in that
-  case this shall be ``None``. If ``tls_client_cert_chain`` is provided and
+  case this shall be ``None``. If ``client_cert_chain`` is provided and
   non-empty then this field must be provided and must contain information that
-  is consistent with ``tls_client_cert_chain[0]``.  Note that under some setups,
+  is consistent with ``client_cert_chain[0]``.  Note that under some setups,
   (e.g. where TLS is terminated by a separate proxy or load balancer and that
   device forwards the client certificate name to the web server), this field
-  may be set even where ``tls_client_cert_chain`` is not set.  Optional; defaults
+  may be set even where ``client_cert_chain`` is not set.  Optional; defaults
   to ``None``.
 
-* ``tls_client_cert_error`` (*Optional[Unicode string]*) -- ``None`` if a client
+* ``client_cert_error`` (*Optional[Unicode string]*) -- ``None`` if a client
   certificate was provided and successfully verified, or was not provided.
   If a client certificate was provided but verification failed, this is a
   non-empty string containing an error message or error code indicating why
@@ -94,37 +90,36 @@ specification*:
   configured to allow the connection anyway.  This is especially useful when
   testing that client certificates are supported properly by the client - it
   allows a response containing an error message that can be presented to a
-  human, instead of just refusing the connection. Optional; defaults to ``None``.
+  human, instead of just refusing the connection. Optional; defaults to
+  ``None``.
 
 * ``tls_version`` (*Optional[int]*) -- The TLS version in use.  This is one of
   the version numbers as defined in the TLS specifications, which is an
   unsigned integer.  Common values include ``0x0303`` for TLS 1.2 or ``0x0304``
   for TLS 1.3.  If TLS is not in use, set to ``None``.  Some web server
   implementations may be unable to provide this (e.g. if TLS is terminated by a
-  separate proxy or load balancer); in that case set to ``None``. Optional;
-  defaults to ``None``.
+  separate proxy or load balancer); in that case set to ``None``. Mandatory.
 
-* ``tls_cipher_suite`` (*Optional[int]*) -- The TLS cipher suite that is being
+* ``cipher_suite`` (*Optional[int]*) -- The TLS cipher suite that is being
   used.  This is a 16-bit unsigned integer that encodes the pair of 8-bit
   integers specified in the relevant RFC, in network byte order.  For example
   RFC8446 defines that the cipher suite ``TLS_AES_128_GCM_SHA256`` is
-  ``{0x13, 0x01}``; that is encoded as a ``tls_cipher_suite`` value of
-  ``0x1301`` (equal to 4865).  If TLS is not in use, set to ``None``.  Some web
-  server implementations may be unable to provide this (e.g. if TLS is
-  terminated by a separate proxy or load balancer); in that case set to
-  ``None``. Optional; defaults to ``None``.
+  ``{0x13, 0x01}``; that is encoded as a ``cipher_suite`` value of
+  ``0x1301`` (equal to 4865 decimal).  Some web server implementations may be
+  unable to provide this (e.g. if TLS is terminated by a separate proxy or load
+  balancer); in that case set to ``None``. Mandatory.
 
 Events
 ------
 
-All events are as defined in the *inner protocol specification*.
+All events are as defined in the *base protocol specification*.
 
 Rationale (Informative)
 -----------------------
 
 This section explains the choices that led to this specification.
 
-Providing the entire TLS certificates in ``tls_client_cert_chain``, rather than a
+Providing the entire TLS certificates in ``client_cert_chain``, rather than a
 parsed subset:
 
 * makes it easier for webservers to implement, as they do not have to
@@ -165,7 +160,7 @@ Specifying ``tls_version`` as an integer, not a string or float:
   would likely need a lookup table from what this API reports to the values
   they support and wish to use internally.
 
-Specifying ``tls_cipher_suite`` as an integer, not a string:
+Specifying ``cipher_suite`` as an integer, not a string:
 
 * avoids significant effort to compile a list of cipher suites in this
   specification.  There are a huge number of existing TLS cipher suites, many
@@ -187,13 +182,13 @@ Specifying ``tls_cipher_suite`` as an integer, not a string:
 * Using a single integer, rather than a pair of integers, makes handling this
   value simpler and faster.
 
-``tls_client_cert_name`` duplicates information that is also available in
-``tls_client_cert_chain``.  However, many ASGI applications will probably find
+``client_cert_name`` duplicates information that is also available in
+``client_cert_chain``.  However, many ASGI applications will probably find
 that information is sufficient for their application - it provides a simple
 string that identifies the user.  It is simpler to use than parsing the x509
 certificate.  For the server, this information is readily available.
 
-There are theoretical interoperability problems with ``tls_client_cert_name``,
+There are theoretical interoperability problems with ``client_cert_name``,
 since it depends on a list of object ID names that is maintained by IANA and
 theoretically can change.  In practise, this is not a real problem, since the
 object IDs that are actually used in certificates have not changed in many
