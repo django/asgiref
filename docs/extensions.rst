@@ -78,10 +78,10 @@ and treat it as if the client had made a request.
 The ASGI server should set the pseudo ``:authority`` header value to
 be the same value as the request that triggered the push promise.
 
-Sendfile
+ZeroCopy
 ------------------
 
-Sendfile allows you to send the contents of a file descriptor to the
+ZeroCopy allows you to send the contents of a file descriptor to the
 HTTP client with zero copy. ASGI servers that implement this extension will
 provide ``http.response.sendfile`` in the extensions part of the scope::
 
@@ -92,7 +92,7 @@ provide ``http.response.sendfile`` in the extensions part of the scope::
         },
     }
 
-An ASGI framework can call ``sendfile`` by sending a message with
+The ASGI framework can call ``sendfile`` by sending a message with
 the following keys. This message can be sent at any time after the
 *Response Start* message but before the final *Response Body* message.
 
@@ -110,4 +110,9 @@ Keys:
 * ``count`` (*int*): Optional. ``count`` is the number of bytes to
   copy between the file descriptors.
 
+After calling this extension to respond, the ASGI framework itself should
+actively close the used file descriptor.
 
+In the absence of subsequent content, the ASGI framework should call
+``await send({"type":"http.response.body", "body": b"", "more_body": False})``
+to mark the end of the response. Otherwise, just continue to call ``send``.
