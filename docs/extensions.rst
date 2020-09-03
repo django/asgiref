@@ -78,10 +78,10 @@ and treat it as if the client had made a request.
 The ASGI server should set the pseudo ``:authority`` header value to
 be the same value as the request that triggered the push promise.
 
-ZeroCopy
+Zero Copy Send
 ------------------
 
-ZeroCopy allows you to send the contents of a file descriptor to the
+Zero copy send allows you to send the contents of a file descriptor to the
 HTTP client with zero copy. ASGI servers that implement this extension will
 provide ``http.response.sendfile`` in the extensions part of the scope::
 
