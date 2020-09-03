@@ -94,14 +94,18 @@ provide ``http.response.sendfile`` in the extensions part of the scope::
 
 The ASGI framework can call ``sendfile`` by sending a message with
 the following keys. This message can be sent at any time after the
-*Response Start* message but before the final *Response Body* message.
+*Response Start* message but before the final *Response Body* message,
+it can be mixed with ``http.response.body``. It can also be called
+multiple times in one response. Except for the characteristics of
+zero copy, it should behave the same as ordinary ``http.response.body``.
 
 Keys:
 
 * ``type`` (*Unicode string*): ``"http.response.sendfile"``
 
-* ``file`` (*file descriptor object*): An open file descriptor object:
-  like file or socket.
+* ``file`` (*file descriptor object*): An opened file descriptor object
+  with an underlying OS file descriptor that can be used to call ``os.sendfile``.
+  (e.g. not BytesIO)
 
 * ``offset`` (*int*): Optional. If this value exists, it will specify
   the offset at which sendfile starts to read data from ``file``.
