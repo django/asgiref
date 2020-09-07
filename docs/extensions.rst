@@ -79,11 +79,13 @@ The ASGI server should set the pseudo ``:authority`` header value to
 be the same value as the request that triggered the push promise.
 
 Zero Copy Send
-------------------
+--------------
 
 Zero copy send allows you to send the contents of a file descriptor to the
-HTTP client with zero copy. ASGI servers that implement this extension will
-provide ``http.response.sendfile`` in the extensions part of the scope::
+HTTP client with zero copy (where the underlying OS directly handles the data
+transfer from a source file or socket without loading it into Python and out again)
+ASGI servers that implement this extension will provide ``http.response.sendfile``
+in the extensions part of the scope::
 
     "scope": {
         ...
@@ -95,7 +97,7 @@ provide ``http.response.sendfile`` in the extensions part of the scope::
 The ASGI framework can call ``sendfile`` by sending a message with
 the following keys. This message can be sent at any time after the
 *Response Start* message but before the final *Response Body* message,
-it can be mixed with ``http.response.body``. It can also be called
+and can be mixed with ``http.response.body``. It can also be called
 multiple times in one response. Except for the characteristics of
 zero copy, it should behave the same as ordinary ``http.response.body``.
 
@@ -114,9 +116,11 @@ Keys:
 * ``count`` (*int*): Optional. ``count`` is the number of bytes to
   copy between the file descriptors.
 
+* ``more_body`` (*bool*): Signifies if there is additional content
+  to come (as part of a Response Body message). If ``False``, response
+  will be taken as complete and closed, and any further messages on
+  the channel will be ignored. Optional; if missing defaults to
+  ``False``.
+
 After calling this extension to respond, the ASGI framework itself should
 actively close the used file descriptor.
-
-In the absence of subsequent content, the ASGI framework should call
-``await send({"type":"http.response.body", "body": b"", "more_body": False})``
-to mark the end of the response. Otherwise, just continue to call ``send``.
