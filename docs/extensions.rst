@@ -90,11 +90,11 @@ in the extensions part of the scope::
     "scope": {
         ...
         "extensions": {
-            "http.response.sendfile": {},
+            "http.response.zerocopysend": {},
         },
     }
 
-The ASGI framework can call ``sendfile`` by sending a message with
+The ASGI framework can initiate a zero-copy send by sending a message with
 the following keys. This message can be sent at any time after the
 *Response Start* message but before the final *Response Body* message,
 and can be mixed with ``http.response.body``. It can also be called
