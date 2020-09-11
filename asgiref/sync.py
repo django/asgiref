@@ -61,9 +61,17 @@ class AsyncToSync:
             except RuntimeError:
                 # There's no event loop in this thread. Look for the threadlocal if
                 # we're inside SyncToAsync
-                self.main_event_loop = getattr(
-                    SyncToAsync.threadlocal, "main_event_loop", None
+                main_event_loop_pid = getattr(
+                    SyncToAsync.threadlocal, "main_event_loop_pid", None
                 )
+                # We make sure the parent loop is from the same process - if
+                # they've forked, this is not going to be valid any more (#194)
+                if main_event_loop_pid and main_event_loop_pid == os.getpid():
+                    self.main_event_loop = getattr(
+                        SyncToAsync.threadlocal, "main_event_loop", None
+                    )
+                else:
+                    self.main_event_loop = None
 
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
@@ -312,6 +320,7 @@ class SyncToAsync:
         """
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
+        self.threadlocal.main_event_loop_pid = os.getpid()
         # Set the task mapping (used for the locals module)
         current_thread = threading.current_thread()
         if AsyncToSync.launch_map.get(source_task) == current_thread:
