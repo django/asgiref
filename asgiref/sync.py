@@ -255,7 +255,7 @@ class SyncToAsync:
     # Single-thread executor for thread-sensitive code
     single_thread_executor = ThreadPoolExecutor(max_workers=1)
 
-    def __init__(self, func, thread_sensitive=False):
+    def __init__(self, func, thread_sensitive=True):
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
@@ -365,6 +365,11 @@ class SyncToAsync:
             return None
 
 
-# Lowercase is more sensible for most things
-sync_to_async = SyncToAsync
+# Lowercase aliases (and decorator friendliness)
 async_to_sync = AsyncToSync
+
+
+def sync_to_async(func=None, thread_sensitive=True):
+    if func is None:
+        return lambda f: SyncToAsync(f, thread_sensitive=thread_sensitive)
+    return SyncToAsync(func, thread_sensitive=thread_sensitive)
