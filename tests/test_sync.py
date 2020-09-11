@@ -1,9 +1,8 @@
 import asyncio
-from concurrent.futures import thread
+import multiprocessing
 import threading
 import time
-import multiprocessing
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, thread
 from functools import wraps
 from unittest import TestCase
 
