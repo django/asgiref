@@ -103,7 +103,7 @@ zero copy, it should behave the same as ordinary ``http.response.body``.
 
 Keys:
 
-* ``type`` (*Unicode string*): ``"http.response.sendfile"``
+* ``type`` (*Unicode string*): ``"http.response.zerocopysend"``
 
 * ``file`` (*file descriptor object*): An opened file descriptor object
   with an underlying OS file descriptor that can be used to call ``os.sendfile``.
