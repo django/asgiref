@@ -2,7 +2,7 @@ import asyncio
 import multiprocessing
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, thread
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from unittest import TestCase
 
