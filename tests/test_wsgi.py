@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 from asgiref.testing import ApplicationCommunicator
@@ -123,6 +125,130 @@ async def test_wsgi_empty_body():
         "headers": [],
     }
 
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
+async def test_wsgi_clamped_body():
+    """
+    Makes sure WsgiToAsgi clamps a body response longer than Content-Length
+    """
+
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [("Content-Length", "8")])
+        return [b"0123", b"45", b"6789"]
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [(b"content-length", b"8")],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"0123",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"45",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"67",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
+async def test_wsgi_stops_iterating_after_content_length_bytes():
+    """
+    Makes sure WsgiToAsgi does not iterate after than Content-Length bytes
+    """
+
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [("Content-Length", "4")])
+        yield b"0123"
+        pytest.fail("WsgiToAsgi should not iterate after Content-Length bytes")
+        yield b"4567"
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [(b"content-length", b"4")],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"0123",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
+async def test_wsgi_multiple_start_response():
+    """
+    Makes sure WsgiToAsgi only keep Content-Length from the last call to start_response
+    """
+
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [("Content-Length", "5")])
+        try:
+            raise ValueError("Application Error")
+        except ValueError:
+            start_response("500 Server Error", [], sys.exc_info())
+            return [b"Some long error message"]
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 500,
+        "headers": [],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"Some long error message",
+        "more_body": True,
+    }
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
 
 
