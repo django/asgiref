@@ -29,6 +29,7 @@ class WsgiToAsgiInstance:
     def __init__(self, wsgi_application):
         self.wsgi_application = wsgi_application
         self.response_started = False
+        self.response_content_length = None
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -114,6 +115,11 @@ class WsgiToAsgiInstance:
             (name.lower().encode("ascii"), value.encode("ascii"))
             for name, value in response_headers
         ]
+        # Extract content-length
+        self.response_content_length = None
+        for name, value in response_headers:
+            if name.lower() == "content-length":
+                self.response_content_length = int(value)
         # Build and send response start message.
         self.response_start = {
             "type": "http.response.start",
@@ -130,14 +136,25 @@ class WsgiToAsgiInstance:
         # Translate the scope and incoming request body into a WSGI environ
         environ = self.build_environ(self.scope, body)
         # Run the WSGI app
+        bytes_sent = 0
         for output in self.wsgi_application(environ, self.start_response):
             # If this is the first response, include the response headers
             if not self.response_started:
                 self.response_started = True
                 self.sync_send(self.response_start)
+            # If the application supplies a Content-Length header
+            if self.response_content_length is not None:
+                # The server should not transmit more bytes to the client than the header allows
+                bytes_allowed = self.response_content_length - bytes_sent
+                if len(output) > bytes_allowed:
+                    output = output[:bytes_allowed]
             self.sync_send(
                 {"type": "http.response.body", "body": output, "more_body": True}
             )
+            bytes_sent += len(output)
+            # The server should stop iterating over the response when enough data has been sent
+            if bytes_sent == self.response_content_length:
+                break
         # Close connection
         if not self.response_started:
             self.response_started = True
