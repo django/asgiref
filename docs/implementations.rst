@@ -75,3 +75,14 @@ Starlette
 
 Starlette is a minimalist ASGI library for writing against basic but powerful
 ``Request`` and ``Response`` classes. Supports HTTP.
+
+
+rpc.py
+------
+
+*Beta* / https://github.com/abersheeran/rpc.py
+
+An easy-to-use and powerful RPC framework. RPC server base on WSGI & ASGI, client base 
+on ``httpx``. Supports synchronous functions, asynchronous functions, synchronous 
+generator functions, and asynchronous generator functions. Optional use of Type hint 
+for type conversion. Optional OpenAPI document generation.
