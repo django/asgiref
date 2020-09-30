@@ -81,11 +81,13 @@ be the same value as the request that triggered the push promise.
 Zero Copy Send
 --------------
 
-Zero copy send allows you to send the contents of a file descriptor to the
+Zero Copy Send allows you to send the contents of a file descriptor to the
 HTTP client with zero copy (where the underlying OS directly handles the data
-transfer from a source file or socket without loading it into Python and out again)
-ASGI servers that implement this extension will provide ``http.response.sendfile``
-in the extensions part of the scope::
+transfer from a source file or socket without loading it into Python and
+writing it out again).
+
+ASGI servers that implement this extension will provide
+``http.response.zerocopysend`` in the extensions part of the scope::
 
     "scope": {
         ...
@@ -99,22 +101,23 @@ the following keys. This message can be sent at any time after the
 *Response Start* message but before the final *Response Body* message,
 and can be mixed with ``http.response.body``. It can also be called
 multiple times in one response. Except for the characteristics of
-zero copy, it should behave the same as ordinary ``http.response.body``.
+zero-copy, it should behave the same as ordinary ``http.response.body``.
 
 Keys:
 
 * ``type`` (*Unicode string*): ``"http.response.zerocopysend"``
 
 * ``file`` (*file descriptor object*): An opened file descriptor object
-  with an underlying OS file descriptor that can be used to call ``os.sendfile``.
-  (e.g. not BytesIO)
+  with an underlying OS file descriptor that can be used to call
+  ``os.sendfile``. (e.g. not BytesIO)
 
 * ``offset`` (*int*): Optional. If this value exists, it will specify
   the offset at which sendfile starts to read data from ``file``.
   Otherwise, it will be read from the current position of ``file``.
 
 * ``count`` (*int*): Optional. ``count`` is the number of bytes to
-  copy between the file descriptors.
+  copy between the file descriptors. If omitted, the file will be read until
+  its end.
 
 * ``more_body`` (*bool*): Signifies if there is additional content
   to come (as part of a Response Body message). If ``False``, response
@@ -122,5 +125,6 @@ Keys:
   the channel will be ignored. Optional; if missing defaults to
   ``False``.
 
-After calling this extension to respond, the ASGI framework itself should
-actively close the used file descriptor.
+After calling this extension to respond, the ASGI application itself should
+actively close the used file descriptor - ASGI servers are not responsible for
+closing descriptors.
