@@ -77,3 +77,8 @@ and treat it as if the client had made a request.
 
 The ASGI server should set the pseudo ``:authority`` header value to
 be the same value as the request that triggered the push promise.
+
+TLS
+---
+
+See :doc:`specs/tls`.
