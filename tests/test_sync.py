@@ -1,4 +1,5 @@
 import asyncio
+import multiprocessing
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -279,10 +280,9 @@ def test_thread_sensitive_outside_sync():
         await inner()
 
     # Inner sync function
+    @sync_to_async
     def inner():
         result["thread"] = threading.current_thread()
-
-    inner = sync_to_async(inner, thread_sensitive=True)
 
     # Run it
     middle()
@@ -300,10 +300,9 @@ async def test_thread_sensitive_outside_async():
     result_2 = {}
 
     # Outer sync function
+    @sync_to_async
     def outer(result):
         middle(result)
-
-    outer = sync_to_async(outer, thread_sensitive=True)
 
     # Middle async function
     @async_to_sync
@@ -311,10 +310,9 @@ async def test_thread_sensitive_outside_async():
         await inner(result)
 
     # Inner sync function
+    @sync_to_async
     def inner(result):
         result["thread"] = threading.current_thread()
-
-    inner = sync_to_async(inner, thread_sensitive=True)
 
     # Run it (in supposed parallel!)
     await asyncio.wait([outer(result_1), inner(result_2)])
@@ -338,10 +336,9 @@ def test_thread_sensitive_double_nested_sync():
         await level2()
 
     # Sync level 2
+    @sync_to_async
     def level2():
         level3()
-
-    level2 = sync_to_async(level2, thread_sensitive=True)
 
     # Async level 3
     @async_to_sync
@@ -349,10 +346,9 @@ def test_thread_sensitive_double_nested_sync():
         await level4()
 
     # Sync level 2
+    @sync_to_async
     def level4():
         result["thread"] = threading.current_thread()
-
-    level4 = sync_to_async(level4, thread_sensitive=True)
 
     # Run it
     level1()
@@ -369,10 +365,9 @@ async def test_thread_sensitive_double_nested_async():
     result = {}
 
     # Sync level 1
+    @sync_to_async
     def level1():
         level2()
-
-    level1 = sync_to_async(level1, thread_sensitive=True)
 
     # Async level 2
     @async_to_sync
@@ -380,10 +375,9 @@ async def test_thread_sensitive_double_nested_async():
         await level3()
 
     # Sync level 3
+    @sync_to_async
     def level3():
         level4()
-
-    level3 = sync_to_async(level3, thread_sensitive=True)
 
     # Async level 4
     @async_to_sync
@@ -393,6 +387,29 @@ async def test_thread_sensitive_double_nested_async():
     # Run it
     await level1()
     assert result["thread"] == threading.current_thread()
+
+
+def test_thread_sensitive_disabled():
+    """
+    Tests that we can disable thread sensitivity and make things run in
+    separate threads.
+    """
+
+    result = {}
+
+    # Middle async function
+    @async_to_sync
+    async def middle():
+        await inner()
+
+    # Inner sync function
+    @sync_to_async(thread_sensitive=False)
+    def inner():
+        result["thread"] = threading.current_thread()
+
+    # Run it
+    middle()
+    assert result["thread"] != threading.current_thread()
 
 
 class ASGITest(TestCase):
@@ -415,3 +432,32 @@ def test_sync_to_async_detected_as_coroutinefunction():
 
     assert not asyncio.iscoroutinefunction(sync_to_async)
     assert asyncio.iscoroutinefunction(sync_to_async(sync_func))
+
+
+@pytest.mark.asyncio
+async def test_multiprocessing():
+    """
+    Tests that a forked process can use async_to_sync without it looking for
+    the event loop from the parent process.
+    """
+
+    test_queue = multiprocessing.Queue()
+
+    async def async_process():
+        test_queue.put(42)
+
+    def sync_process():
+        """Runs async_process synchronously"""
+        async_to_sync(async_process)()
+
+    def fork_first():
+        """Forks process before running sync_process"""
+        fork = multiprocessing.Process(target=sync_process)
+        fork.start()
+        fork.join(3)
+        # Force cleanup in failed test case
+        if fork.is_alive():
+            fork.terminate()
+        return test_queue.get(True, 1)
+
+    assert await sync_to_async(fork_first)() == 42

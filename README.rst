@@ -43,7 +43,11 @@ ASGI server.
 
 Note that exactly what threads things run in is very specific, and aimed to
 keep maximum compatibility with old synchronous code. See
-"Synchronous code & Threads" below for a full explanation.
+"Synchronous code & Threads" below for a full explanation. By default,
+``sync_to_async`` will run all synchronous code in the program in the same
+thread for safety reasons; you can disable this for more performance with
+``@sync_to_async(thread_sensitive=False)``, but make sure that your code does
+not rely on anything bound to threads (like database connections) when you do.
 
 
 Threadlocal replacement

@@ -61,9 +61,17 @@ class AsyncToSync:
             except RuntimeError:
                 # There's no event loop in this thread. Look for the threadlocal if
                 # we're inside SyncToAsync
-                self.main_event_loop = getattr(
-                    SyncToAsync.threadlocal, "main_event_loop", None
+                main_event_loop_pid = getattr(
+                    SyncToAsync.threadlocal, "main_event_loop_pid", None
                 )
+                # We make sure the parent loop is from the same process - if
+                # they've forked, this is not going to be valid any more (#194)
+                if main_event_loop_pid and main_event_loop_pid == os.getpid():
+                    self.main_event_loop = getattr(
+                        SyncToAsync.threadlocal, "main_event_loop", None
+                    )
+                else:
+                    self.main_event_loop = None
 
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
@@ -247,7 +255,7 @@ class SyncToAsync:
     # Single-thread executor for thread-sensitive code
     single_thread_executor = ThreadPoolExecutor(max_workers=1)
 
-    def __init__(self, func, thread_sensitive=False):
+    def __init__(self, func, thread_sensitive=True):
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
@@ -312,6 +320,7 @@ class SyncToAsync:
         """
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
+        self.threadlocal.main_event_loop_pid = os.getpid()
         # Set the task mapping (used for the locals module)
         current_thread = threading.current_thread()
         if AsyncToSync.launch_map.get(source_task) == current_thread:
@@ -356,6 +365,11 @@ class SyncToAsync:
             return None
 
 
-# Lowercase is more sensible for most things
-sync_to_async = SyncToAsync
+# Lowercase aliases (and decorator friendliness)
 async_to_sync = AsyncToSync
+
+
+def sync_to_async(func=None, thread_sensitive=True):
+    if func is None:
+        return lambda f: SyncToAsync(f, thread_sensitive=thread_sensitive)
+    return SyncToAsync(func, thread_sensitive=thread_sensitive)
