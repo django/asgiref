@@ -2,7 +2,7 @@
 Lifespan Protocol
 =================
 
-**Version**: 2.0 (2019-03-20)
+**Version**: ?.? (2020-??-??)
 
 The Lifespan ASGI sub-specification outlines how to communicate
 lifespan events such as startup and shutdown within ASGI. This refers to the
@@ -87,6 +87,18 @@ Keys:
 * ``message`` (*Unicode string*) -- Optional; if missing defaults to ``""``.
 
 
+Shutdown Notice - ``receive`` event
+''''''''''''''''''''''''''''''''
+
+Sent to the application immediately before the server stops accepting new 
+connections and starts shutting down. Useful for signaling long-running or
+looping connections to terminate.
+
+Keys:
+
+* ``type`` (*Unicode string*) -- ``"lifespan.shutdown.notice"``.
+
+
 Shutdown - ``receive`` event
 ''''''''''''''''''''''''''''
 
@@ -124,6 +136,8 @@ Keys:
 Version History
 ===============
 
+* ?.? (2020-??-??): Added shutdown.notice for signaling
+  looping applications to exit.
 * 2.0 (2019-03-04): Added startup.failed and shutdown.failed,
   clarified exception handling during startup phase.
 * 1.0 (2018-09-06): Updated ASGI spec with a lifespan protocol.
