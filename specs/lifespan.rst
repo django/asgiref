@@ -88,11 +88,11 @@ Keys:
 
 
 Shutdown Notice - ``receive`` event
-''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''
 
-Sent to the application immediately before the server stops accepting new 
+Sent to the application immediately before the server stops accepting new
 connections and starts shutting down. Useful for signaling long-running or
-looping connections to terminate.
+looping connections, like those using Server-Sent Events, to terminate.
 
 Keys:
 
