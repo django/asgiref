@@ -90,9 +90,9 @@ Keys:
 Shutdown Notice - ``receive`` event
 '''''''''''''''''''''''''''''''''''
 
-Sent to the application immediately before the server stops accepting new
-connections and starts shutting down. Useful for signaling long-running or
-looping connections, like those using Server-Sent Events, to terminate.
+Sent to the application immediately after the server stops accepting new
+connections, before it starts shutting down. Useful for signaling long-running
+or looping connections, like those using Server-Sent Events, to terminate.
 
 Keys:
 
