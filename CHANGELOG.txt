@@ -1,3 +1,11 @@
+3.3.0 (2020-10-09)
+------------------
+
+* sync_to_async now defaults to thread-sensitive mode being on
+* async_to_sync now works inside of forked processes
+* WsgiToAsgi now correctly clamps its response body when Content-Length is set
+
+
 3.2.10 (2020-08-18)
 -------------------
 
