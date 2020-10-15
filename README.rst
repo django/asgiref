@@ -170,7 +170,7 @@ thread - either the main thread, or a single spawned subthread.
 This means you now have two basic states:
 
 * If the outermost layer of your program is synchronous, then all async code
-  run through ``AsyncToSync`` will run in a per-call event loop in arbitary
+  run through ``AsyncToSync`` will run in a per-call event loop in arbitrary
   sub-threads, while all ``thread_sensitive`` code will run in the main thread.
 
 * If the outermost layer of your program is asynchronous, then all async code
