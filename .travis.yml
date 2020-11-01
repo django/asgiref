@@ -1,6 +1,3 @@
-# Faster container-based infrastructure
-sudo: false
-
 language: python
 
 python:
