@@ -53,6 +53,7 @@ def test_local_thread_nested():
     # Unassigned should be an error
     with pytest.raises(AttributeError):
         test_local.foo
+
     # Assign and check it does not persist inside the thread
     class TestThread(threading.Thread):
         # Failure reason
@@ -132,6 +133,7 @@ async def test_local_task_to_sync():
     # Set up the local
     test_local = Local()
     test_local.foo = 3
+
     # Look at it in a sync context
     def sync_function():
         assert test_local.foo == 3
@@ -149,6 +151,7 @@ def test_local_thread_to_async():
     # Set up the local
     test_local = Local()
     test_local.foo = 12
+
     # Look at it in an async context
     async def async_function():
         assert test_local.foo == 12
@@ -168,6 +171,7 @@ async def test_local_task_to_sync_to_task():
     # Set up the local
     test_local = Local()
     test_local.foo = 756
+
     # Look at it in an async context inside a sync context
     def sync_function():
         async def async_function():
@@ -189,6 +193,7 @@ async def test_local_many_layers():
     # Set up the local
     test_local = Local()
     test_local.foo = 8374
+
     # Make sure we go between each world at least twice
     def sync_function():
         async def async_function():
@@ -217,6 +222,7 @@ async def test_local_critical_no_task_to_thread():
     # Set up the local
     test_local = Local(thread_critical=True)
     test_local.foo = 86
+
     # Look at it in a sync context
     def sync_function():
         with pytest.raises(AttributeError):
@@ -237,6 +243,7 @@ def test_local_critical_no_thread_to_task():
     # Set up the local
     test_local = Local(thread_critical=True)
     test_local.foo = 89
+
     # Look at it in an async context
     async def async_function():
         with pytest.raises(AttributeError):
