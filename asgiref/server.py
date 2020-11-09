@@ -3,6 +3,8 @@ import logging
 import time
 import traceback
 
+from .compatibility import guarantee_single_callable
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,10 +86,11 @@ class StatelessServer:
             self.delete_oldest_application_instance()
         # Make an instance of the application
         input_queue = asyncio.Queue()
-        application_instance = self.application(scope=scope)
+        application_instance = guarantee_single_callable(self.application)
         # Run it, and stash the future for later checking
         future = asyncio.ensure_future(
             application_instance(
+                scope=scope,
                 receive=input_queue.get,
                 send=lambda message: self.application_send(scope, message),
             )
