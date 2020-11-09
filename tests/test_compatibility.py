@@ -67,11 +67,11 @@ def test_is_double_callable():
     """
     Tests that the signature matcher works as expected.
     """
-    assert is_double_callable(double_application_function) == True
-    assert is_double_callable(DoubleApplicationClass) == True
-    assert is_double_callable(DoubleApplicationClassNestedFunction()) == True
-    assert is_double_callable(single_application_function) == False
-    assert is_double_callable(SingleApplicationClass()) == False
+    assert is_double_callable(double_application_function) is True
+    assert is_double_callable(DoubleApplicationClass) is True
+    assert is_double_callable(DoubleApplicationClassNestedFunction()) is True
+    assert is_double_callable(single_application_function) is False
+    assert is_double_callable(SingleApplicationClass()) is False
 
 
 def test_double_to_single_signature():
@@ -80,7 +80,7 @@ def test_double_to_single_signature():
     """
     assert (
         is_double_callable(double_to_single_callable(double_application_function))
-        == False
+        is False
     )
 
 

@@ -206,7 +206,7 @@ class AsyncToSync:
             if exc_info[1]:
                 try:
                     raise exc_info[1]
-                except:
+                except Exception:
                     result = await self.awaitable(*args, **kwargs)
             else:
                 result = await self.awaitable(*args, **kwargs)
@@ -337,7 +337,7 @@ class SyncToAsync:
             if exc_info[1]:
                 try:
                     raise exc_info[1]
-                except:
+                except Exception:
                     return func(*args, **kwargs)
             else:
                 return func(*args, **kwargs)
