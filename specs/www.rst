@@ -15,10 +15,11 @@ are able to be handled by WSGI.
 Spec Versions
 -------------
 
-This spec has had two versions:
+This spec has had three versions:
 
 * ``2.0``: The first version of the spec, released with ASGI 2.0
 * ``2.1``: Added the ``headers`` key to the WebSocket Accept response
+* ``2.2``: Allow ``None`` in the second item of ``server`` scope value.
 
 Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
@@ -112,10 +113,11 @@ The *connection scope* information passed in ``scope`` contains:
   IPv6 address, and ``port`` is the remote port as an
   integer. Optional; if missing defaults to ``None``.
 
-* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable
-  of ``[host, port]``, where ``host`` is the listening address for
-  this server, and ``port`` is the integer listening port. Optional;
-  if missing defaults to ``None``.
+* ``server`` (*Iterable[Unicode string, Optional[int]]*) -- Either a
+  two-item iterable of ``[host, port]``, where ``host`` is the
+  listening address for this server, and ``port`` is the integer
+  listening port, or ``[path, None]`` where ``path`` is that of the
+  unix socket. Optional; if missing defaults to ``None``.
 
 Servers are responsible for handling inbound and outbound chunked transfer
 encodings. A request with a ``chunked`` encoded body should be automatically
