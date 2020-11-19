@@ -1,6 +1,5 @@
 import queue
 import threading
-import time
 from concurrent.futures import Executor, Future
 
 
@@ -51,21 +50,17 @@ class CurrentThreadExecutor(Executor):
             raise RuntimeError(
                 "You cannot run CurrentThreadExecutor from a different thread"
             )
-        # Keep getting work items and checking the future
+        future.add_done_callback(self._work_queue.put)
+        # Keep getting and running work items until we get the future we're waiting for
+        # back via the future's done callback.
         try:
             while True:
                 # Get a work item and run it
-                try:
-                    work_item = self._work_queue.get(block=False)
-                except queue.Empty:
-                    # See if the future is done (we only exit if the work queue is empty)
-                    if future.done():
-                        return
-                    # Prevent hot-looping on nothing
-                    time.sleep(0.001)
-                else:
-                    work_item.run()
-                    del work_item
+                work_item = self._work_queue.get()
+                if work_item is future:
+                    return
+                work_item.run()
+                del work_item
         finally:
             self._broken = True
 
