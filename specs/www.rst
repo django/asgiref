@@ -290,10 +290,11 @@ metadata (mostly from the HTTP request line and headers):
   IPv6 address, and ``port`` is the remote port. Optional; if missing
   defaults to ``None``.
 
-* ``server`` (*Iterable[Unicode string, int]*) -- A two-item iterable
-  of ``[host, port]``, where ``host`` is the listening address for
-  this server, and ``port`` is the integer listening port. Optional;
-  if missing defaults to ``None``.
+* ``server`` (*Iterable[Unicode string, Optional[int]]*) -- Either a
+  two-item iterable of ``[host, port]``, where ``host`` is the
+  listening address for this server, and ``port`` is the integer
+  listening port, or ``[path, None]`` where ``path`` is that of the
+  unix socket. Optional; if missing defaults to ``None``.
 
 * ``subprotocols`` (*Iterable[Unicode string]*) -- Subprotocols the
   client advertised. Optional; if missing defaults to empty list.
