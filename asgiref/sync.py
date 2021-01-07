@@ -4,6 +4,7 @@ import functools
 import os
 import sys
 import threading
+import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 
 from .current_thread_executor import CurrentThreadExecutor
@@ -253,7 +254,7 @@ class SyncToAsync:
     threadlocal = threading.local()
 
     # Single-thread executor for thread-sensitive code
-    single_thread_executor = ThreadPoolExecutor(max_workers=1)
+    task_to_single_thread_executor_map = weakref.WeakKeyDictionary()
 
     def __init__(self, func, thread_sensitive=True):
         self.func = func
@@ -267,15 +268,18 @@ class SyncToAsync:
 
     async def __call__(self, *args, **kwargs):
         loop = asyncio.get_event_loop()
+        source_task = self.get_current_task()
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
             if hasattr(AsyncToSync.executors, "current"):
                 # If we have a parent sync thread above somewhere, use that
                 executor = AsyncToSync.executors.current
+            elif source_task in self.task_to_single_thread_executor_map:
+                executor = self.task_to_single_thread_executor_map[source_task]
             else:
-                # Otherwise, we run it in a fixed single thread
-                executor = self.single_thread_executor
+                executor = ThreadPoolExecutor(max_workers=1)
+                self.task_to_single_thread_executor_map[source_task] = executor
         else:
             executor = None  # Use default
 
@@ -294,7 +298,7 @@ class SyncToAsync:
             functools.partial(
                 self.thread_handler,
                 loop,
-                self.get_current_task(),
+                source_task,
                 sys.exc_info(),
                 func,
                 *args,
