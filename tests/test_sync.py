@@ -322,6 +322,55 @@ async def test_thread_sensitive_outside_async():
     assert result_1["thread"] == result_2["thread"]
 
 
+@pytest.mark.asyncio
+async def test_thread_sensitive_with_context_different():
+    result_1 = {}
+    result_2 = {}
+
+    class Context:
+        pass
+
+    context_1 = Context()
+    context_2 = Context()
+
+    def store_thread(result):
+        result["thread"] = threading.current_thread()
+
+    fn_1 = sync_to_async(store_thread, current_context_func=lambda: context_1)
+    fn_2 = sync_to_async(store_thread, current_context_func=lambda: context_2)
+
+    # Run it (in true parallel!)
+    await asyncio.wait([fn_1(result_1), fn_2(result_2)])
+
+    # They should not have run in the main thread, and on different threads
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] != result_2["thread"]
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_with_context_matches():
+    result_1 = {}
+    result_2 = {}
+
+    class Context:
+        pass
+
+    context = Context()
+
+    def store_thread(result):
+        result["thread"] = threading.current_thread()
+
+    fn_1 = sync_to_async(store_thread, current_context_func=lambda: context)
+    fn_2 = sync_to_async(store_thread, current_context_func=lambda: context)
+
+    # Run it (in supposed parallel!)
+    await asyncio.wait([fn_1(result_1), fn_2(result_2)])
+
+    # They should not have run in the main thread, and on different threads
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] == result_2["thread"]
+
+
 def test_thread_sensitive_double_nested_sync():
     """
     Tests that thread_sensitive SyncToAsync nests inside itself where the
