@@ -334,7 +334,7 @@ Sent by the application when it wishes to accept an incoming connection.
   preserved in the HTTP response.  Header names must be
   lowercased. Must not include a header named
   ``sec-websocket-protocol``; use the ``subprotocol`` key
-  instead. Optional; if missing defaults to an empty list. *Added in
+  instead. Optional; if missing defaults to an empty list. *Added in
   spec version 2.1*. Pseudo headers (present in HTTP/2 and HTTP/3)
   must not be present.
 
