@@ -232,6 +232,12 @@ class SyncToAsync:
     outer code. This is needed for underlying Python code that is not
     threadsafe (for example, code which handles SQLite database connections).
 
+    If current_context_func is passed, the code will run 1 thread per context.
+    As an example, this may be used to create a per-request synchronous thread
+    by specifying the request object as the context. Thread scheduling will
+    occur by request in this scenario - each request will execute synchronous
+    work within the same thread.
+
     If the outermost program is async (i.e. SyncToAsync is outermost), then
     this will be a dedicated single sub-thread that all sync code runs in,
     one after the other. If the outermost program is sync (i.e. AsyncToSync is
