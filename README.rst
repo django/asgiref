@@ -163,9 +163,14 @@ The first compromise you get to might be that ``thread_sensitive`` code should
 just run in the same thread and not spawn in a sub-thread, fulfilling the first
 restriction, but that immediately runs you into the second restriction.
 
-The only real solution is to essentially have a variant of ThreadPoolExecutor
-that executes any ``thread_sensitive`` code on the outermost synchronous
-thread - either the main thread, or a single spawned subthread.
+By default, a variant of ThreadPoolExecutor executes any ``thread_sensitive``
+code on the outermost synchronous thread - either the main thread, or a single
+spawned subthread.
+
+There is an option to override the default single-threaded behavior so that
+there is 1 synchronous thread per context. If ``current_context_func`` is
+specified, this function will be called to retrieve the current context. There
+will be exactly 1 synchronous thread per context in this case.
 
 This means you now have two basic states:
 

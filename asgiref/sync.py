@@ -4,6 +4,7 @@ import functools
 import os
 import sys
 import threading
+import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 
 from .current_thread_executor import CurrentThreadExecutor
@@ -231,6 +232,12 @@ class SyncToAsync:
     outer code. This is needed for underlying Python code that is not
     threadsafe (for example, code which handles SQLite database connections).
 
+    If current_context_func is passed, the code will run 1 thread per context.
+    As an example, this may be used to create a per-request synchronous thread
+    by specifying the request object as the context. Thread scheduling will
+    occur by request in this scenario - each request will execute synchronous
+    work within the same thread.
+
     If the outermost program is async (i.e. SyncToAsync is outermost), then
     this will be a dedicated single sub-thread that all sync code runs in,
     one after the other. If the outermost program is sync (i.e. AsyncToSync is
@@ -255,11 +262,16 @@ class SyncToAsync:
     # Single-thread executor for thread-sensitive code
     single_thread_executor = ThreadPoolExecutor(max_workers=1)
 
-    def __init__(self, func, thread_sensitive=True):
+    # Maintaining a weak reference to the context ensures that thread pools are
+    # erased once the context goes out of scope. This terminates the thread pool.
+    context_to_thread_executor = weakref.WeakKeyDictionary()
+
+    def __init__(self, func, thread_sensitive=True, current_context_func=None):
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
         self._is_coroutine = asyncio.coroutines._is_coroutine
+        self._current_context_func = current_context_func
         try:
             self.__self__ = func.__self__
         except AttributeError:
@@ -273,6 +285,18 @@ class SyncToAsync:
             if hasattr(AsyncToSync.executors, "current"):
                 # If we have a parent sync thread above somewhere, use that
                 executor = AsyncToSync.executors.current
+            elif self._current_context_func:
+                # If we have a way of retrieving the current context, attempt
+                # to use a per-context thread pool executor
+                current_context = self._current_context_func()
+
+                if current_context in self.context_to_thread_executor:
+                    # Re-use thread executor in current context
+                    executor = self.context_to_thread_executor[current_context]
+                else:
+                    # Create new thread executor in current context
+                    executor = ThreadPoolExecutor(max_workers=1)
+                    self.context_to_thread_executor[current_context] = executor
             else:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
@@ -369,7 +393,15 @@ class SyncToAsync:
 async_to_sync = AsyncToSync
 
 
-def sync_to_async(func=None, thread_sensitive=True):
+def sync_to_async(func=None, thread_sensitive=True, current_context_func=None):
     if func is None:
-        return lambda f: SyncToAsync(f, thread_sensitive=thread_sensitive)
-    return SyncToAsync(func, thread_sensitive=thread_sensitive)
+        return lambda f: SyncToAsync(
+            f,
+            thread_sensitive=thread_sensitive,
+            current_context_func=current_context_func,
+        )
+    return SyncToAsync(
+        func,
+        thread_sensitive=thread_sensitive,
+        current_context_func=current_context_func,
+    )
