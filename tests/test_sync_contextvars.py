@@ -1,13 +1,35 @@
 import asyncio
+import threading
 import time
 
 import pytest
 
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import ThreadSensitiveContext, async_to_sync, sync_to_async
 
 contextvars = pytest.importorskip("contextvars")
 
 foo = contextvars.ContextVar("foo")
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_with_context_different():
+    result_1 = {}
+    result_2 = {}
+
+    @sync_to_async
+    def store_thread(result):
+        result["thread"] = threading.current_thread()
+
+    async def fn(result):
+        async with ThreadSensitiveContext():
+            await store_thread(result)
+
+    # Run it (in true parallel!)
+    await asyncio.wait([fn(result_1), fn(result_2)])
+
+    # They should not have run in the main thread, and on different threads
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] != result_2["thread"]
 
 
 @pytest.mark.asyncio

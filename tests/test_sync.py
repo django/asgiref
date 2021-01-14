@@ -1,6 +1,5 @@
 import asyncio
 import multiprocessing
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -323,32 +322,6 @@ async def test_thread_sensitive_outside_async():
     assert result_1["thread"] == result_2["thread"]
 
 
-@pytest.mark.skipif(
-    sys.version_info[:2] < (3, 7),
-    reason="contextvars lib is required to use ThreadSensitiveContext",
-)
-@pytest.mark.asyncio
-async def test_thread_sensitive_with_context_different():
-    result_1 = {}
-    result_2 = {}
-
-    def store_thread(result):
-        result["thread"] = threading.current_thread()
-
-    store_thread_async = sync_to_async(store_thread)
-
-    async def fn(result):
-        async with ThreadSensitiveContext():
-            await store_thread_async(result)
-
-    # Run it (in true parallel!)
-    await asyncio.wait([fn(result_1), fn(result_2)])
-
-    # They should not have run in the main thread, and on different threads
-    assert result_1["thread"] != threading.current_thread()
-    assert result_1["thread"] != result_2["thread"]
-
-
 @pytest.mark.asyncio
 async def test_thread_sensitive_with_context_matches():
     result_1 = {}
@@ -368,9 +341,34 @@ async def test_thread_sensitive_with_context_matches():
 
     await fn()
 
-    # They should not have run in the main thread, and on different threads
+    # They should not have run in the main thread, and on the same threads
     assert result_1["thread"] != threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_nested_context():
+    result_1 = {}
+    result_2 = {}
+
+    @sync_to_async
+    def store_thread(result):
+        result["thread"] = threading.current_thread()
+
+    async with ThreadSensitiveContext():
+        await store_thread(result_1)
+        async with ThreadSensitiveContext():
+            await store_thread(result_2)
+
+    # They should not have run in the main thread, and on the same threads
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] == result_2["thread"]
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_context_without_sync_work():
+    async with ThreadSensitiveContext():
+        pass
 
 
 def test_thread_sensitive_double_nested_sync():
