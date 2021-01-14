@@ -1,5 +1,6 @@
 import asyncio
 import multiprocessing
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -322,6 +323,10 @@ async def test_thread_sensitive_outside_async():
     assert result_1["thread"] == result_2["thread"]
 
 
+@pytest.mark.skipif(
+    sys.version_info[:2] < (3, 7),
+    reason="contextvars lib is required to use ThreadSensitiveContext",
+)
 @pytest.mark.asyncio
 async def test_thread_sensitive_with_context_different():
     result_1 = {}
