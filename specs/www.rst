@@ -414,6 +414,24 @@ with the close code passed in the message (or 1000 if none is specified).
   spec.  Optional; if missing defaults to ``1000``.
 
 
+Path, raw_path and root_path
+----------------------------
+
+The ``raw_path`` is the path component of the request target, which is
+then decoded and unquoted to form an initial path. The ``root_path``
+(defaults to ``""``) prefix is removed from the initial path to create
+the ``path``. If this isn't possible, or the ``path`` does not start
+with a ``/`` the server must respond with a 404 response. For example,
+
+Request target root_path 404? path
+============== ========= ==== ========
+/foo/bar       ""        No   /foo/bar
+/foo/bar       /foo      No   /bar
+/foo/bar       /bar      Yes
+/foo/bar       /foo/bar  Yes
+/foo/bar/      /foo/bar  No   /
+
+
 WSGI Compatibility
 ------------------
 
