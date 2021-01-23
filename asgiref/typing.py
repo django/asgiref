@@ -1,9 +1,10 @@
+import sys
 from typing import Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
 
-try:
+if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, TypedDict
-except ImportError:
-    from typing_extensions import Literal, Protocol, TypedDict  # type: ignore
+else:
+    from typing_extensions import Literal, Protocol, TypedDict
 
 
 class ASGIVersions(TypedDict):
@@ -24,7 +25,7 @@ class HTTPScope(TypedDict):
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
-    extensions: Dict[str, dict]
+    extensions: Dict[str, Dict[object, object]]
 
 
 class WebsocketScope(TypedDict):
@@ -40,7 +41,7 @@ class WebsocketScope(TypedDict):
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
     subprotocols: Iterable[str]
-    extensions: Dict[str, dict]
+    extensions: Dict[str, Dict[object, object]]
 
 
 class LifespanScope(TypedDict):
