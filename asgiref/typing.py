@@ -1,3 +1,4 @@
+import sys
 from typing import Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
 
 if sys.version_info >= (3, 8):
