@@ -9,9 +9,7 @@
 import asyncio
 import sys
 from types import TracebackType
-from typing import Any, Optional, Type  # noqa
-
-PY_37 = sys.version_info >= (3, 7)
+from typing import Any, Optional, Type
 
 
 class timeout:
@@ -115,14 +113,15 @@ class timeout:
             self._cancelled = True
 
 
-def current_task(loop: asyncio.AbstractEventLoop) -> "asyncio.Task[Any]":
-    if PY_37:
-        task = asyncio.current_task(loop=loop)  # type: ignore
+def current_task(loop: asyncio.AbstractEventLoop) -> "Optional[asyncio.Task[Any]]":
+    if sys.version_info >= (3, 7):
+        task = asyncio.current_task(loop=loop)
     else:
         task = asyncio.Task.current_task(loop=loop)
     if task is None:
         # this should be removed, tokio must use register_task and family API
-        if hasattr(loop, "current_task"):
-            task = loop.current_task()  # type: ignore
+        fn = getattr(loop, "current_task", None)
+        if fn is not None:
+            task = fn()
 
     return task

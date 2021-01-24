@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from typing import List, Dict
 #
 # ASGI documentation build configuration file, created by
 # sphinx-quickstart on Thu May 17 21:22:10 2018.
@@ -31,10 +32,10 @@
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = []
+extensions: List[str] = []
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = []
+templates_path: List[str] = []
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -120,7 +121,7 @@ htmlhelp_basename = 'ASGIdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
+latex_elements: Dict[str, str] = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',

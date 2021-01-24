@@ -1,4 +1,3 @@
-import asyncio
 import asyncio.coroutines
 import functools
 import os
@@ -6,13 +5,14 @@ import sys
 import threading
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Dict
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
-try:
-    import contextvars  # Python 3.7+ only.
-except ImportError:
+if sys.version_info >= (3, 7):
+    import contextvars
+else:
     contextvars = None
 
 
@@ -41,7 +41,7 @@ class AsyncToSync:
     """
 
     # Maps launched Tasks to the threads that launched them (for locals impl)
-    launch_map = {}
+    launch_map: Dict[asyncio.Task, threading.Thread] = {}
 
     # Keeps track of which CurrentThreadExecutor to use. This uses an asgiref
     # Local, not a threadlocal, so that tasks can work out what their parent used.
@@ -254,7 +254,7 @@ class SyncToAsync:
         )
 
     # Maps launched threads to the coroutines that spawned them
-    launch_map = {}
+    launch_map: Dict[threading.Thread, asyncio.Task] = {}
 
     # Storage for main event loop references
     threadlocal = threading.local()
@@ -264,7 +264,9 @@ class SyncToAsync:
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
-    context_to_thread_executor = weakref.WeakKeyDictionary()
+    context_to_thread_executor: "weakref.WeakKeyDictionary[object, ThreadPoolExecutor]" = (
+        weakref.WeakKeyDictionary()
+    )
 
     def __init__(self, func, thread_sensitive=True, current_context_func=None):
         self.func = func
