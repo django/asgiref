@@ -32,10 +32,10 @@ class Local:
 
     CLEANUP_INTERVAL = 60  # seconds
 
-    def __init__(self, thread_critical=False):
+    def __init__(self, thread_critical: bool = False) -> None:
         self._thread_critical = thread_critical
         self._thread_lock = threading.RLock()
-        self._context_refs = weakref.WeakSet()
+        self._context_refs: "weakref.WeakSet[object]" = weakref.WeakSet()
         # Random suffixes stop accidental reuse between different Locals,
         # though we try to force deletion as well.
         self._attr_name = "_asgiref_local_impl_%s_%s" % (

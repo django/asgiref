@@ -41,7 +41,7 @@ class AsyncToSync:
     """
 
     # Maps launched Tasks to the threads that launched them (for locals impl)
-    launch_map: Dict[asyncio.Task, threading.Thread] = {}
+    launch_map: "Dict[asyncio.Task[object], threading.Thread]" = {}
 
     # Keeps track of which CurrentThreadExecutor to use. This uses an asgiref
     # Local, not a threadlocal, so that tasks can work out what their parent used.
@@ -254,7 +254,7 @@ class SyncToAsync:
         )
 
     # Maps launched threads to the coroutines that spawned them
-    launch_map: Dict[threading.Thread, asyncio.Task] = {}
+    launch_map: "Dict[threading.Thread, asyncio.Task[object]]" = {}
 
     # Storage for main event loop references
     threadlocal = threading.local()
