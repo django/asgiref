@@ -1,2 +1,3 @@
 include LICENSE
+include asgiref/py.typed
 recursive-include tests *.py
