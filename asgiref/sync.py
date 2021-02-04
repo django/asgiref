@@ -5,7 +5,7 @@ import sys
 import threading
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Dict
+from typing import Any, Dict
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
@@ -311,7 +311,7 @@ class SyncToAsync:
 
     # Maintain a contextvar for the current execution context. Optionally used
     # for thread sensitive mode.
-    thread_sensitive_context = (
+    thread_sensitive_context: Any = (
         contextvars.ContextVar("thread_sensitive_context") if contextvars else None
     )
 
