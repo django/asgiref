@@ -379,7 +379,7 @@ class SyncToAsync:
                 sys.exc_info(),
                 func,
                 *args,
-                **kwargs
+                **kwargs,
             ),
         )
         ret = await asyncio.wait_for(future, timeout=None)
