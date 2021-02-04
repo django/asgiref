@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from typing import List, Dict
+from typing import Dict, List
 
 #
 # ASGI documentation build configuration file, created by
