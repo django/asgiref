@@ -3,7 +3,7 @@ import threading
 from concurrent.futures import Executor, Future
 
 
-class _WorkItem(object):
+class _WorkItem:
     """
     Represents an item needing to be run in the executor.
     Copied from ThreadPoolExecutor (but it's private, so we're not going to rely on importing it)

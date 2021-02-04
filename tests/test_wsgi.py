@@ -59,8 +59,8 @@ async def test_wsgi_path_encoding():
     """
     # Define WSGI app
     def wsgi_application(environ, start_response):
-        assert environ["SCRIPT_NAME"] == "/中国".encode("utf8").decode("latin-1")
-        assert environ["PATH_INFO"] == "/中文".encode("utf8").decode("latin-1")
+        assert environ["SCRIPT_NAME"] == "/中国".encode().decode("latin-1")
+        assert environ["PATH_INFO"] == "/中文".encode().decode("latin-1")
         start_response("200 OK", [])
         yield b""
 
