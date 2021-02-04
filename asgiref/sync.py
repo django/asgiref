@@ -5,7 +5,7 @@ import sys
 import threading
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import TYPE_CHECKING, Dict
+from typing import Dict
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
@@ -311,10 +311,12 @@ class SyncToAsync:
 
     # Maintain a contextvar for the current execution context. Optionally used
     # for thread sensitive mode.
-    if not TYPE_CHECKING:
-        thread_sensitive_context = (
-            contextvars.ContextVar("thread_sensitive_context") if contextvars else None
+    if sys.version_info >= (3, 7):
+        thread_sensitive_context: "contextvars.ContextVar[str]" = (
+            contextvars.ContextVar("thread_sensitive_context")
         )
+    else:
+        thread_sensitive_context: None = None
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
