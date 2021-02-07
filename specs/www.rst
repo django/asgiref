@@ -271,7 +271,7 @@ metadata (mostly from the HTTP request line and headers):
   if missing defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the
-  ``?``. Optional; if missing default is empty string.
+  ``?``. Optional; if missing or ``None`` default is empty string.
 
 * ``root_path`` (*byte string*) -- The root path this application is
   mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; if missing
