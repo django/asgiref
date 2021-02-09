@@ -45,6 +45,34 @@ async def test_sync_to_async():
         loop.set_default_executor(old_executor)
 
 
+def test_sync_to_async_fail_non_function():
+    """
+    async_to_sync raises a TypeError when called with a non-function.
+    """
+    with pytest.raises(TypeError) as excinfo:
+        sync_to_async(1)
+
+    assert excinfo.value.args == (
+        "sync_to_async can only be applied to sync functions.",
+    )
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_fail_async():
+    """
+    sync_to_async raises a TypeError when applied to a sync function.
+    """
+    with pytest.raises(TypeError) as excinfo:
+
+        @sync_to_async
+        async def test_function():
+            pass
+
+    assert excinfo.value.args == (
+        "sync_to_async can only be applied to sync functions.",
+    )
+
+
 @pytest.mark.asyncio
 async def test_sync_to_async_decorator():
     """
@@ -150,6 +178,33 @@ async def test_async_to_sync_to_async():
     assert result["worked"]
     # Make sure that it didn't needlessly make a new async loop
     assert result["thread"] == threading.current_thread()
+
+
+def test_async_to_sync_fail_non_function():
+    """
+    async_to_sync raises a TypeError when applied to a non-function.
+    """
+    with pytest.raises(TypeError) as excinfo:
+        async_to_sync(1)
+
+    assert excinfo.value.args == (
+        "async_to_sync can only be applied to async functions.",
+    )
+
+
+def test_async_to_sync_fail_sync():
+    """
+    async_to_sync raises a TypeError when applied to a sync function.
+    """
+    with pytest.raises(TypeError) as excinfo:
+
+        @async_to_sync
+        def test_function(self):
+            pass
+
+    assert excinfo.value.args == (
+        "async_to_sync can only be applied to async functions.",
+    )
 
 
 def test_async_to_sync():

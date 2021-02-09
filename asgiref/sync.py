@@ -101,6 +101,8 @@ class AsyncToSync:
     executors = Local()
 
     def __init__(self, awaitable, force_new_loop=False):
+        if not callable(awaitable) or not asyncio.iscoroutinefunction(awaitable):
+            raise TypeError("async_to_sync can only be applied to async functions.")
         self.awaitable = awaitable
         try:
             self.__self__ = self.awaitable.__self__
@@ -325,6 +327,8 @@ class SyncToAsync:
     )
 
     def __init__(self, func, thread_sensitive=True):
+        if not callable(func) or asyncio.iscoroutinefunction(func):
+            raise TypeError("sync_to_async can only be applied to sync functions.")
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
