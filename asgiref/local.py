@@ -38,7 +38,7 @@ class Local:
         self._context_refs: "weakref.WeakSet[object]" = weakref.WeakSet()
         # Random suffixes stop accidental reuse between different Locals,
         # though we try to force deletion as well.
-        self._attr_name = "_asgiref_local_impl_%s_%s" % (
+        self._attr_name = "_asgiref_local_impl_{}_{}".format(
             id(self),
             "".join(random.choice(string.ascii_letters) for i in range(8)),
         )
@@ -104,7 +104,7 @@ class Local:
             if key in storage:
                 return storage[key]
             else:
-                raise AttributeError("%r object has no attribute %r" % (self, key))
+                raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
     def __setattr__(self, key, value):
         if key in ("_context_refs", "_thread_critical", "_thread_lock", "_attr_name"):
@@ -119,4 +119,4 @@ class Local:
             if key in storage:
                 del storage[key]
             else:
-                raise AttributeError("%r object has no attribute %r" % (self, key))
+                raise AttributeError(f"{self!r} object has no attribute {key!r}")

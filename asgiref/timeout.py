@@ -31,7 +31,7 @@ class timeout:
         self,
         timeout: Optional[float],
         *,
-        loop: Optional[asyncio.AbstractEventLoop] = None
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ) -> None:
         self._timeout = timeout
         if loop is None:

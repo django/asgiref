@@ -153,5 +153,5 @@ class StatelessServer:
             "Exception inside application: %s\n%s%s",
             exception,
             "".join(traceback.format_tb(exception.__traceback__)),
-            "  {}".format(exception),
+            f"  {exception}",
         )
