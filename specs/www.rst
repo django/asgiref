@@ -2,7 +2,7 @@
 HTTP & WebSocket ASGI Message Format
 ====================================
 
-**Version**: 2.1 (2019-03-20)
+**Version**: 2.3 (2021-02-02)
 
 The HTTP+WebSocket ASGI sub-specification outlines how to transport HTTP/1.1,
 HTTP/2 and WebSocket connections within ASGI.
@@ -20,6 +20,7 @@ This spec has had three versions:
 * ``2.0``: The first version of the spec, released with ASGI 2.0
 * ``2.1``: Added the ``headers`` key to the WebSocket Accept response
 * ``2.2``: Allow ``None`` in the second item of ``server`` scope value.
+* ``2.3``: Added the ``reason`` key to the WebSocket close event.
 
 Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
@@ -270,7 +271,7 @@ metadata (mostly from the HTTP request line and headers):
   if missing defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the
-  ``?``. Optional; if missing default is empty string.
+  ``?``. Optional; if missing or ``None`` default is empty string.
 
 * ``root_path`` (*byte string*) -- The root path this application is
   mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; if missing
@@ -412,6 +413,10 @@ with the close code passed in the message (or 1000 if none is specified).
 
 * ``code`` (*int*) -- The WebSocket close code, as per the WebSocket
   spec.  Optional; if missing defaults to ``1000``.
+
+* ``reason`` (*Unicode string*) -- A reason given for the closure, can
+  be any string. Optional; if missing or ``None`` default is empty
+  string.
 
 
 WSGI Compatibility
