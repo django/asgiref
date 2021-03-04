@@ -5,7 +5,7 @@ import sys
 import threading
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, Callable, Union, Type
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
@@ -332,21 +332,21 @@ class SyncToAsync:
 
     def __init__(
         self,
-        func,
-        thread_sensitive=True,
+        func: Callable[..., Any],
+        thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
-    ):
+    ) -> None:
         if not callable(func) or asyncio.iscoroutinefunction(func):
             raise TypeError("sync_to_async can only be applied to sync functions.")
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
-        self._is_coroutine = asyncio.coroutines._is_coroutine
+        self._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         if thread_sensitive and executor is not None:
             raise TypeError("executor must not be set when thread_sensitive is True")
         self.executor = executor
         try:
-            self.__self__ = func.__self__
+            self.__self__ = func.__self__  # type: ignore
         except AttributeError:
             pass
 
@@ -470,8 +470,10 @@ async_to_sync = AsyncToSync
 
 
 def sync_to_async(
-    func=None, thread_sensitive=True, executor: Optional["ThreadPoolExecutor"] = None
-):
+    func: Optional[Callable[..., Any]] = None,
+    thread_sensitive: bool = True,
+    executor: Optional["ThreadPoolExecutor"] = None,
+) -> Union[SyncToAsync, Callable[[Callable[..., Any]], SyncToAsync]]:
     if func is None:
         return lambda f: SyncToAsync(
             f,
