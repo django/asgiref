@@ -4,12 +4,12 @@ from asgiref.compatibility import double_to_single_callable, is_double_callable
 from asgiref.testing import ApplicationCommunicator
 
 
-def double_application_function(scope):
+def double_application_function():
     """
     A nested function based double-callable application.
     """
 
-    async def inner(receive, send):
+    async def inner(scope, receive, send):
         message = await receive()
         await send({"scope": scope["value"], "message": message["value"]})
 

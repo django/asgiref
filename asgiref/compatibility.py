@@ -30,8 +30,8 @@ def double_to_single_callable(application):
     """
 
     async def new_application(scope, receive, send):
-        instance = application(scope)
-        return await instance(receive, send)
+        instance = application()
+        return await instance(scope, receive, send)
 
     return new_application
 
