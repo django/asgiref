@@ -5,7 +5,7 @@ import sys
 import threading
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Dict, Optional, Any, Callable, Union, Type
+from typing import Any, Callable, Dict, Optional, Union
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
