@@ -588,7 +588,7 @@ async def test_multiprocessing():
 @pytest.mark.asyncio
 async def test_sync_to_async_uses_executor():
     """
-    Tests that SyncToAsync uses the passed in executor.
+    Tests that SyncToAsync uses the passed in executor correctly.
     """
 
     class CustomExecutor:

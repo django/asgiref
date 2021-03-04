@@ -343,7 +343,7 @@ class SyncToAsync:
         self._thread_sensitive = thread_sensitive
         self._is_coroutine = asyncio.coroutines._is_coroutine
         if thread_sensitive and executor is not None:
-            raise TypeError("Executor must not be set when thread_sensitive is True")
+            raise TypeError("executor must not be set when thread_sensitive is True")
         self.executor = executor
         try:
             self.__self__ = func.__self__
@@ -376,7 +376,8 @@ class SyncToAsync:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
         else:
-            executor = self.executor  # Use default
+            # Use the passed in executor, or the loop's default if it is None
+            executor = self.executor
 
         if contextvars is not None:
             context = contextvars.copy_context()
