@@ -5,7 +5,7 @@ import sys
 import threading
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Dict
+from typing import Dict, Optional
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
@@ -293,6 +293,10 @@ class SyncToAsync:
     outermost), this will just be the main thread. This is achieved by idling
     with a CurrentThreadExecutor while AsyncToSync is blocking its sync parent,
     rather than just blocking.
+
+    If executor is passed in, that will be used instead of the loop's default executor.
+    In order to pass in an executor, thread_sensitive must be set to False, otherwise
+    a TypeError will be raised.
     """
 
     # If they've set ASGI_THREADS, update the default asyncio executor for now
@@ -326,13 +330,21 @@ class SyncToAsync:
         weakref.WeakKeyDictionary()
     )
 
-    def __init__(self, func, thread_sensitive=True):
+    def __init__(
+        self,
+        func,
+        thread_sensitive=True,
+        executor: Optional["ThreadPoolExecutor"] = None,
+    ):
         if not callable(func) or asyncio.iscoroutinefunction(func):
             raise TypeError("sync_to_async can only be applied to sync functions.")
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
         self._is_coroutine = asyncio.coroutines._is_coroutine
+        if thread_sensitive and executor is not None:
+            raise TypeError("Executor must not be set when thread_sensitive is True")
+        self.executor = executor
         try:
             self.__self__ = func.__self__
         except AttributeError:
@@ -364,7 +376,7 @@ class SyncToAsync:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
         else:
-            executor = None  # Use default
+            executor = self.executor  # Use default
 
         if contextvars is not None:
             context = contextvars.copy_context()
@@ -456,13 +468,17 @@ class SyncToAsync:
 async_to_sync = AsyncToSync
 
 
-def sync_to_async(func=None, thread_sensitive=True):
+def sync_to_async(
+    func=None, thread_sensitive=True, executor: Optional["ThreadPoolExecutor"] = None
+):
     if func is None:
         return lambda f: SyncToAsync(
             f,
             thread_sensitive=thread_sensitive,
+            executor=executor,
         )
     return SyncToAsync(
         func,
         thread_sensitive=thread_sensitive,
+        executor=executor,
     )
