@@ -282,9 +282,11 @@ metadata (mostly from the HTTP request line and headers):
   ``[name, value]`` two-item iterables, where ``name`` is the header name and
   ``value`` is the header value. Order should be preserved from the original
   HTTP request; duplicates are possible and must be preserved in the message
-  as received. Header names must be lowercased. Pseudo headers (present in
-  HTTP/2 and HTTP/3) must be removed; if ``:authority`` is present its value
-  must be added to the start of the iterable with ``host`` as the header name
+  as received. Header names should be lowercased, but it is not required;
+  servers should preserve header case on a best-effort basis.
+  Pseudo headers (present in HTTP/2 and HTTP/3) must be removed;
+  if ``:authority`` is present its value must be added to the
+  start of the iterable with ``host`` as the header name
   or replace any existing host header already present.
 
 * ``client`` (*Iterable[Unicode string, int]*) -- A two-item iterable
