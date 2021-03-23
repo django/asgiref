@@ -104,7 +104,8 @@ The *connection scope* information passed in ``scope`` contains:
   ``value`` is the header value. Order of header values must be preserved from
   the original HTTP request; order of header names is not important. Duplicates
   are possible and must be preserved in the message as received. Header names
-  must be lowercased. Pseudo headers (present in HTTP/2 and HTTP/3) must be
+  should be lowercased, but it is not required; servers should preserve header case
+  on a best-effort basis. Pseudo headers (present in HTTP/2 and HTTP/3) must be
   removed; if ``:authority`` is present its value must be added to the start of
   the iterable with ``host`` as the header name or replace any existing host
   header already present.
