@@ -262,11 +262,11 @@ class AsyncToSync:
             if exc_info[1]:
                 try:
                     raise exc_info[1]
-                except Exception:
+                except BaseException:
                     result = await self.awaitable(*args, **kwargs)
             else:
                 result = await self.awaitable(*args, **kwargs)
-        except Exception as e:
+        except BaseException as e:
             call_result.set_exception(e)
         else:
             call_result.set_result(result)
