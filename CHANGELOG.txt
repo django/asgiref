@@ -1,8 +1,18 @@
-Pending
--------
+3.3.2 (2021-04-05)
+------------------
+
+* SyncToAsync now takes an optional "executor" argument if you want to supply
+  your own executor rather than using the built-in one.
 
 * async_to_sync and sync_to_async now check their arguments are functions of
   the correct type.
+
+* Raising CancelledError inside a SyncToAsync function no longer stops a future
+  call from functioning.
+
+* ThreadSensitive now provides context hooks/override options so it can be
+  made to be sensitive in a unit smaller than threads (e.g. per request)
+
 
 3.3.1 (2020-11-09)
 ------------------
