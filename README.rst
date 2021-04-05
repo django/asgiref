@@ -137,6 +137,18 @@ your documentation changes automatically::
     sphinx-autobuild . _build/html
 
 
+Releasing
+'''''''''
+
+To release, first add details to CHANGELOG.txt and update the version number in ``asgiref/__init__.py``.
+
+Then, build and push the packages::
+
+    python -m build
+    twine upload dist/*
+    rm -r build/ dist/
+
+
 Implementation Details
 ----------------------
 
