@@ -437,7 +437,7 @@ class SyncToAsync:
             if exc_info[1]:
                 try:
                     raise exc_info[1]
-                except Exception:
+                except BaseException:
                     return func(*args, **kwargs)
             else:
                 return func(*args, **kwargs)
