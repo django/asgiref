@@ -203,11 +203,11 @@ def test_async_to_sync_fail_non_function():
     """
     async_to_sync raises a TypeError when applied to a non-function.
     """
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.warns(UserWarning) as warnings:
         async_to_sync(1)
 
-    assert excinfo.value.args == (
-        "async_to_sync can only be applied to async functions.",
+    assert warnings[0].message.args == (
+        "async_to_sync was passed a non-async-marked callable",
     )
 
 
@@ -215,14 +215,14 @@ def test_async_to_sync_fail_sync():
     """
     async_to_sync raises a TypeError when applied to a sync function.
     """
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.warns(UserWarning) as warnings:
 
         @async_to_sync
         def test_function(self):
             pass
 
-    assert excinfo.value.args == (
-        "async_to_sync can only be applied to async functions.",
+    assert warnings[0].message.args == (
+        "async_to_sync was passed a non-async-marked callable",
     )
 
 

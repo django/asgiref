@@ -4,6 +4,7 @@ import inspect
 import os
 import sys
 import threading
+import warnings
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, Union
@@ -118,7 +119,9 @@ class AsyncToSync:
 
     def __init__(self, awaitable, force_new_loop=False):
         if not callable(awaitable) or not _iscoroutinefunction_or_partial(awaitable):
-            raise TypeError("async_to_sync can only be applied to async functions.")
+            # Python does not have very reliable detection of async functions
+            # (lots of false negatives) so this is just a warning.
+            warnings.warn("async_to_sync was passed a non-async-marked callable")
         self.awaitable = awaitable
         try:
             self.__self__ = self.awaitable.__self__
