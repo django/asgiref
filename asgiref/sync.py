@@ -1,5 +1,6 @@
 import asyncio.coroutines
 import functools
+import inspect
 import os
 import sys
 import threading
@@ -25,6 +26,21 @@ def _restore_context(context):
                 cvar.set(context.get(cvar))
         except LookupError:
             cvar.set(context.get(cvar))
+
+
+def _iscoroutinefunction_or_partial(func: Any) -> bool:
+    # Python < 3.8 does not correctly determine partially wrapped
+    # coroutine functions are coroutine functions, hence the need for
+    # this to exist. Code taken from CPython.
+    if sys.version_info >= (3, 8):
+        return asyncio.iscoroutinefunction(func)
+    else:
+        while inspect.ismethod(func):
+            func = func.__func__
+        while isinstance(func, functools.partial):
+            func = func.func
+
+        return asyncio.iscoroutinefunction(func)
 
 
 class ThreadSensitiveContext:
@@ -101,7 +117,7 @@ class AsyncToSync:
     executors = Local()
 
     def __init__(self, awaitable, force_new_loop=False):
-        if not callable(awaitable) or not asyncio.iscoroutinefunction(awaitable):
+        if not callable(awaitable) or not _iscoroutinefunction_or_partial(awaitable):
             raise TypeError("async_to_sync can only be applied to async functions.")
         self.awaitable = awaitable
         try:
@@ -336,7 +352,7 @@ class SyncToAsync:
         thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
     ) -> None:
-        if not callable(func) or asyncio.iscoroutinefunction(func):
+        if not callable(func) or _iscoroutinefunction_or_partial(func):
             raise TypeError("sync_to_async can only be applied to sync functions.")
         self.func = func
         functools.update_wrapper(self, func)
