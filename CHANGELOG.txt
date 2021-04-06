@@ -1,3 +1,10 @@
+3.3.3 (2021-04-06)
+------------------
+
+* The sync conversion functions now correctly detect functools.partial and other
+  wrappers around async functions on earlier Python releases.
+
+
 3.3.2 (2021-04-05)
 ------------------
 
