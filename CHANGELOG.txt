@@ -27,6 +27,9 @@
 * ThreadSensitive now provides context hooks/override options so it can be
   made to be sensitive in a unit smaller than threads (e.g. per request)
 
+* Drop Python 3.5 support.
+
+* Add type annotations.
 
 3.3.1 (2020-11-09)
 ------------------
