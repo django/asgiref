@@ -9,6 +9,7 @@ import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, Union
 
+from .compatibility import get_running_loop
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
@@ -132,7 +133,7 @@ class AsyncToSync:
             self.main_event_loop = None
         else:
             try:
-                self.main_event_loop = asyncio.get_event_loop()
+                self.main_event_loop = get_running_loop()
             except RuntimeError:
                 # There's no event loop in this thread. Look for the threadlocal if
                 # we're inside SyncToAsync
@@ -151,7 +152,7 @@ class AsyncToSync:
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
         try:
-            event_loop = asyncio.get_event_loop()
+            event_loop = get_running_loop()
         except RuntimeError:
             pass
         else:
@@ -238,7 +239,11 @@ class AsyncToSync:
                     tasks = asyncio.Task.all_tasks(loop)
                 for task in tasks:
                     task.cancel()
-                loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+
+                async def gather():
+                    await asyncio.gather(*tasks, return_exceptions=True)
+
+                loop.run_until_complete(gather())
                 for task in tasks:
                     if task.cancelled():
                         continue
@@ -320,7 +325,7 @@ class SyncToAsync:
 
     # If they've set ASGI_THREADS, update the default asyncio executor for now
     if "ASGI_THREADS" in os.environ:
-        loop = asyncio.get_event_loop()
+        loop = get_running_loop()
         loop.set_default_executor(
             ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
         )
@@ -370,7 +375,7 @@ class SyncToAsync:
             pass
 
     async def __call__(self, *args, **kwargs):
-        loop = asyncio.get_event_loop()
+        loop = get_running_loop()
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
