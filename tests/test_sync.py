@@ -9,6 +9,7 @@ from unittest import TestCase
 
 import pytest
 
+from asgiref.compatibility import create_task, get_running_loop
 from asgiref.sync import ThreadSensitiveContext, async_to_sync, sync_to_async
 
 
@@ -33,12 +34,17 @@ async def test_sync_to_async():
     assert result == 42
     assert end - start >= 1
     # Set workers to 1, call it twice and make sure that works right
-    loop = asyncio.get_event_loop()
-    old_executor = loop._default_executor
+    loop = get_running_loop()
+    old_executor = loop._default_executor or ThreadPoolExecutor()
     loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
     try:
         start = time.monotonic()
-        await asyncio.wait([async_function(), async_function()])
+        await asyncio.wait(
+            [
+                create_task(async_function()),
+                create_task(async_function()),
+            ]
+        )
         end = time.monotonic()
         # It should take at least 2 seconds as there's only one worker.
         assert end - start >= 2
@@ -428,7 +434,7 @@ async def test_thread_sensitive_outside_async():
         result["thread"] = threading.current_thread()
 
     # Run it (in supposed parallel!)
-    await asyncio.wait([outer(result_1), inner(result_2)])
+    await asyncio.wait([create_task(outer(result_1)), create_task(inner(result_2))])
 
     # They should not have run in the main thread, but in the same thread
     assert result_1["thread"] != threading.current_thread()
@@ -449,7 +455,10 @@ async def test_thread_sensitive_with_context_matches():
         async with ThreadSensitiveContext():
             # Run it (in supposed parallel!)
             await asyncio.wait(
-                [store_thread_async(result_1), store_thread_async(result_2)]
+                [
+                    create_task(store_thread_async(result_1)),
+                    create_task(store_thread_async(result_2)),
+                ]
             )
 
     await fn()
