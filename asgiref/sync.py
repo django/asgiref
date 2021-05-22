@@ -7,7 +7,7 @@ import threading
 import warnings
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, overload
 
 from .compatibility import get_running_loop
 from .current_thread_executor import CurrentThreadExecutor
@@ -493,11 +493,29 @@ class SyncToAsync:
 async_to_sync = AsyncToSync
 
 
+@overload
 def sync_to_async(
-    func: Optional[Callable[..., Any]] = None,
+    func: None = None,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> Union[SyncToAsync, Callable[[Callable[..., Any]], SyncToAsync]]:
+) -> Callable[[Callable[..., Any]], SyncToAsync]:
+    ...
+
+
+@overload
+def sync_to_async(
+    func: Callable[..., Any],
+    thread_sensitive: bool = True,
+    executor: Optional["ThreadPoolExecutor"] = None,
+) -> SyncToAsync:
+    ...
+
+
+def sync_to_async(
+    func=None,
+    thread_sensitive=True,
+    executor=None,
+):
     if func is None:
         return lambda f: SyncToAsync(
             f,
