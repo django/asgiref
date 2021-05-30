@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import multiprocessing
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -671,6 +672,7 @@ async def test_sync_to_async_uses_executor():
     )
 
 
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="Issue persists with 3.6")
 def test_sync_to_async_deadlock_raises():
     def db_write():
         pass
