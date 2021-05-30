@@ -13,7 +13,7 @@ async def test_basic_wsgi():
     """
     # Define WSGI app
     def wsgi_application(environ, start_response):
-        assert environ["HTTP_TEST_HEADER"] == "test value"
+        assert environ["HTTP_TEST_HEADER"] == "test value 1,test value 2"
         start_response("200 OK", [["X-Colour", "Blue"]])
         yield b"first chunk "
         yield b"second chunk"
@@ -29,7 +29,10 @@ async def test_basic_wsgi():
             "method": "GET",
             "path": "/foo/",
             "query_string": b"bar=baz",
-            "headers": [[b"test-header", b"test value"]],
+            "headers": [
+                [b"test-header", b"test value 1"],
+                [b"test-header", b"test value 2"],
+            ],
         },
     )
     await instance.send_input({"type": "http.request"})
