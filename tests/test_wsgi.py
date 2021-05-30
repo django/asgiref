@@ -27,7 +27,10 @@ async def test_basic_wsgi():
             "method": "GET",
             "path": "/foo/",
             "query_string": b"bar=baz",
-            "headers": [[b"test-header", b"test value 1"], [b"test-header", b"test value 2"]],
+            "headers": [
+                [b"test-header", b"test value 1"],
+                [b"test-header", b"test value 2"],
+            ],
         },
     )
     await instance.send_input({"type": "http.request"})
