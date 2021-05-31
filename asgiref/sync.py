@@ -348,6 +348,15 @@ class SyncToAsync:
     else:
         thread_sensitive_context: None = None
 
+    # Contextvar that is used to detect if the single thread executor
+    # would be awaited on while already being used in the same context
+    if sys.version_info >= (3, 7):
+        deadlock_context: "contextvars.ContextVar[bool]" = contextvars.ContextVar(
+            "deadlock_context"
+        )
+    else:
+        deadlock_context: None = None
+
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
     context_to_thread_executor: "weakref.WeakKeyDictionary[object, ThreadPoolExecutor]" = (
@@ -396,9 +405,15 @@ class SyncToAsync:
                     # Create new thread executor in current context
                     executor = ThreadPoolExecutor(max_workers=1)
                     self.context_to_thread_executor[thread_sensitive_context] = executor
+            elif self.deadlock_context and self.deadlock_context.get(False):
+                raise RuntimeError(
+                    "Single thread executor already being used, would deadlock"
+                )
             else:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
+                if self.deadlock_context:
+                    self.deadlock_context.set(True)
         else:
             # Use the passed in executor, or the loop's default if it is None
             executor = self._executor
@@ -429,6 +444,8 @@ class SyncToAsync:
 
         if contextvars is not None:
             _restore_context(context)
+        if self.deadlock_context:
+            self.deadlock_context.set(False)
 
         return ret
 
