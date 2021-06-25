@@ -28,7 +28,7 @@ class HTTPScope(TypedDict):
     extensions: Dict[str, Dict[object, object]]
 
 
-class WebsocketScope(TypedDict):
+class WebSocketScope(TypedDict):
     type: Literal["websocket"]
     asgi: ASGIVersions
     http_version: str
@@ -49,8 +49,8 @@ class LifespanScope(TypedDict):
     asgi: ASGIVersions
 
 
-WWWScope = Union[HTTPScope, WebsocketScope]
-Scope = Union[HTTPScope, WebsocketScope, LifespanScope]
+WWWScope = Union[HTTPScope, WebSocketScope]
+Scope = Union[HTTPScope, WebSocketScope, LifespanScope]
 
 
 class HTTPRequestEvent(TypedDict):
@@ -81,46 +81,46 @@ class HTTPDisconnectEvent(TypedDict):
     type: Literal["http.disconnect"]
 
 
-class WebsocketConnectEvent(TypedDict):
+class WebSocketConnectEvent(TypedDict):
     type: Literal["websocket.connect"]
 
 
-class WebsocketAcceptEvent(TypedDict):
+class WebSocketAcceptEvent(TypedDict):
     type: Literal["websocket.accept"]
     subprotocol: Optional[str]
     headers: Iterable[Tuple[bytes, bytes]]
 
 
-class WebsocketReceiveEvent(TypedDict):
+class WebSocketReceiveEvent(TypedDict):
     type: Literal["websocket.receive"]
     bytes: Optional[bytes]
     text: Optional[str]
 
 
-class WebsocketSendEvent(TypedDict):
+class WebSocketSendEvent(TypedDict):
     type: Literal["websocket.send"]
     bytes: Optional[bytes]
     text: Optional[str]
 
 
-class WebsocketResponseStartEvent(TypedDict):
+class WebSocketResponseStartEvent(TypedDict):
     type: Literal["websocket.http.response.start"]
     status: int
     headers: Iterable[Tuple[bytes, bytes]]
 
 
-class WebsocketResponseBodyEvent(TypedDict):
+class WebSocketResponseBodyEvent(TypedDict):
     type: Literal["websocket.http.response.body"]
     body: bytes
     more_body: bool
 
 
-class WebsocketDisconnectEvent(TypedDict):
+class WebSocketDisconnectEvent(TypedDict):
     type: Literal["websocket.disconnect"]
     code: int
 
 
-class WebsocketCloseEvent(TypedDict):
+class WebSocketCloseEvent(TypedDict):
     type: Literal["websocket.close"]
     code: int
     reason: Optional[str]
