@@ -42,7 +42,9 @@ class Pep562:
         return self._get_dir() if self._get_dir else dir(self._module)
 
     def __getattr__(self, name: str) -> Any:
-        """Attempt to retrieve the attribute from the module, and if missing, use the overridden function if present."""
+        """
+        Attempt to retrieve the attribute from the module, and if missing, use the overridden function if present.
+        """
 
         try:
             return getattr(self._module, name)

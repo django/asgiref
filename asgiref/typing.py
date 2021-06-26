@@ -1,17 +1,6 @@
 import sys
 import warnings
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 
 from asgiref._pep562 import pep562
 
@@ -272,12 +261,12 @@ def __getattr__(name: str) -> Any:
     if deprecated:
         stacklevel = 3 if sys.version_info >= (3, 7) else 4
         warnings.warn(
-            "'{}' is deprecated. Use '{}' instead.".format(name, deprecated.__name__),
+            f"'{name}' is deprecated. Use '{deprecated.__name__}' instead.",
             category=DeprecationWarning,
             stacklevel=stacklevel,
         )
         return deprecated
-    raise AttributeError("module '{}' has no attribute '{}'".format(__name__, name))
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
 def __dir__() -> List[str]:
