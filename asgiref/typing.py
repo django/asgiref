@@ -25,7 +25,7 @@ class HTTPScope(TypedDict):
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
-    extensions: Dict[str, Dict[object, object]]
+    extensions: Optional[Dict[str, Dict[object, object]]]
 
 
 class WebsocketScope(TypedDict):
@@ -41,7 +41,7 @@ class WebsocketScope(TypedDict):
     client: Optional[Tuple[str, int]]
     server: Optional[Tuple[str, Optional[int]]]
     subprotocols: Iterable[str]
-    extensions: Dict[str, Dict[object, object]]
+    extensions: Optional[Dict[str, Dict[object, object]]]
 
 
 class LifespanScope(TypedDict):
