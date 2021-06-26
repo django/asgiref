@@ -189,7 +189,7 @@ This means you now have two basic states:
   runs on the main thread's event loop, and all ``thread_sensitive`` synchronous
   code will run in a single shared sub-thread.
 
-Cruicially, this means that in both cases there is a thread which is a shared
+Crucially, this means that in both cases there is a thread which is a shared
 resource that all ``thread_sensitive`` code must run on, and there is a chance
 that this thread is currently blocked on its own ``AsyncToSync`` call. Thus,
 ``AsyncToSync`` needs to act as an executor for thread code while it's blocking.
