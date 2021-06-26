@@ -13,7 +13,7 @@ from typing import (
     Union,
 )
 
-from pep562 import pep562  # type: ignore[import]
+from asgiref._pep562 import pep562
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, TypedDict
