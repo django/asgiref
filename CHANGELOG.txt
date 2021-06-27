@@ -1,3 +1,24 @@
+3.4.0 (2021-06-27)
+------------------
+
+* Calling sync_to_async directly from inside itself (which causes a deadlock
+  when in the default, thread-sensitive mode) now has deadlock detection.
+
+* asyncio usage has been updated to use the new versions of get_event_loop,
+  ensure_future, wait and gather, avoiding deprecation warnings in Python 3.10.
+  Python 3.6 installs continue to use the old versions; this is only for 3.7+
+
+* sync_to_async and async_to_sync now have improved type hints that pass
+  through the underlying function type correctly.
+
+* All Websocket* types are now spelled WebSocket, to match our specs and the
+  official spelling. The old names will work until release 3.5.0, but will
+  raise deprecation warnings.
+
+* The typing for WebSocketScope and HTTPScope's `extensions` key has been
+  fixed.
+
+
 3.3.4 (2021-04-06)
 ------------------
 
