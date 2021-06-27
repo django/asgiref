@@ -1,10 +1,49 @@
 import sys
-from typing import Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
+import warnings
+from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
+
+from asgiref._pep562 import pep562
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, TypedDict
 else:
     from typing_extensions import Literal, Protocol, TypedDict
+
+__all__ = (
+    "ASGIVersions",
+    "HTTPScope",
+    "WebSocketScope",
+    "LifespanScope",
+    "WWWScope",
+    "Scope",
+    "HTTPRequestEvent",
+    "HTTPResponseStartEvent",
+    "HTTPResponseBodyEvent",
+    "HTTPServerPushEvent",
+    "HTTPDisconnectEvent",
+    "WebSocketConnectEvent",
+    "WebSocketAcceptEvent",
+    "WebSocketReceiveEvent",
+    "WebSocketSendEvent",
+    "WebSocketResponseStartEvent",
+    "WebSocketResponseBodyEvent",
+    "WebSocketDisconnectEvent",
+    "WebSocketCloseEvent",
+    "LifespanStartupEvent",
+    "LifespanShutdownEvent",
+    "LifespanStartupCompleteEvent",
+    "LifespanStartupFailedEvent",
+    "LifespanShutdownCompleteEvent",
+    "LifespanShutdownFailedEvent",
+    "ASGIReceiveEvent",
+    "ASGISendEvent",
+    "ASGIReceiveCallable",
+    "ASGISendCallable",
+    "ASGI2Protocol",
+    "ASGI2Application",
+    "ASGI3Application",
+    "ASGIApplication",
+)
 
 
 class ASGIVersions(TypedDict):
@@ -28,7 +67,7 @@ class HTTPScope(TypedDict):
     extensions: Optional[Dict[str, Dict[object, object]]]
 
 
-class WebsocketScope(TypedDict):
+class WebSocketScope(TypedDict):
     type: Literal["websocket"]
     asgi: ASGIVersions
     http_version: str
@@ -49,8 +88,8 @@ class LifespanScope(TypedDict):
     asgi: ASGIVersions
 
 
-WWWScope = Union[HTTPScope, WebsocketScope]
-Scope = Union[HTTPScope, WebsocketScope, LifespanScope]
+WWWScope = Union[HTTPScope, WebSocketScope]
+Scope = Union[HTTPScope, WebSocketScope, LifespanScope]
 
 
 class HTTPRequestEvent(TypedDict):
@@ -81,46 +120,46 @@ class HTTPDisconnectEvent(TypedDict):
     type: Literal["http.disconnect"]
 
 
-class WebsocketConnectEvent(TypedDict):
+class WebSocketConnectEvent(TypedDict):
     type: Literal["websocket.connect"]
 
 
-class WebsocketAcceptEvent(TypedDict):
+class WebSocketAcceptEvent(TypedDict):
     type: Literal["websocket.accept"]
     subprotocol: Optional[str]
     headers: Iterable[Tuple[bytes, bytes]]
 
 
-class WebsocketReceiveEvent(TypedDict):
+class WebSocketReceiveEvent(TypedDict):
     type: Literal["websocket.receive"]
     bytes: Optional[bytes]
     text: Optional[str]
 
 
-class WebsocketSendEvent(TypedDict):
+class WebSocketSendEvent(TypedDict):
     type: Literal["websocket.send"]
     bytes: Optional[bytes]
     text: Optional[str]
 
 
-class WebsocketResponseStartEvent(TypedDict):
+class WebSocketResponseStartEvent(TypedDict):
     type: Literal["websocket.http.response.start"]
     status: int
     headers: Iterable[Tuple[bytes, bytes]]
 
 
-class WebsocketResponseBodyEvent(TypedDict):
+class WebSocketResponseBodyEvent(TypedDict):
     type: Literal["websocket.http.response.body"]
     body: bytes
     more_body: bool
 
 
-class WebsocketDisconnectEvent(TypedDict):
+class WebSocketDisconnectEvent(TypedDict):
     type: Literal["websocket.disconnect"]
     code: int
 
 
-class WebsocketCloseEvent(TypedDict):
+class WebSocketCloseEvent(TypedDict):
     type: Literal["websocket.close"]
     code: int
     reason: Optional[str]
@@ -155,9 +194,9 @@ class LifespanShutdownFailedEvent(TypedDict):
 ASGIReceiveEvent = Union[
     HTTPRequestEvent,
     HTTPDisconnectEvent,
-    WebsocketConnectEvent,
-    WebsocketReceiveEvent,
-    WebsocketDisconnectEvent,
+    WebSocketConnectEvent,
+    WebSocketReceiveEvent,
+    WebSocketDisconnectEvent,
     LifespanStartupEvent,
     LifespanShutdownEvent,
 ]
@@ -168,11 +207,11 @@ ASGISendEvent = Union[
     HTTPResponseBodyEvent,
     HTTPServerPushEvent,
     HTTPDisconnectEvent,
-    WebsocketAcceptEvent,
-    WebsocketSendEvent,
-    WebsocketResponseStartEvent,
-    WebsocketResponseBodyEvent,
-    WebsocketCloseEvent,
+    WebSocketAcceptEvent,
+    WebSocketSendEvent,
+    WebSocketResponseStartEvent,
+    WebSocketResponseBodyEvent,
+    WebSocketCloseEvent,
     LifespanStartupCompleteEvent,
     LifespanStartupFailedEvent,
     LifespanShutdownCompleteEvent,
@@ -204,3 +243,34 @@ ASGI3Application = Callable[
     Awaitable[None],
 ]
 ASGIApplication = Union[ASGI2Application, ASGI3Application]
+
+__deprecated__ = {
+    "WebsocketConnectEvent": WebSocketConnectEvent,
+    "WebsocketAcceptEvent": WebSocketAcceptEvent,
+    "WebsocketReceiveEvent": WebSocketReceiveEvent,
+    "WebsocketSendEvent": WebSocketSendEvent,
+    "WebsocketResponseStartEvent": WebSocketResponseStartEvent,
+    "WebsocketResponseBodyEvent": WebSocketResponseBodyEvent,
+    "WebsocketDisconnectEvent": WebSocketDisconnectEvent,
+    "WebsocketCloseEvent": WebSocketCloseEvent,
+}
+
+
+def __getattr__(name: str) -> Any:
+    deprecated = __deprecated__.get(name)
+    if deprecated:
+        stacklevel = 3 if sys.version_info >= (3, 7) else 4
+        warnings.warn(
+            f"'{name}' is deprecated. Use '{deprecated.__name__}' instead.",
+            category=DeprecationWarning,
+            stacklevel=stacklevel,
+        )
+        return deprecated
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
+
+def __dir__() -> List[str]:
+    return sorted(list(__all__) + list(__deprecated__.keys()))
+
+
+pep562(__name__)
