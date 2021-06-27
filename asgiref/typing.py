@@ -1,6 +1,17 @@
 import sys
 import warnings
-from typing import Any, Awaitable, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from asgiref._pep562 import pep562
 
