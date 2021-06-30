@@ -8,7 +8,7 @@ The Lifespan ASGI sub-specification outlines how to communicate
 lifespan events such as startup and shutdown within ASGI. This refers to the
 lifespan of the main event loop. In a multi-process environment there will be
 lifespan events in each process. In a multi-thread environment there will be
-lifespan events in each process.
+lifespan events in each thread.
 
 The lifespan messages allow for an application to initialise and
 shutdown in the context of a running event loop. An example of this
