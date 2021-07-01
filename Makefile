@@ -1,7 +1,7 @@
 .PHONY: release clean
 
 clean:
-	rm -r build/ dist/ asgiref.egg-info/
+	rm -rf build/ dist/ asgiref.egg-info/
 
 release: clean
 	python3 -m build
