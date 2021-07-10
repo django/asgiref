@@ -12,3 +12,4 @@ the events that can be sent and received for each protocol.
    ASGI Specification <main>
    HTTP and WebSocket protocol <www>
    Lifespan <lifespan>
+   TLS Extension <tls>

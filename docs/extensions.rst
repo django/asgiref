@@ -128,3 +128,8 @@ Keys:
 After calling this extension to respond, the ASGI application itself should
 actively close the used file descriptor - ASGI servers are not responsible for
 closing descriptors.
+
+TLS
+---
+
+See :doc:`specs/tls`.
