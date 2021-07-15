@@ -728,7 +728,7 @@ async def test_sync_to_async_with_blocker_thread_sensitive():
     Expected to fail at the moment.
     """
 
-    delay = 1 # second
+    delay = 1  # second
     event = multiprocessing.Event()
 
     async def async_process_waiting_on_event():
@@ -763,7 +763,7 @@ async def test_sync_to_async_with_blocker_non_thread_sensitive():
     Tests sync_to_async running on a long-time blocker in a non_thread_sensitive context.
     """
 
-    delay = 1 # second
+    delay = 1  # second
     event = multiprocessing.Event()
 
     async def async_process_waiting_on_event():
