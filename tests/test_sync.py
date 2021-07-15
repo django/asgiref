@@ -366,9 +366,9 @@ def test_async_to_sync_partial():
     assert result["worked"]
 
 
-def test_async_to_async_method_self_attribute():
+def test_async_to_sync_method_self_attribute():
     """
-    Tests async_to_async on a method copies __self__.
+    Tests async_to_sync on a method copies __self__.
     """
     # Define async function.
     class TestClass:
