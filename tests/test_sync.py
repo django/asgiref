@@ -12,6 +12,7 @@ import pytest
 
 from asgiref.compatibility import create_task, get_running_loop
 from asgiref.sync import ThreadSensitiveContext, async_to_sync, sync_to_async
+from asgiref.timeout import timeout
 
 
 @pytest.mark.asyncio
@@ -717,3 +718,75 @@ def test_sync_to_async_deadlock_ignored_with_exception():
             pass
 
     asyncio.run(server_entry())
+
+
+@pytest.mark.asyncio
+@pytest.mark.xfail
+async def test_sync_to_async_with_blocker_thread_sensitive():
+    """
+    Tests sync_to_async running on a long-time blocker in a thread_sensitive context.
+    Expected to fail at the moment.
+    """
+
+    delay = 1  # second
+    event = multiprocessing.Event()
+
+    async def async_process_waiting_on_event():
+        """Wait for the event to be set."""
+        await sync_to_async(event.wait)()
+        return 42
+
+    async def async_process_that_triggers_event():
+        """Sleep, then set the event."""
+        await asyncio.sleep(delay)
+        await sync_to_async(event.set)()
+
+    # Run the event setter as a task.
+    trigger_task = asyncio.ensure_future(async_process_that_triggers_event())
+
+    try:
+        # wait on the event waiter, which is now blocking the event setter.
+        async with timeout(delay + 1):
+            assert await async_process_waiting_on_event() == 42
+    except asyncio.TimeoutError:
+        # In case of timeout, set the event to unblock things, else
+        # downstream tests will get fouled up.
+        event.set()
+        raise
+    finally:
+        await trigger_task
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_with_blocker_non_thread_sensitive():
+    """
+    Tests sync_to_async running on a long-time blocker in a non_thread_sensitive context.
+    """
+
+    delay = 1  # second
+    event = multiprocessing.Event()
+
+    async def async_process_waiting_on_event():
+        """Wait for the event to be set."""
+        await sync_to_async(event.wait, thread_sensitive=False)()
+        return 42
+
+    async def async_process_that_triggers_event():
+        """Sleep, then set the event."""
+        await asyncio.sleep(1)
+        await sync_to_async(event.set)()
+
+    # Run the event setter as a task.
+    trigger_task = asyncio.ensure_future(async_process_that_triggers_event())
+
+    try:
+        # wait on the event waiter, which is now blocking the event setter.
+        async with timeout(delay + 1):
+            assert await async_process_waiting_on_event() == 42
+    except asyncio.TimeoutError:
+        # In case of timeout, set the event to unblock things, else
+        # downstream tests will get fouled up.
+        event.set()
+        raise
+    finally:
+        await trigger_task
