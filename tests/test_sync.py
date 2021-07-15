@@ -742,7 +742,7 @@ async def test_sync_to_async_with_blocker_thread_sensitive():
         await sync_to_async(event.set)()
 
     # Run the event setter as a task.
-    trigger_task = asyncio.create_task(async_process_that_triggers_event())
+    trigger_task = asyncio.ensure_future(async_process_that_triggers_event())
 
     try:
         # wait on the event waiter, which is now blocking the event setter.
@@ -777,7 +777,7 @@ async def test_sync_to_async_with_blocker_non_thread_sensitive():
         await sync_to_async(event.set)()
 
     # Run the event setter as a task.
-    trigger_task = asyncio.create_task(async_process_that_triggers_event())
+    trigger_task = asyncio.ensure_future(async_process_that_triggers_event())
 
     try:
         # wait on the event waiter, which is now blocking the event setter.
