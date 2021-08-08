@@ -74,7 +74,7 @@ Starlette
 *Beta* / https://github.com/encode/starlette
 
 Starlette is a minimalist ASGI library for writing against basic but powerful
-``Request`` and ``Response`` classes. Supports HTTP.
+``Request`` and ``Response`` classes. Supports HTTP and WebSockets.
 
 
 rpc.py
