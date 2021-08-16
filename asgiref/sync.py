@@ -15,8 +15,11 @@ from .local import Local
 
 if sys.version_info >= (3, 7):
     import contextvars
+
+    current_task = asyncio.current_task
 else:
     contextvars = None
+    current_task = asyncio.Task.current_task
 
 
 def _restore_context(context):
@@ -498,12 +501,7 @@ class SyncToAsync:
         Returns None if there is no task.
         """
         try:
-            if hasattr(asyncio, "current_task"):
-                # Python 3.7 and up
-                return asyncio.current_task()
-            else:
-                # Python 3.6
-                return asyncio.Task.current_task()
+            return current_task()
         except RuntimeError:
             return None
 
