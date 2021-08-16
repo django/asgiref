@@ -31,6 +31,7 @@ class Local:
     """
 
     CLEANUP_INTERVAL = 60  # seconds
+    launch_map_classes = None  # cache imported (AsyncToSync, SyncToAsync) on first access.
 
     def __init__(self, thread_critical: bool = False) -> None:
         self._thread_critical = thread_critical
@@ -48,7 +49,12 @@ class Local:
         Get the ID we should use for looking up variables
         """
         # Prevent a circular reference
-        from .sync import AsyncToSync, SyncToAsync
+        # Once imported the first time, hold a reference to them on the class.
+        if not Local.launch_map_classes:
+            from .sync import AsyncToSync, SyncToAsync
+            Local.launch_map_classes = (AsyncToSync, SyncToAsync)
+        else:
+            AsyncToSync, SyncToAsync = Local.launch_map_classes
 
         # First, pull the current task if we can
         context_id = SyncToAsync.get_current_task()
