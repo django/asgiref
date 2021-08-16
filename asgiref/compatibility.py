@@ -53,9 +53,11 @@ if sys.version_info >= (3, 7):
     get_running_loop = asyncio.get_running_loop
     run_future = asyncio.run
     create_task = asyncio.create_task
+    current_task = asyncio.current_task
 else:
     # marked as deprecated in 3.10, did not exist before 3.7
     get_running_loop = asyncio.get_event_loop
     run_future = asyncio.ensure_future
     # does nothing, this is fine for <3.7
     create_task = lambda task: task
+    current_task = asyncio.Task.current_task
