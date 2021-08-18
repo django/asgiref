@@ -30,8 +30,6 @@ class Local:
     3.7 only, we can then reimplement the storage more nicely.
     """
 
-    CLEANUP_INTERVAL = 60  # seconds
-
     def __init__(self, thread_critical: bool = False) -> None:
         self._thread_critical = thread_critical
         self._thread_lock = threading.RLock()
