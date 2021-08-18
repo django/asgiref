@@ -328,7 +328,9 @@ class SyncToAsync:
 
     # If they've set ASGI_THREADS, update the default asyncio executor for now
     if "ASGI_THREADS" in os.environ:
-        loop = get_running_loop()
+        # We use get_event_loop here - not get_running_loop - as this will
+        # be run at import time, and we want to update the main thread's loop.
+        loop = asyncio.get_event_loop()
         loop.set_default_executor(
             ThreadPoolExecutor(max_workers=int(os.environ["ASGI_THREADS"]))
         )
