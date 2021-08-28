@@ -7,9 +7,10 @@
 
 
 import asyncio
-import sys
 from types import TracebackType
 from typing import Any, Optional, Type
+
+from .compatibility import current_task as asyncio_current_task
 
 
 class timeout:
@@ -114,10 +115,7 @@ class timeout:
 
 
 def current_task(loop: asyncio.AbstractEventLoop) -> "Optional[asyncio.Task[Any]]":
-    if sys.version_info >= (3, 7):
-        task = asyncio.current_task(loop=loop)
-    else:
-        task = asyncio.Task.current_task(loop=loop)
+    task = asyncio_current_task(loop=loop)
     if task is None:
         # this should be removed, tokio must use register_task and family API
         fn = getattr(loop, "current_task", None)

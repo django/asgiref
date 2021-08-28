@@ -9,17 +9,14 @@ import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, overload
 
-from .compatibility import get_running_loop
+from .compatibility import current_task, get_running_loop
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
 if sys.version_info >= (3, 7):
     import contextvars
-
-    current_task = asyncio.current_task
 else:
     contextvars = None
-    current_task = asyncio.Task.current_task
 
 
 def _restore_context(context):
