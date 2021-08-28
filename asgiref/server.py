@@ -2,6 +2,7 @@ import asyncio
 import logging
 import time
 import traceback
+from heapq import heappush, heappushpop
 
 from .compatibility import get_running_loop, guarantee_single_callable, run_future
 
@@ -82,8 +83,9 @@ class StatelessServer:
             self.application_instances[scope_id]["last_used"] = time.time()
             return self.application_instances[scope_id]["input_queue"]
         # See if we need to delete an old one
-        while len(self.application_instances) > self.max_applications:
-            self.delete_oldest_application_instance()
+        remove_num = len(self.application_instances) - self.max_applications
+        if remove_num > 0:
+            self.delete_nth_old_application_instance(remove_num)
         # Make an instance of the application
         input_queue = asyncio.Queue()
         application_instance = guarantee_single_callable(self.application)
@@ -103,19 +105,19 @@ class StatelessServer:
         }
         return input_queue
 
-    def delete_oldest_application_instance(self):
+    def delete_nth_old_application_instance(self, remove_num):
         """
-        Finds and deletes the oldest application instance
+        Finds and deletes the nth old application instance with heapq
         """
-        oldest_time = min(
-            details["last_used"] for details in self.application_instances.values()
-        )
+        nth_old_instances = []
         for scope_id, details in self.application_instances.items():
-            if details["last_used"] == oldest_time:
-                self.delete_application_instance(scope_id)
-                # Return to make sure we only delete one in case two have
-                # the same oldest time
-                return
+            if len(nth_old_instances) < remove_num:
+                heappush(nth_old_instances, (details["last_used"], scope_id))
+            else:
+                heappushpop(nth_old_instances, (details["last_used"], scope_id))
+
+        for _, scope_id in nth_old_instances:
+            self.delete_application_instance(scope_id)
 
     def delete_application_instance(self, scope_id):
         """
@@ -134,7 +136,7 @@ class StatelessServer:
         """
         while True:
             await asyncio.sleep(self.application_checker_interval)
-            for scope_id, details in list(self.application_instances.items()):
+            for scope_id, details in self.application_instances.items():
                 if details["future"].done():
                     exception = details["future"].exception()
                     if exception:
