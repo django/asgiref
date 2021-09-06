@@ -68,6 +68,15 @@ way to use asyncio functionality in a web context, especially with existing Flas
 Supports HTTP.
 
 
+Sanic
+-----
+
+*Beta* / https://sanicframework.org
+
+Sanic is an unopinionated and flexible web application server and framework that also
+has the ability to operate as an ASGI compatible framework. Therefore, it can be run
+using any of the ASGI web servers. Supports HTTP and WebSockets.
+
 Starlette
 ---------
 
