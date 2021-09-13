@@ -3,7 +3,7 @@ import logging
 import time
 import traceback
 
-from .compatibility import get_running_loop, guarantee_single_callable, run_future
+from .compatibility import guarantee_single_callable
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class StatelessServer:
         """
         Runs the asyncio event loop with our handler loop.
         """
-        event_loop = get_running_loop()
+        event_loop = asyncio.get_event_loop()
         asyncio.ensure_future(self.application_checker())
         try:
             event_loop.run_until_complete(self.handle())
@@ -88,7 +88,7 @@ class StatelessServer:
         input_queue = asyncio.Queue()
         application_instance = guarantee_single_callable(self.application)
         # Run it, and stash the future for later checking
-        future = run_future(
+        future = asyncio.ensure_future(
             application_instance(
                 scope=scope,
                 receive=input_queue.get,
