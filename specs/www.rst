@@ -322,7 +322,7 @@ Keys:
 * ``type`` (*Unicode string*) -- ``"websocket.connect"``.
 
 
-Accept - ``send`` event
+Accept - ``accept`` event
 '''''''''''''''''''''''
 
 Sent by the application when it wishes to accept an incoming connection.
