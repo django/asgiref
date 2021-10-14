@@ -122,7 +122,9 @@ class AsyncToSync:
         if not callable(awaitable) or not _iscoroutinefunction_or_partial(awaitable):
             # Python does not have very reliable detection of async functions
             # (lots of false negatives) so this is just a warning.
-            warnings.warn("async_to_sync was passed a non-async-marked callable")
+            warnings.warn(
+                "async_to_sync was passed a non-async-marked callable", stacklevel=2
+            )
         self.awaitable = awaitable
         try:
             self.__self__ = self.awaitable.__self__
