@@ -5,6 +5,8 @@ import traceback
 
 from .compatibility import guarantee_single_callable
 
+from asgiref.sync import async_to_sync
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,10 +58,9 @@ class StatelessServer:
         """
         Runs the asyncio event loop with our handler loop.
         """
-        event_loop = asyncio.get_event_loop()
         asyncio.ensure_future(self.application_checker())
         try:
-            event_loop.run_until_complete(self.handle())
+            async_to_sync(self.handle())
         except KeyboardInterrupt:
             logger.info("Exiting due to Ctrl-C/interrupt")
 
