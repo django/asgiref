@@ -50,7 +50,10 @@ class Local:
         from .sync import AsyncToSync, SyncToAsync
 
         # First, pull the current task if we can
-        context_id = asyncio.current_task()
+        try:
+            context_id = asyncio.current_task()
+        except RuntimeError:
+            context_id = None
         context_is_async = True
         # OK, let's try for a thread ID
         if context_id is None:
