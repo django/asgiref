@@ -256,7 +256,8 @@ class AsyncToSync:
         if context is not None:
             _restore_context(context[0])
 
-        self.launch_map[asyncio.current_task()] = source_thread
+        current_task = SyncToAsync.get_current_task()
+        self.launch_map[current_task] = source_thread
         try:
             # If we have an exception, run the function inside the except block
             # after raising it so exc_info is correctly populated.
@@ -272,7 +273,7 @@ class AsyncToSync:
         else:
             call_result.set_result(result)
         finally:
-            del self.launch_map[asyncio.current_task()]
+            del self.launch_map[current_task]
 
             context[0] = contextvars.copy_context()
 
@@ -403,7 +404,7 @@ class SyncToAsync:
                 functools.partial(
                     self.thread_handler,
                     loop,
-                    asyncio.current_task(),
+                    self.get_current_task(),
                     sys.exc_info(),
                     func,
                     *args,
@@ -457,6 +458,17 @@ class SyncToAsync:
             # from someone else.
             if parent_set:
                 del self.launch_map[current_thread]
+
+    @staticmethod
+    def get_current_task():
+        """
+        Implementation of asyncio.current_task()
+        that returns None if there is no task.
+        """
+        try:
+            return asyncio.current_task()
+        except RuntimeError:
+            return None
 
 
 # Lowercase aliases (and decorator friendliness)

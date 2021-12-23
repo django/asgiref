@@ -1,4 +1,3 @@
-import asyncio
 import random
 import string
 import sys
@@ -50,10 +49,7 @@ class Local:
         from .sync import AsyncToSync, SyncToAsync
 
         # First, pull the current task if we can
-        try:
-            context_id = asyncio.current_task()
-        except RuntimeError:
-            context_id = None
+        context_id = SyncToAsync.get_current_task()
         context_is_async = True
         # OK, let's try for a thread ID
         if context_id is None:
