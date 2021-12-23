@@ -10,8 +10,6 @@ import asyncio
 from types import TracebackType
 from typing import Any, Optional, Type
 
-from .compatibility import current_task as asyncio_current_task
-
 
 class timeout:
     """timeout context manager.
@@ -83,7 +81,7 @@ class timeout:
         if self._timeout is None:
             return self
 
-        self._task = current_task(self._loop)
+        self._task = asyncio.current_task(self._loop)
         if self._task is None:
             raise RuntimeError(
                 "Timeout context manager should be used " "inside a task"
@@ -112,14 +110,3 @@ class timeout:
         if self._task is not None:
             self._task.cancel()
             self._cancelled = True
-
-
-def current_task(loop: asyncio.AbstractEventLoop) -> "Optional[asyncio.Task[Any]]":
-    task = asyncio_current_task(loop=loop)
-    if task is None:
-        # this should be removed, tokio must use register_task and family API
-        fn = getattr(loop, "current_task", None)
-        if fn is not None:
-            task = fn()
-
-    return task

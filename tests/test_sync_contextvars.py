@@ -4,7 +4,6 @@ import time
 
 import pytest
 
-from asgiref.compatibility import create_task
 from asgiref.sync import ThreadSensitiveContext, async_to_sync, sync_to_async
 
 contextvars = pytest.importorskip("contextvars")
@@ -26,7 +25,9 @@ async def test_thread_sensitive_with_context_different():
             await store_thread(result)
 
     # Run it (in true parallel!)
-    await asyncio.wait([create_task(fn(result_1)), create_task(fn(result_2))])
+    await asyncio.wait(
+        [asyncio.create_task(fn(result_1)), asyncio.create_task(fn(result_2))]
+    )
 
     # They should not have run in the main thread, and on different threads
     assert result_1["thread"] != threading.current_thread()
