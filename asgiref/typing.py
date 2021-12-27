@@ -13,8 +13,6 @@ from typing import (
     Union,
 )
 
-from asgiref._pep562 import pep562
-
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, TypedDict
 else:
@@ -282,6 +280,3 @@ def __getattr__(name: str) -> Any:
 
 def __dir__() -> List[str]:
     return sorted(list(__all__) + list(__deprecated__.keys()))
-
-
-pep562(__name__)

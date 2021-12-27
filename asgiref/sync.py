@@ -1,4 +1,5 @@
 import asyncio.coroutines
+import contextvars
 import functools
 import inspect
 import os
@@ -9,14 +10,8 @@ import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import Any, Callable, Dict, Optional, overload
 
-from .compatibility import current_task, get_running_loop
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
-
-if sys.version_info >= (3, 7):
-    import contextvars
-else:
-    contextvars = None
 
 
 def _restore_context(context):
@@ -55,8 +50,6 @@ class ThreadSensitiveContext:
     In Python 3.7+, the ThreadSensitiveContext() context manager may be used to
     specify a thread pool per context.
 
-    In Python 3.6, usage of this context manager has no effect.
-
     This context manager is re-entrant, so only the outer-most call to
     ThreadSensitiveContext will set the context.
 
@@ -70,32 +63,22 @@ class ThreadSensitiveContext:
     def __init__(self):
         self.token = None
 
-    if contextvars:
+    async def __aenter__(self):
+        try:
+            SyncToAsync.thread_sensitive_context.get()
+        except LookupError:
+            self.token = SyncToAsync.thread_sensitive_context.set(self)
 
-        async def __aenter__(self):
-            try:
-                SyncToAsync.thread_sensitive_context.get()
-            except LookupError:
-                self.token = SyncToAsync.thread_sensitive_context.set(self)
+        return self
 
-            return self
+    async def __aexit__(self, exc, value, tb):
+        if not self.token:
+            return
 
-        async def __aexit__(self, exc, value, tb):
-            if not self.token:
-                return
-
-            executor = SyncToAsync.context_to_thread_executor.pop(self, None)
-            if executor:
-                executor.shutdown()
-            SyncToAsync.thread_sensitive_context.reset(self.token)
-
-    else:
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, exc, value, tb):
-            pass
+        executor = SyncToAsync.context_to_thread_executor.pop(self, None)
+        if executor:
+            executor.shutdown()
+        SyncToAsync.thread_sensitive_context.reset(self.token)
 
 
 class AsyncToSync:
@@ -135,7 +118,7 @@ class AsyncToSync:
             self.main_event_loop = None
         else:
             try:
-                self.main_event_loop = get_running_loop()
+                self.main_event_loop = asyncio.get_running_loop()
             except RuntimeError:
                 # There's no event loop in this thread. Look for the threadlocal if
                 # we're inside SyncToAsync
@@ -154,7 +137,7 @@ class AsyncToSync:
     def __call__(self, *args, **kwargs):
         # You can't call AsyncToSync from a thread with a running event loop
         try:
-            event_loop = get_running_loop()
+            event_loop = asyncio.get_running_loop()
         except RuntimeError:
             pass
         else:
@@ -164,12 +147,9 @@ class AsyncToSync:
                     "just await the async function directly."
                 )
 
-        if contextvars is not None:
-            # Wrapping context in list so it can be reassigned from within
-            # `main_wrap`.
-            context = [contextvars.copy_context()]
-        else:
-            context = None
+        # Wrapping context in list so it can be reassigned from within
+        # `main_wrap`.
+        context = [contextvars.copy_context()]
 
         # Make a future for the return information
         call_result = Future()
@@ -218,8 +198,7 @@ class AsyncToSync:
                 del self.executors.current
             if old_current_executor:
                 self.executors.current = old_current_executor
-            if contextvars is not None:
-                _restore_context(context[0])
+            _restore_context(context[0])
 
         # Wait for results from the future.
         return call_result.result()
@@ -235,10 +214,7 @@ class AsyncToSync:
             try:
                 # mimic asyncio.run() behavior
                 # cancel unexhausted async generators
-                if sys.version_info >= (3, 7, 0):
-                    tasks = asyncio.all_tasks(loop)
-                else:
-                    tasks = asyncio.Task.all_tasks(loop)
+                tasks = asyncio.all_tasks(loop)
                 for task in tasks:
                     task.cancel()
 
@@ -299,8 +275,7 @@ class AsyncToSync:
         finally:
             del self.launch_map[current_task]
 
-            if context is not None:
-                context[0] = contextvars.copy_context()
+            context[0] = contextvars.copy_context()
 
 
 class SyncToAsync:
@@ -345,21 +320,15 @@ class SyncToAsync:
 
     # Maintain a contextvar for the current execution context. Optionally used
     # for thread sensitive mode.
-    if sys.version_info >= (3, 7):
-        thread_sensitive_context: "contextvars.ContextVar[str]" = (
-            contextvars.ContextVar("thread_sensitive_context")
-        )
-    else:
-        thread_sensitive_context: None = None
+    thread_sensitive_context: "contextvars.ContextVar[str]" = contextvars.ContextVar(
+        "thread_sensitive_context"
+    )
 
     # Contextvar that is used to detect if the single thread executor
     # would be awaited on while already being used in the same context
-    if sys.version_info >= (3, 7):
-        deadlock_context: "contextvars.ContextVar[bool]" = contextvars.ContextVar(
-            "deadlock_context"
-        )
-    else:
-        deadlock_context: None = None
+    deadlock_context: "contextvars.ContextVar[bool]" = contextvars.ContextVar(
+        "deadlock_context"
+    )
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
@@ -388,7 +357,7 @@ class SyncToAsync:
             pass
 
     async def __call__(self, *args, **kwargs):
-        loop = get_running_loop()
+        loop = asyncio.get_running_loop()
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
@@ -422,14 +391,11 @@ class SyncToAsync:
             # Use the passed in executor, or the loop's default if it is None
             executor = self._executor
 
-        if contextvars is not None:
-            context = contextvars.copy_context()
-            child = functools.partial(self.func, *args, **kwargs)
-            func = context.run
-            args = (child,)
-            kwargs = {}
-        else:
-            func = self.func
+        context = contextvars.copy_context()
+        child = functools.partial(self.func, *args, **kwargs)
+        func = context.run
+        args = (child,)
+        kwargs = {}
 
         try:
             # Run the code in the right thread
@@ -448,8 +414,7 @@ class SyncToAsync:
             ret = await asyncio.wait_for(future, timeout=None)
 
         finally:
-            if contextvars is not None:
-                _restore_context(context)
+            _restore_context(context)
             if self.deadlock_context:
                 self.deadlock_context.set(False)
 
@@ -497,12 +462,11 @@ class SyncToAsync:
     @staticmethod
     def get_current_task():
         """
-        Cross-version implementation of asyncio.current_task()
-
-        Returns None if there is no task.
+        Implementation of asyncio.current_task()
+        that returns None if there is no task.
         """
         try:
-            return current_task()
+            return asyncio.current_task()
         except RuntimeError:
             return None
 
