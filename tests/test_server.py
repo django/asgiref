@@ -94,7 +94,7 @@ async def server_auto_close(fut, timeout):
     """Server run based on run_until_complete. It will block forever with handle
     function because it is a while True loop without break.  Use this method to close
     server automatically."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     task = asyncio.ensure_future(fut, loop=loop)
     await asyncio.sleep(timeout)
     task.cancel()
@@ -105,7 +105,8 @@ def test_stateless_server(server):
     """Create a UDP Server can register instance based on name from message of client.
     Clients can communicate to other client by name through server"""
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     server.handle = partial(server_auto_close, fut=server.handle(), timeout=1.0)
 
     client1 = Client(name="client1")
@@ -132,7 +133,8 @@ def test_stateless_server(server):
 
 def test_server_delete_instance(server):
     """The max_applications of Server is 10. After 20 times register, application number should be 10."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     server.handle = partial(server_auto_close, fut=server.handle(), timeout=1.0)
 
     client1 = Client(name="client1")
