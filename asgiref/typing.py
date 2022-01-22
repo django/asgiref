@@ -1,17 +1,5 @@
 import sys
-import warnings
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Awaitable, Callable, Dict, Iterable, Optional, Tuple, Type, Union
 
 if sys.version_info >= (3, 8):
     from typing import Literal, Protocol, TypedDict
@@ -252,31 +240,3 @@ ASGI3Application = Callable[
     Awaitable[None],
 ]
 ASGIApplication = Union[ASGI2Application, ASGI3Application]
-
-__deprecated__ = {
-    "WebsocketConnectEvent": WebSocketConnectEvent,
-    "WebsocketAcceptEvent": WebSocketAcceptEvent,
-    "WebsocketReceiveEvent": WebSocketReceiveEvent,
-    "WebsocketSendEvent": WebSocketSendEvent,
-    "WebsocketResponseStartEvent": WebSocketResponseStartEvent,
-    "WebsocketResponseBodyEvent": WebSocketResponseBodyEvent,
-    "WebsocketDisconnectEvent": WebSocketDisconnectEvent,
-    "WebsocketCloseEvent": WebSocketCloseEvent,
-}
-
-
-def __getattr__(name: str) -> Any:
-    deprecated = __deprecated__.get(name)
-    if deprecated:
-        stacklevel = 3 if sys.version_info >= (3, 7) else 4
-        warnings.warn(
-            f"'{name}' is deprecated. Use '{deprecated.__name__}' instead.",
-            category=DeprecationWarning,
-            stacklevel=stacklevel,
-        )
-        return deprecated
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-
-
-def __dir__() -> List[str]:
-    return sorted(list(__all__) + list(__deprecated__.keys()))

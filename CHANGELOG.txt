@@ -1,3 +1,15 @@
+3.5.0 (2022-01-22)
+------------------
+
+* Python 3.6 is no longer supported, and asyncio calls have been changed to
+  use only the modern versions of the APIs as a result
+
+* Several causes of RuntimeErrors in cases where an event loop was assigned
+  to a thread but not running
+
+* Speed improvements in the Local class
+
+
 3.4.1 (2021-07-01)
 ------------------
 
