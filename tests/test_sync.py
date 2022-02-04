@@ -625,7 +625,8 @@ async def test_multiprocessing():
 
     def fork_first():
         """Forks process before running sync_process"""
-        fork = multiprocessing.Process(target=sync_process)
+        ctx = multiprocessing.get_context("fork")
+        fork = ctx.Process(target=sync_process)
         fork.start()
         fork.join(3)
         # Force cleanup in failed test case
