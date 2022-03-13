@@ -122,7 +122,7 @@ Keys:
 
 
 Version History
-===============
+'''''''''''''''
 
 * 2.0 (2019-03-04): Added startup.failed and shutdown.failed,
   clarified exception handling during startup phase.
@@ -130,6 +130,6 @@ Version History
 
 
 Copyright
-=========
+'''''''''
 
 This document has been placed in the public domain.
