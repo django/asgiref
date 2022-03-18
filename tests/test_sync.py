@@ -397,15 +397,21 @@ def test_thread_sensitive_outside_sync():
     @async_to_sync
     async def middle():
         await inner()
+        await asyncio.create_task(inner_task())
 
-    # Inner sync function
+    # Inner sync functions
     @sync_to_async
     def inner():
         result["thread"] = threading.current_thread()
 
+    @sync_to_async
+    def inner_task():
+        result["thread2"] = threading.current_thread()
+
     # Run it
     middle()
     assert result["thread"] == threading.current_thread()
+    assert result["thread2"] == threading.current_thread()
 
 
 @pytest.mark.asyncio
