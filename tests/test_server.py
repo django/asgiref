@@ -21,7 +21,8 @@ class Server(StatelessServer):
             application,
             max_applications=max_applications,
         )
-        self._sock = sock.socket(sock.AF_INET, sock.SOCK_DGRAM | sock.SOCK_NONBLOCK)
+        self._sock = sock.socket(sock.AF_INET, sock.SOCK_DGRAM)
+        self._sock.setblocking(False)
         self._sock.bind(("127.0.0.1", 0))
 
     @property
@@ -54,7 +55,8 @@ class Server(StatelessServer):
 
 class Client:
     def __init__(self, name):
-        self._sock = sock.socket(sock.AF_INET, sock.SOCK_DGRAM | sock.SOCK_NONBLOCK)
+        self._sock = sock.socket(sock.AF_INET, sock.SOCK_DGRAM)
+        self._sock.setblocking(False)
         self.name = name
 
     async def register(self, server_addr, name=None):
