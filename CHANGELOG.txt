@@ -1,3 +1,10 @@
+3.5.1 (2022-04-30)
+------------------
+
+* sync_to_async in thread-sensitive mode now works corectly when the
+  outermost thread is synchronous (#214)
+
+
 3.5.0 (2022-01-22)
 ------------------
 
