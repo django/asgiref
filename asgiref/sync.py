@@ -356,7 +356,11 @@ class SyncToAsync:
         thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
     ) -> None:
-        if not callable(func) or _iscoroutinefunction_or_partial(func):
+        if (
+            not callable(func)
+            or _iscoroutinefunction_or_partial(func)
+            or _iscoroutinefunction_or_partial(getattr(func, "__call__", func))
+        ):
             raise TypeError("sync_to_async can only be applied to sync functions.")
         self.func = func
         functools.update_wrapper(self, func)
