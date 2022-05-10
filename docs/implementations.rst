@@ -13,7 +13,7 @@ Daphne
 
 *Stable* / http://github.com/django/daphne
 
-The current ASGI reference server, written in Twisted and maintained as part
+The original ASGI reference server, written in Twisted and maintained as part
 of the Django Channels project. Supports HTTP/1, HTTP/2, and WebSockets.
 
 
