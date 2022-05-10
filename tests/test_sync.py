@@ -3,6 +3,7 @@ import functools
 import multiprocessing
 import threading
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from unittest import TestCase
@@ -363,6 +364,29 @@ def test_async_to_sync_partial():
     out = sync_function(84)
     assert out == [42, 84]
     assert result["worked"]
+
+
+def test_async_to_sync_on_callable_object():
+    """
+    Tests async_to_sync on a callable class instance
+    """
+
+    result = {}
+
+    class CallableClass:
+        async def __call__(self, value):
+            await asyncio.sleep(0)
+            result["worked"] = True
+            return value
+
+    # Run it (without warnings)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        sync_function = async_to_sync(CallableClass())
+        out = sync_function(42)
+
+    assert out == 42
+    assert result["worked"] is True
 
 
 def test_async_to_sync_method_self_attribute():
