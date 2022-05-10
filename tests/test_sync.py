@@ -3,6 +3,7 @@ import functools
 import multiprocessing
 import threading
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from unittest import TestCase
@@ -378,14 +379,14 @@ def test_async_to_sync_on_callable_object():
             result["worked"] = True
             return value
 
-    # Run it
-    with pytest.warns(None) as recorded_warnings:
+    # Run it (without warnings)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         sync_function = async_to_sync(CallableClass())
         out = sync_function(42)
 
     assert out == 42
     assert result["worked"] is True
-    assert len(recorded_warnings) == 0
 
 
 def test_async_to_sync_method_self_attribute():
