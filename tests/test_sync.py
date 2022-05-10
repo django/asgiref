@@ -100,6 +100,18 @@ async def test_async_to_sync_fail_partial():
 
 
 @pytest.mark.asyncio
+async def test_sync_to_async_raises_typeerror_for_async_callable_instance():
+    class CallableClass:
+        async def __call__(self):
+            return None
+
+    with pytest.raises(
+        TypeError, match="sync_to_async can only be applied to sync functions."
+    ):
+        sync_to_async(CallableClass())
+
+
+@pytest.mark.asyncio
 async def test_sync_to_async_decorator():
     """
     Tests sync_to_async as a decorator
