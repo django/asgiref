@@ -365,6 +365,29 @@ def test_async_to_sync_partial():
     assert result["worked"]
 
 
+def test_async_to_sync_on_callable_object():
+    """
+    Tests async_to_sync on a callable class instance
+    """
+
+    result = {}
+
+    class CallableClass:
+        async def __call__(self, value):
+            await asyncio.sleep(0)
+            result["worked"] = True
+            return value
+
+    # Run it
+    with pytest.warns(None) as recorded_warnings:
+        sync_function = async_to_sync(CallableClass())
+        out = sync_function(42)
+
+    assert out == 42
+    assert result["worked"] is True
+    assert len(recorded_warnings) == 0
+
+
 def test_async_to_sync_method_self_attribute():
     """
     Tests async_to_sync on a method copies __self__.

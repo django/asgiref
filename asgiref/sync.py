@@ -107,7 +107,12 @@ class AsyncToSync:
     loop_thread_executors: "Dict[asyncio.AbstractEventLoop, CurrentThreadExecutor]" = {}
 
     def __init__(self, awaitable, force_new_loop=False):
-        if not callable(awaitable) or not _iscoroutinefunction_or_partial(awaitable):
+        if not callable(awaitable) or (
+            not _iscoroutinefunction_or_partial(awaitable)
+            and not _iscoroutinefunction_or_partial(
+                getattr(awaitable, "__call__", awaitable)
+            )
+        ):
             # Python does not have very reliable detection of async functions
             # (lots of false negatives) so this is just a warning.
             warnings.warn(
