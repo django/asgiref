@@ -1,3 +1,12 @@
+3.5.2 (2022-05-16)
+------------------
+
+* Allow async-callables class instances to be passed to AsyncToSync
+  without warning
+
+* Prevent giving async-callable class instances to SyncToAsync
+
+
 3.5.1 (2022-04-30)
 ------------------
 
