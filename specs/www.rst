@@ -439,7 +439,7 @@ WSGI's ``environ`` variable to the ``http`` scope:
 
 * ``REQUEST_METHOD`` is the ``method``
 * ``SCRIPT_NAME`` is ``root_path``
-* ``PATH_INFO`` can be derived from ``path`` and ``root_path``
+* ``PATH_INFO`` can be derived by stripping ``root_path`` from ``path``
 * ``QUERY_STRING`` is ``query_string``
 * ``CONTENT_TYPE`` can be extracted from ``headers``
 * ``CONTENT_LENGTH`` can be extracted from ``headers``
