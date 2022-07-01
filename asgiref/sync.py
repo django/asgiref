@@ -445,7 +445,8 @@ class SyncToAsync:
         """
         Include self for methods
         """
-        return functools.partial(self.__call__, parent)
+        func = functools.partial(self.__call__, parent)
+        return functools.update_wrapper(func, self.func)
 
     def thread_handler(self, loop, source_task, exc_info, func, *args, **kwargs):
         """
