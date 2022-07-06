@@ -35,7 +35,7 @@ class timeout:
     ) -> None:
         self._timeout = timeout
         if loop is None:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
         self._loop = loop
         self._task = None  # type: Optional[asyncio.Task[Any]]
         self._cancelled = False
