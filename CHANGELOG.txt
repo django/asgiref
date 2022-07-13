@@ -1,3 +1,13 @@
+UNRELEASED
+----------
+
+* Support for the ``ASGI_THREADS`` environment variable, used by
+  ``SyncToAsync``, is removed. In general, a running event-loop is not
+  available to `asgiref` at import time, and so the default thread pool
+  executor cannot be configured. Protocol servers, or applications, should set
+  the default executor as required when configuring the event loop at
+  application startup.
+
 3.5.2 (2022-05-16)
 ------------------
 
