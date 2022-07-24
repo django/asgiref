@@ -5,14 +5,18 @@ Lifespan Protocol
 **Version**: 2.0 (2019-03-20)
 
 The Lifespan ASGI sub-specification outlines how to communicate
-lifespan events such as startup and shutdown within ASGI. This refers to the
-lifespan of the main event loop. In a multi-process environment there will be
-lifespan events in each process.
+lifespan events such as startup and shutdown within ASGI.
 
 The lifespan messages allow for an application to initialise and
 shutdown in the context of a running event loop. An example of this
 would be creating a connection pool and subsequently closing the
 connection pool to release the connections.
+
+Lifespans should be executed once per event loop that will be processing requests.
+In a multi-process environment there will be lifespan events in each process
+and in a multi-threaded environment there will be lifespans for each thread.
+The important part is that lifespans and requests are run in the same event loop
+to ensure that objects like database connection pools are not moved or shared across event loops.
 
 A possible implementation of this protocol is given below::
 
