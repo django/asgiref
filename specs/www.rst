@@ -185,6 +185,9 @@ Keys:
   lowercased. Optional; if missing defaults to an empty list. Pseudo
   headers (present in HTTP/2 and HTTP/3) must not be present.
 
+* ``trailers`` (*bool*) -- Signifies if there are trailers
+  to come after the body. Optional; if missing defaults to
+  ``False``.
 
 Response Body - ``send`` event
 ''''''''''''''''''''''''''''''
@@ -192,7 +195,7 @@ Response Body - ``send`` event
 Continues sending a response to the client. Protocol servers must
 flush any data passed to them into the send buffer before returning from a
 send call. If ``more_body`` is set to ``False`` this will
-close the connection.
+close the connection, unless trailers are expected.
 
 Keys:
 
@@ -205,8 +208,27 @@ Keys:
 * ``more_body`` (*bool*) -- Signifies if there is additional content
   to come (as part of a Response Body message). If ``False``, response
   will be taken as complete and closed, and any further messages on
-  the channel will be ignored. Optional; if missing defaults to
-  ``False``.
+  the channel will be ignored. One trailers message may be sent after
+  the final body message if ``trailers`` was set to ``True`` in the start
+  message. Optional; if missing defaults to ``False``.
+
+
+Response Trailers - ``send`` event
+''''''''''''''''''''''''''''''
+
+Sent by the application after the body. Can only be sent if ``trailers``
+was set to ``True`` in the start message. The connection will be
+closed after this message.
+
+Keys:
+
+* ``type`` (*Unicode string*) -- ``"http.response.trailers"``.
+
+* ``trailers`` (*Iterable[[byte string, byte string]]*) -- An iterable
+  of ``[name, value]`` two-item iterables, where ``name`` is the
+  trailer name, and ``value`` is the trailer value. Order must be
+  preserved in the HTTP response.  Trailer names must be
+  lowercased. Optional; if missing defaults to an empty list.
 
 
 Disconnect - ``receive`` event
