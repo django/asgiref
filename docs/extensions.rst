@@ -133,3 +133,38 @@ TLS
 ---
 
 See :doc:`specs/tls`.
+
+HTTP Trailers
+---
+
+The Trailer response header allows the sender to include additional fields at the
+end of chunked messages in order to supply metadata that might be dynamically
+generated while the message body is sent, such as a message integrity check,
+digital signature, or post-processing status.
+
+ASGI servers that implement this extension will provide
+``http.response.trailers`` in the extensions part of the scope::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.trailers": {},
+        },
+    }
+
+An ASGI framework interested in sending trailing headers to the client, must include
+the ``Trailer`` header in the ``http.response.start``. That will allow the ASGI server
+to know that after the last ``http.response.body`` message (``more_body`` being ``False``),
+the ASGI framework will send a ``http.response.trailers`` message.
+
+Keys:
+
+* ``type`` (*Unicode string*): ``"http.response.trailers"``
+
+* ``headers`` (*Iterable[[byte string, byte string]]*): An iterable of
+  ``[name, value]`` two-item iterables, where ``name`` is the header name, and
+  ``value`` is the header value. Header names must be lowercased. Pseudo
+  headers (present in HTTP/2 and HTTP/3) must not be present.
+
+The ASGI server will only send the trailing headers in case the client has sent the
+``TE: trailers`` header in the request.
