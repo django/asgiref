@@ -396,7 +396,9 @@ Keys:
 
 * ``type`` (*Unicode string*) -- ``"websocket.disconnect"``
 
-* ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec.
+* ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec. If no code
+  was received in the frame from the client, the server should set this to ``1005``
+  (the default value in the WebSocket specification).
 
 
 Close - ``send`` event
