@@ -185,14 +185,19 @@ Keys:
   lowercased. Optional; if missing defaults to an empty list. Pseudo
   headers (present in HTTP/2 and HTTP/3) must not be present.
 
+* ``trailers`` (*bool*) -- Signifies if the application will send
+  trailers. If ``True``, the server must wait until it receives a
+  ``"http.response.trailers"`` message after the *Response Body* event.
+  Optional; if missing defaults to ``False``.
+
 
 Response Body - ``send`` event
 ''''''''''''''''''''''''''''''
 
 Continues sending a response to the client. Protocol servers must
 flush any data passed to them into the send buffer before returning from a
-send call. If ``more_body`` is set to ``False`` this will
-close the connection.
+send call. If ``more_body`` is set to ``False``, and the server is not
+expecting *Response Trailers* this will close the connection.
 
 Keys:
 
@@ -203,10 +208,10 @@ Keys:
   missing defaults to ``b""``.
 
 * ``more_body`` (*bool*) -- Signifies if there is additional content
-  to come (as part of a Response Body message). If ``False``, response
-  will be taken as complete and closed, and any further messages on
-  the channel will be ignored. Optional; if missing defaults to
-  ``False``.
+  to come (as part of a *Response Body* message). If ``False``, and the
+  server is not expecting *Response Trailers* response will be taken as
+  complete and closed, and any further messages on the channel will be
+  ignored. Optional; if missing defaults to ``False``.
 
 
 Disconnect - ``receive`` event

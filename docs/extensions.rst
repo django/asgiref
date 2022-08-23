@@ -152,10 +152,14 @@ ASGI servers that implement this extension will provide
         },
     }
 
-An ASGI framework interested in sending trailing headers to the client, must include
-the ``Trailer`` header in the ``http.response.start``. That will allow the ASGI server
+An ASGI framework interested in sending trailing headers to the client, must set the
+field ``trailers`` in *Response Start* as ``True``. That will allow the ASGI server
 to know that after the last ``http.response.body`` message (``more_body`` being ``False``),
 the ASGI framework will send a ``http.response.trailers`` message.
+
+The ASGI framework is in charge of sending the ``Trailers`` headers to let the client know
+which trailing headers the server will send. The ASGI server is not responsible for validating
+the ``Trailers`` headers provided.
 
 Keys:
 
@@ -165,6 +169,13 @@ Keys:
   ``[name, value]`` two-item iterables, where ``name`` is the header name, and
   ``value`` is the header value. Header names must be lowercased. Pseudo
   headers (present in HTTP/2 and HTTP/3) must not be present.
+
+* ``more_trailers`` (*bool*): Signifies if there is additional content
+  to come (as part of a *HTTP Trailers* message). If ``False``, response
+  will be taken as complete and closed, and any further messages on
+  the channel will be ignored. Optional; if missing defaults to
+  ``False``.
+
 
 The ASGI server will only send the trailing headers in case the client has sent the
 ``TE: trailers`` header in the request.

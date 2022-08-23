@@ -16,6 +16,7 @@ __all__ = (
     "HTTPRequestEvent",
     "HTTPResponseStartEvent",
     "HTTPResponseBodyEvent",
+    "HTTPResponseTrailersEvent",
     "HTTPServerPushEvent",
     "HTTPDisconnectEvent",
     "WebSocketConnectEvent",
@@ -99,12 +100,19 @@ class HTTPResponseStartEvent(TypedDict):
     type: Literal["http.response.start"]
     status: int
     headers: Iterable[Tuple[bytes, bytes]]
+    trailers: bool
 
 
 class HTTPResponseBodyEvent(TypedDict):
     type: Literal["http.response.body"]
     body: bytes
     more_body: bool
+
+
+class HTTPResponseTrailersEvent(TypedDict):
+    type: Literal["http.response.trailers"]
+    headers: Iterable[Tuple[bytes, bytes]]
+    more_trailers: bool
 
 
 class HTTPServerPushEvent(TypedDict):
