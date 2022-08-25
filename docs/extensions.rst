@@ -133,3 +133,37 @@ TLS
 ---
 
 See :doc:`specs/tls`.
+
+Early Hints
+-----------
+
+An informational response with the status code 103 is an Early Hint,
+indicating to the client that resources are associated with the
+subsequent response, see ``RFC 8297``. ASGI servers that implement
+this extension will allow early hints to be sent. These servers will
+provide ``http.response.early_hint`` in the extensions part of the
+scope::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.early_hint": {},
+        },
+    }
+
+An ASGI framework can send an early hint by sending a message with the
+following keys. This message can be sent at any time (and multiple
+times) after the *Response Start* message but before the final
+*Response Body* message.
+
+Keys:
+
+* ``type`` (*Unicode string*): ``"http.response.early_hint"``
+
+* ``links`` (*Iterable[byte string]*): An iterable of link header field
+  values, see ``RFC 8288``.
+
+The ASGI server should then attempt to send an informational response
+to the client with the provided links as ``Link`` headers. The server
+may decide to ignore this message, for example if the HTTP/1.1
+protocol is used and the server has security concerns.
