@@ -212,9 +212,9 @@ Keys:
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
 
-Sent to the application when a HTTP connection is closed or if ``receive``
-is called after a response has been sent. This is mainly useful for
-long-polling, where you may want to trigger cleanup code if the
+Sent to the application if receive is called after a response has been
+sent or after the HTTP connection has been closed. This is mainly useful
+for long-polling, where you may want to trigger cleanup code if the
 connection closes early.
 
 Keys:
