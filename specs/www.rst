@@ -277,7 +277,7 @@ metadata (mostly from the HTTP request line and headers):
   if missing defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the
-  ``?``. Optional; if missing or ``None`` default is empty string.
+  ``?``. Optional; if missing default is empty string.
 
 * ``root_path`` (*Unicode string*) -- The root path this application is
   mounted at; same as ``SCRIPT_NAME`` in WSGI. Optional; if missing
@@ -425,7 +425,7 @@ with the close code passed in the message (or 1000 if none is specified).
   spec.  Optional; if missing defaults to ``1000``.
 
 * ``reason`` (*Unicode string*) -- A reason given for the closure, can
-  be any string. Optional; if missing or ``None`` default is empty
+  be any string. Optional; if missing default is empty
   string.
 
 
