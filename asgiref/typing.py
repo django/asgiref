@@ -151,6 +151,7 @@ class WebSocketResponseStartEvent(TypedDict):
     type: Literal["websocket.http.response.start"]
     status: int
     headers: Iterable[Tuple[bytes, bytes]]
+    trailers: bool
 
 
 class WebSocketResponseBodyEvent(TypedDict):
