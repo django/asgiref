@@ -26,19 +26,41 @@ def _restore_context(context):
             cvar.set(context.get(cvar))
 
 
+# Python 3.12 deprecates asyncio.iscoroutinefunction() as an alias for
+# inspect.iscoroutinefunction(), whilst also removing the _is_coroutine marker.
+# The latter is replaced with the inspect.markcoroutinefunction decorator.
+# Until 3.12 is the minimum supported Python version, provide a shim.
+# Django 4.0 only supports 3.8+, so don't concern with the _or_partial backport.
+
+# Type hint: should be generic: whatever T it takes it returns. (Same id)
+def markcoroutinefunction(func: Any) -> Any:
+    if hasattr(inspect, "markcoroutinefunction"):
+        return inspect.markcoroutinefunction(func)
+    else:
+        func._is_coroutine = asyncio.coroutines._is_coroutine
+        return func
+
+
+def iscoroutinefunction(func: Any) -> bool:
+    if hasattr(inspect, "markcoroutinefunction"):
+        return inspect.iscoroutinefunction(func)
+    else:
+        return asyncio.iscoroutinefunction(func)
+
+
 def _iscoroutinefunction_or_partial(func: Any) -> bool:
     # Python < 3.8 does not correctly determine partially wrapped
     # coroutine functions are coroutine functions, hence the need for
     # this to exist. Code taken from CPython.
     if sys.version_info >= (3, 8):
-        return asyncio.iscoroutinefunction(func)
+        return iscoroutinefunction(func)
     else:
         while inspect.ismethod(func):
             func = func.__func__
         while isinstance(func, functools.partial):
             func = func.func
 
-        return asyncio.iscoroutinefunction(func)
+        return iscoroutinefunction(func)
 
 
 class ThreadSensitiveContext:
