@@ -37,7 +37,7 @@ def markcoroutinefunction(func: Any) -> Any:
     if hasattr(inspect, "markcoroutinefunction"):
         return inspect.markcoroutinefunction(func)
     else:
-        func._is_coroutine = asyncio.coroutines._is_coroutine
+        func._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         return func
 
 
