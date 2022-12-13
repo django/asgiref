@@ -10,7 +10,12 @@ from unittest import TestCase
 
 import pytest
 
-from asgiref.sync import ThreadSensitiveContext, async_to_sync, sync_to_async
+from asgiref.sync import (
+    ThreadSensitiveContext,
+    async_to_sync,
+    iscoroutinefunction,
+    sync_to_async,
+)
 from asgiref.timeout import timeout
 
 
@@ -645,8 +650,8 @@ def test_sync_to_async_detected_as_coroutinefunction():
     def sync_func():
         return
 
-    assert not asyncio.iscoroutinefunction(sync_to_async)
-    assert asyncio.iscoroutinefunction(sync_to_async(sync_func))
+    assert not iscoroutinefunction(sync_to_async)
+    assert iscoroutinefunction(sync_to_async(sync_func))
 
 
 async def async_process(queue):

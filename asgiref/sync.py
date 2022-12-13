@@ -378,7 +378,7 @@ class SyncToAsync:
         self.func = func
         functools.update_wrapper(self, func)
         self._thread_sensitive = thread_sensitive
-        self._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
+        markcoroutinefunction(self)
         if thread_sensitive and executor is not None:
             raise TypeError("executor must not be set when thread_sensitive is True")
         self._executor = executor
