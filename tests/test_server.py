@@ -61,10 +61,10 @@ class Client:
 
     async def register(self, server_addr, name=None):
         name = name or self.name
-        self._sock.sendto(f"Register {name}".encode("utf-8"), server_addr)
+        self._sock.sendto(f"Register {name}".encode(), server_addr)
 
     async def send(self, server_addr, to, msg):
-        self._sock.sendto(f"To {to} {msg}".encode("utf-8"), server_addr)
+        self._sock.sendto(f"To {to} {msg}".encode(), server_addr)
 
     async def get_msg(self):
         msg, server_addr = await sock_recvfrom(self._sock, 4096)

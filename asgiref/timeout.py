@@ -8,7 +8,8 @@
 
 import asyncio
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import Any  # noqa
+from typing import Optional, Type
 
 
 class timeout:
