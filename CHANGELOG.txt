@@ -1,6 +1,11 @@
 UNRELEASED
 ----------
 
+* The ``loop`` argument to ``asgiref.timeout.timeout`` is deprecated. As per other
+  ``asyncio`` based APIs, the running event loop is used by default. Note that
+  ``asyncio`` provides timeout utilities from Python 3.11, and these should be
+  preferred where available.
+
 * Support for the ``ASGI_THREADS`` environment variable, used by
   ``SyncToAsync``, is removed. In general, a running event-loop is not
   available to `asgiref` at import time, and so the default thread pool
