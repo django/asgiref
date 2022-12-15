@@ -1,5 +1,21 @@
-UNRELEASED
-----------
+3.6.0 (UNRELEASED)
+------------------
+
+* Two new functions are added to the ``asgiref.sync`` module: ``iscoroutinefunction()``
+  and ``markcoroutinefunction()``.
+
+  Python 3.12 deprecates ``asyncio.iscoroutinefunction()`` as an alias for
+  ``inspect.iscoroutinefunction()``, whilst also removing the ``_is_coroutine`` marker.
+  The latter is replaced with the ``inspect.markcoroutinefunction`` decorator.
+
+  The new ``asgiref.sync`` functions are compatibility shims for these
+  functions that can be used until Python 3.12 is the minimum supported
+  version.
+
+  **Note** that these functions are considered **beta**, and as such, whilst
+  not likely, are subject to change in a point release, until the final release
+  of Python 3.12. They are included in ``asgiref`` now so that they can be
+  adopted by Django 4.2, in preparation for support of Python 3.12.
 
 * The ``loop`` argument to ``asgiref.timeout.timeout`` is deprecated. As per other
   ``asyncio`` based APIs, the running event loop is used by default. Note that
