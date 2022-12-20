@@ -1,4 +1,4 @@
-3.6.0 (UNRELEASED)
+3.6.0 (2022-12-20)
 ------------------
 
 * Two new functions are added to the ``asgiref.sync`` module: ``iscoroutinefunction()``
