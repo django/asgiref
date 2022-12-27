@@ -213,3 +213,32 @@ Keys:
 
 The ASGI server will only send the trailing headers in case the client has sent the
 ``TE: trailers`` header in the request.
+
+Debug
+-----
+
+The debug extension allows a way to send debug information from the ASGI application to
+an entity acting as an ASGI server. This extension is not meant to be used in production,
+but only for testing purposes, and ASGI servers should not implement it.
+
+The entity acting as ASGI server will provide ``http.response.debug`` in the extensions
+part of the scope::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.debug": {},
+        },
+    }
+
+The ASGI framework can send debug information by sending a message with the following
+keys. This message can be sent at any time (and multiple times), even before the *Response
+Start* message.
+
+Keys:
+
+* ``type`` (*Unicode string*): ``"http.response.debug"``
+
+* ``info`` (*Dict[Unicode string, Any]*): A dictionary containing the debug information.
+  The keys and values of this dictionary are not defined by the ASGI specification, and
+  are left to the ASGI framework to define.
