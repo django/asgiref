@@ -217,9 +217,9 @@ The ASGI server will only send the trailing headers in case the client has sent 
 Debug
 -----
 
-The debug extension allows a way to send debug information from the ASGI application to
-an entity acting as an ASGI server. This extension is not meant to be used in production,
-but only for testing purposes, and ASGI servers should not implement it.
+The debug extension allows a way to send debug information from an ASGI application in
+its responses. This extension is not meant to be used in production, only for testing purposes,
+and ASGI servers should not implement it.
 
 The entity acting as ASGI server will provide ``http.response.debug`` in the extensions
 part of the scope::
