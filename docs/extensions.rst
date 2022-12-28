@@ -221,7 +221,7 @@ The debug extension allows a way to send debug information from an ASGI applicat
 its responses. This extension is not meant to be used in production, only for testing purposes,
 and ASGI servers should not implement it.
 
-The entity acting as ASGI server will provide ``http.response.debug`` in the extensions
+The ASGI context sent to the application will provide ``http.response.debug`` in the extensions
 part of the scope::
 
     "scope": {
