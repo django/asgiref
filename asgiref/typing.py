@@ -96,6 +96,11 @@ class HTTPRequestEvent(TypedDict):
     more_body: bool
 
 
+class HTTPResponseDebugEvent(TypedDict):
+    type: Literal["http.response.debug"]
+    info: Dict[str, object]
+
+
 class HTTPResponseStartEvent(TypedDict):
     type: Literal["http.response.start"]
     status: int
