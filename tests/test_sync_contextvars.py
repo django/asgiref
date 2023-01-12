@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import threading
 import time
 
@@ -6,9 +7,7 @@ import pytest
 
 from asgiref.sync import ThreadSensitiveContext, async_to_sync, sync_to_async
 
-contextvars = pytest.importorskip("contextvars")
-
-foo = contextvars.ContextVar("foo")
+foo: "contextvars.ContextVar[str]" = contextvars.ContextVar("foo")
 
 
 @pytest.mark.asyncio
