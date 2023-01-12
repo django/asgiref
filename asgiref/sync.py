@@ -395,9 +395,7 @@ class SyncToAsync:
             if hasattr(AsyncToSync.executors, "current"):
                 # If we have a parent sync thread above somewhere, use that
                 executor = AsyncToSync.executors.current
-            elif self.thread_sensitive_context and self.thread_sensitive_context.get(
-                None
-            ):
+            elif self.thread_sensitive_context.get(None):
                 # If we have a way of retrieving the current context, attempt
                 # to use a per-context thread pool executor
                 thread_sensitive_context = self.thread_sensitive_context.get()
@@ -412,15 +410,14 @@ class SyncToAsync:
             elif loop in AsyncToSync.loop_thread_executors:
                 # Re-use thread executor for running loop
                 executor = AsyncToSync.loop_thread_executors[loop]
-            elif self.deadlock_context and self.deadlock_context.get(False):
+            elif self.deadlock_context.get(False):
                 raise RuntimeError(
                     "Single thread executor already being used, would deadlock"
                 )
             else:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
-                if self.deadlock_context:
-                    self.deadlock_context.set(True)
+                self.deadlock_context.set(True)
         else:
             # Use the passed in executor, or the loop's default if it is None
             executor = self._executor
@@ -449,8 +446,7 @@ class SyncToAsync:
 
         finally:
             _restore_context(context)
-            if self.deadlock_context:
-                self.deadlock_context.set(False)
+            self.deadlock_context.set(False)
 
         return ret
 
