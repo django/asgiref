@@ -26,8 +26,10 @@ from typing import (
     overload,
 )
 
-# Use typing_extensions until python 3.9 support is dropped
-from typing_extensions import ParamSpec
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
