@@ -1,6 +1,9 @@
 import queue
 import threading
 from concurrent.futures import Executor, Future
+from typing import Any, TypeVar
+
+T = TypeVar("T")
 
 
 class _WorkItem:
@@ -35,12 +38,14 @@ class CurrentThreadExecutor(Executor):
     the thread they came from.
     """
 
-    def __init__(self):
+    _work_queue: "queue.Queue[Any]"
+
+    def __init__(self) -> None:
         self._work_thread = threading.current_thread()
         self._work_queue = queue.Queue()
         self._broken = False
 
-    def run_until_future(self, future):
+    def run_until_future(self, future: "Future[T]") -> None:
         """
         Runs the code in the work queue until a result is available from the future.
         Should be run from the thread the executor is initialised in.

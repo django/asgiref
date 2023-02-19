@@ -9,13 +9,34 @@ import threading
 import warnings
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable, Dict, Optional, overload
+from types import TracebackType
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
+
+# Use typing_extensions until python 3.9 support is dropped
+from typing_extensions import ParamSpec
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
+T = TypeVar("T")
+P = ParamSpec("P")
 
-def _restore_context(context):
+
+def _restore_context(context: contextvars.Context) -> None:
     # Check for changes in contextvars, and set them to the current
     # context for downstream consumers
     for cvar in context:
@@ -31,11 +52,9 @@ def _restore_context(context):
 # The latter is replaced with the inspect.markcoroutinefunction decorator.
 # Until 3.12 is the minimum supported Python version, provide a shim.
 # Django 4.0 only supports 3.8+, so don't concern with the _or_partial backport.
-
-# Type hint: should be generic: whatever T it takes it returns. (Same id)
-def markcoroutinefunction(func: Any) -> Any:
+def markcoroutinefunction(func: T) -> T:
     if hasattr(inspect, "markcoroutinefunction"):
-        return inspect.markcoroutinefunction(func)
+        return cast(T, inspect.markcoroutinefunction(func))
     else:
         func._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         return func
@@ -104,7 +123,7 @@ class ThreadSensitiveContext:
         SyncToAsync.thread_sensitive_context.reset(self.token)
 
 
-class AsyncToSync:
+class AsyncToSync(Generic[P, T]):
     """
     Utility class which turns an awaitable that only works on the thread with
     the event loop into a synchronous callable that works in a subthread.
@@ -118,7 +137,7 @@ class AsyncToSync:
     """
 
     # Maps launched Tasks to the threads that launched them (for locals impl)
-    launch_map: "Dict[asyncio.Task[object], threading.Thread]" = {}
+    launch_map: "Dict[asyncio.Task[Any], threading.Thread]" = {}
 
     # Keeps track of which CurrentThreadExecutor to use. This uses an asgiref
     # Local, not a threadlocal, so that tasks can work out what their parent used.
@@ -128,7 +147,9 @@ class AsyncToSync:
     # inside create_task, we'll look it up here from the running event loop.
     loop_thread_executors: "Dict[asyncio.AbstractEventLoop, CurrentThreadExecutor]" = {}
 
-    def __init__(self, awaitable, force_new_loop=False):
+    def __init__(
+        self, awaitable: Callable[P, Awaitable[T]], force_new_loop: bool = False
+    ) -> None:
         if not callable(awaitable) or (
             not _iscoroutinefunction_or_partial(awaitable)
             and not _iscoroutinefunction_or_partial(
@@ -142,7 +163,7 @@ class AsyncToSync:
             )
         self.awaitable = awaitable
         try:
-            self.__self__ = self.awaitable.__self__
+            self.__self__ = self.awaitable.__self__  # type: ignore
         except AttributeError:
             pass
         if force_new_loop:
@@ -166,7 +187,7 @@ class AsyncToSync:
                 else:
                     self.main_event_loop = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
         # You can't call AsyncToSync from a thread with a running event loop
         try:
             event_loop = asyncio.get_running_loop()
@@ -184,7 +205,7 @@ class AsyncToSync:
         context = [contextvars.copy_context()]
 
         # Make a future for the return information
-        call_result = Future()
+        call_result: Future[T] = Future()
         # Get the source thread
         source_thread = threading.current_thread()
         # Make a CurrentThreadExecutor we'll use to idle in this thread - we
@@ -283,8 +304,17 @@ class AsyncToSync:
         return functools.update_wrapper(func, self.awaitable)
 
     async def main_wrap(
-        self, args, kwargs, call_result, source_thread, exc_info, context
-    ):
+        self,
+        args: P.args,
+        kwargs: P.kwargs,
+        call_result: "Future[T]",
+        source_thread: threading.Thread,
+        exc_info: Union[
+            Tuple[None, None, None],
+            Tuple[Type[BaseException], BaseException, TracebackType],
+        ],
+        context: List[contextvars.Context],
+    ) -> None:
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
@@ -293,6 +323,8 @@ class AsyncToSync:
             _restore_context(context[0])
 
         current_task = SyncToAsync.get_current_task()
+        # Shouldn't happen; we're in an async function so there should be an event loop and a current task
+        assert current_task is not None
         self.launch_map[current_task] = source_thread
         try:
             # If we have an exception, run the function inside the except block
@@ -314,7 +346,7 @@ class AsyncToSync:
             context[0] = contextvars.copy_context()
 
 
-class SyncToAsync:
+class SyncToAsync(Generic[P, T]):
     """
     Utility class which turns a synchronous callable into an awaitable that
     runs in a threadpool. It also sets a threadlocal inside the thread so
@@ -365,7 +397,7 @@ class SyncToAsync:
 
     def __init__(
         self,
-        func: Callable[..., Any],
+        func: Callable[P, T],
         thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
     ) -> None:
@@ -387,7 +419,7 @@ class SyncToAsync:
         except AttributeError:
             pass
 
-    async def __call__(self, *args, **kwargs):
+    async def __call__(self, *args: P.args, **kwargs: P.kwargs) -> T:
         loop = asyncio.get_running_loop()
 
         # Work out what thread to run the code in
@@ -425,8 +457,6 @@ class SyncToAsync:
         context = contextvars.copy_context()
         child = functools.partial(self.func, *args, **kwargs)
         func = context.run
-        args = (child,)
-        kwargs = {}
 
         try:
             # Run the code in the right thread
@@ -438,11 +468,10 @@ class SyncToAsync:
                     self.get_current_task(),
                     sys.exc_info(),
                     func,
-                    *args,
-                    **kwargs,
+                    child,
                 ),
             )
-            ret = await asyncio.wait_for(future, timeout=None)
+            ret: T = await asyncio.wait_for(future, timeout=None)
 
         finally:
             _restore_context(context)
@@ -491,7 +520,7 @@ class SyncToAsync:
                 del self.launch_map[current_thread]
 
     @staticmethod
-    def get_current_task():
+    def get_current_task() -> "Optional[asyncio.Task[Any]]":
         """
         Implementation of asyncio.current_task()
         that returns None if there is no task.
@@ -511,16 +540,16 @@ def sync_to_async(
     func: None = None,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> Callable[[Callable[..., Any]], SyncToAsync]:
+) -> Callable[[Callable[P, T]], SyncToAsync[P, T]]:
     ...
 
 
 @overload
 def sync_to_async(
-    func: Callable[..., Any],
+    func: Callable[P, T],
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> SyncToAsync:
+) -> SyncToAsync[P, T]:
     ...
 
 
