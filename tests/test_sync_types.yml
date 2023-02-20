@@ -1,0 +1,21 @@
+# Test asgiref.sync types, especially the complex generics
+- case: return_type_of_sync_to_async_matches_caller
+  main: |
+    from asgiref.sync import sync_to_async
+    def func(name: str, repeat: int) -> str:
+        return "hello {name} " * repeat
+    
+    async def main():
+        async_func = sync_to_async(func)
+        res = await async_func("mypy", 2)
+        reveal_type(res)  # N: Revealed type is "str"
+- case: return_type_of_async_to_sync_matches_caller
+  main: |
+    from asgiref.sync import async_to_sync
+    async def async_func(name: str, repeat: int) -> str:
+        return "hello {name} " * repeat
+    
+    def main():
+        func = sync_to_async(async_func)
+        res = func("mypy", 2)
+        reveal_type(res)  # N: Revealed type is "str"
