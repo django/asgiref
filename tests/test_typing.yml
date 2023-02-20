@@ -1,0 +1,26 @@
+# Test types in asgiref.typing module
+- case: asgi3_application_callable_wrong_parameters
+  main: |
+    from asgiref.typing import ASGI3Application, Scope, ASGIReceiveCallable, ASGISendCallable
+
+    async def asgi3_application(scope: Scope, send: ASGISendCallable, receive: ASGIReceiveCallable) -> None:
+        return None
+
+    my_app: ASGI3Application = asgi3_application  # ER: Incompatible types in assignment.*
+- case: asgi3_application_as_class
+  main: |
+    from asgiref.typing import ASGI3Application, Scope, ASGIReceiveCallable, ASGISendCallable
+    from typing import Optional
+
+    class MyMiddlewareApplication:
+        def __init__(self, inner_app: Optional[ASGI3Application] = None):
+            self.__inner = inner_app
+    
+        async def __call__(self, scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable) -> None:
+            if self.__inner:
+                return await self.__inner(scope, receive, send)
+            else:
+                raise RuntimeError("Byyeee")
+
+    my_app: ASGI3Application = MyMiddlewareApplication()
+  # No result expected (should type-check okay)
