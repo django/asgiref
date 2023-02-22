@@ -35,6 +35,15 @@ An ASGI server based on the sans-io hyper, h11, h2, and wsproto libraries.
 Supports HTTP/1, HTTP/2, and WebSockets.
 
 
+Granian
+---------
+
+*Beta* / https://github.com/emmett-framework/granian
+
+A Rust HTTP server for Python applications.
+Supports ASGI/3, RSGI and WSGI interface applications.
+
+
 Application Frameworks
 ======================
 
