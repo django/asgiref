@@ -44,6 +44,14 @@ A Rust HTTP server for Python applications.
 Supports ASGI/3, RSGI and WSGI interface applications.
 
 
+NGINX Unit
+---------
+
+*Stable* / https://unit.nginx.org/configuration/#configuration-python
+
+Unit is a lightweight and versatile open-source server that has three core capabilities: it is a web server for static media assets, an application server that runs code in multiple languages, and a reverse proxy.
+
+
 Application Frameworks
 ======================
 
