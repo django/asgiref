@@ -101,7 +101,7 @@ class WebSocketScope(TypedDict):
 class LifespanScope(TypedDict):
     type: Literal["lifespan"]
     asgi: ASGIVersions
-    state: Optional[Dict[str, Any]]
+    state: NotRequired[Dict[str, Any]]
 
 
 WWWScope = Union[HTTPScope, WebSocketScope]
