@@ -46,6 +46,9 @@ The scope information passed in ``scope`` contains basic metadata:
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 * ``asgi["spec_version"]`` (*Unicode string*) -- The version of this spec being
   used. Optional; if missing defaults to ``"1.0"``.
+* ``state`` Optional(*dict[Unicode string, Any]*) -- An empty namespace where
+  the application can persist state to be used when handling subsequent requests.
+  Optional; if missing the server does not support this feature.
 
 If an exception is raised when calling the application callable with a
 ``lifespan.startup`` message or a ``scope`` with type ``lifespan``,
@@ -56,6 +59,38 @@ lifespan protocol. If you want to log an error that occurs during lifespan
 startup and prevent the server from starting, then send back
 ``lifespan.startup.failed`` instead.
 
+The ``extensions["lifespan.state"]`` dict is an empty namespace.
+Applications can store arbitrary data in this namespace.
+A *shallow copy* of this dictionary will get passed into each request handler.
+This key will only be set if the server supports this extension.
+
+
+Lifespan State
+--------------
+
+Applications often want to persist data from the lifespan cycle to request/response handling.
+For example, a database connection can be established in the lifespan cycle and persisted to
+the request/response cycle.
+The ```lifespan["state"]`` namespace provides a place to store these sorts of things.
+The server will ensure that a *shallow copy* of the namespace is passed into each subsequent
+request/response call into the application.
+Since the server manages the application lifespan and often the event loop as well this
+ensures that the application is always accessing the database connection (or other stored object)
+that corresponds to the right event loop and lifecycle, without using context variables,
+global mutable state or having to worry about references to stale/closed connections.
+
+ASGI servers that implement this feature will provide
+``state`` as part of the ``lifespan`` scope::
+
+    "scope": {
+        ...
+        "state": {},
+    }
+
+The namespace is controlled completely by the ASGI application, the server will not
+interact with it other than to copy it.
+Nonetheless applications should be cooperative by properly naming their keys such that they
+will not collide with other frameworks or middleware.
 
 Startup - ``receive`` event
 '''''''''''''''''''''''''''

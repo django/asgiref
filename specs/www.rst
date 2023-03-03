@@ -121,6 +121,10 @@ The *connection scope* information passed in ``scope`` contains:
   listening port, or ``[path, None]`` where ``path`` is that of the
   unix socket. Optional; if missing defaults to ``None``.
 
+* ``state`` Optional(*dict[Unicode string, Any]*) -- A copy of the
+  namespace passed into the lifespan corresponding to this request. (See :doc:`lifespan`).
+  Optional; if missing the server does not support this feature.
+
 Servers are responsible for handling inbound and outbound chunked transfer
 encodings. A request with a ``chunked`` encoded body should be automatically
 de-chunked by the server and presented to the application as plain body bytes;
