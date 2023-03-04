@@ -59,12 +59,6 @@ lifespan protocol. If you want to log an error that occurs during lifespan
 startup and prevent the server from starting, then send back
 ``lifespan.startup.failed`` instead.
 
-The ``extensions["lifespan.state"]`` dict is an empty namespace.
-Applications can store arbitrary data in this namespace.
-A *shallow copy* of this dictionary will get passed into each request handler.
-This key will only be set if the server supports this extension.
-
-
 Lifespan State
 --------------
 

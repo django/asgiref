@@ -312,6 +312,10 @@ metadata (mostly from the HTTP request line and headers):
 * ``subprotocols`` (*Iterable[Unicode string]*) -- Subprotocols the
   client advertised. Optional; if missing defaults to empty list.
 
+* ``state`` Optional(*dict[Unicode string, Any]*) -- A copy of the
+  namespace passed into the lifespan corresponding to this request. (See :doc:`lifespan`).
+  Optional; if missing the server does not support this feature.
+
 
 Connect - ``receive`` event
 '''''''''''''''''''''''''''
