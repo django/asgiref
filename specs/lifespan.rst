@@ -65,7 +65,7 @@ Lifespan State
 Applications often want to persist data from the lifespan cycle to request/response handling.
 For example, a database connection can be established in the lifespan cycle and persisted to
 the request/response cycle.
-The ```lifespan["state"]`` namespace provides a place to store these sorts of things.
+The ``lifespan["state"]`` namespace provides a place to store these sorts of things.
 The server will ensure that a *shallow copy* of the namespace is passed into each subsequent
 request/response call into the application.
 Since the server manages the application lifespan and often the event loop as well this
