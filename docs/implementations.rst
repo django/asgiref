@@ -114,6 +114,16 @@ generator functions, and asynchronous generator functions. Optional use of Type 
 for type conversion. Optional OpenAPI document generation.
 
 
+Starlite
+---------------
+
+*Stable* / https://starliteproject.dev
+
+Starlite is a powerful, performant, flexible and opinionated ASGI framework, offering 
+first class typing support and a full Pydantic integration. Effortlessly Build Performant 
+APIs. 
+
+
 Tools
 =====
 
