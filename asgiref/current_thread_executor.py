@@ -16,6 +16,7 @@ class _WorkItem:
         self.kwargs = kwargs
 
     def run(self):
+        __traceback_hide__ = True  # noqa: F841
         if not self.future.set_running_or_notify_cancel():
             return
         try:

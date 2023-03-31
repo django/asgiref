@@ -167,6 +167,8 @@ class AsyncToSync:
                     self.main_event_loop = None
 
     def __call__(self, *args, **kwargs):
+        __traceback_hide__ = True  # noqa: F841
+
         # You can't call AsyncToSync from a thread with a running event loop
         try:
             event_loop = asyncio.get_running_loop()
@@ -289,6 +291,9 @@ class AsyncToSync:
         Wraps the awaitable with something that puts the result into the
         result/exception future.
         """
+
+        __traceback_hide__ = True  # noqa: F841
+
         if context is not None:
             _restore_context(context[0])
 
@@ -388,6 +393,7 @@ class SyncToAsync:
             pass
 
     async def __call__(self, *args, **kwargs):
+        __traceback_hide__ = True  # noqa: F841
         loop = asyncio.get_running_loop()
 
         # Work out what thread to run the code in
@@ -461,6 +467,9 @@ class SyncToAsync:
         """
         Wraps the sync application with exception handling.
         """
+
+        __traceback_hide__ = True  # noqa: F841
+
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
         self.threadlocal.main_event_loop_pid = os.getpid()
