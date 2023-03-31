@@ -430,7 +430,7 @@ class SyncToAsync:
 
         try:
             # Run the code in the right thread
-            future = loop.run_in_executor(
+            ret = await loop.run_in_executor(
                 executor,
                 functools.partial(
                     self.thread_handler,
@@ -442,7 +442,6 @@ class SyncToAsync:
                     **kwargs,
                 ),
             )
-            ret = await asyncio.wait_for(future, timeout=None)
 
         finally:
             _restore_context(context)
