@@ -114,12 +114,12 @@ generator functions, and asynchronous generator functions. Optional use of Type 
 for type conversion. Optional OpenAPI document generation.
 
 
-Starlite
+Litestar
 ---------------
 
-*Stable* / https://starliteproject.dev
+*Stable* / https://litestar.dev/
 
-Starlite is a powerful, performant, flexible and opinionated ASGI framework, offering 
+Litestar is a powerful, performant, flexible and opinionated ASGI framework, offering 
 first class typing support and a full Pydantic integration. Effortlessly Build Performant 
 APIs. 
 
