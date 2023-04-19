@@ -84,7 +84,7 @@ class Local:
             self._context_refs.add(context_obj)
         return getattr(context_obj, self._attr_name)
 
-    def __del__(self):
+    def clear(self):
         try:
             for context_obj in self._context_refs:
                 try:
@@ -95,6 +95,9 @@ class Local:
             # WeakSet.__iter__ can crash when interpreter is shutting down due
             # to _IterationGuard being None.
             pass
+
+    def __del__(self):
+        self.clear()
 
     def __getattr__(self, key):
         with self._thread_lock:
