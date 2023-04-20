@@ -307,7 +307,7 @@ async def test_local_threads_and_tasks():
     assert test_local.counter == 6
 
 
-def test_local_del_swallows_type_error(monkeypatch):
+def test_local_clear_swallows_type_error(monkeypatch):
     test_local = Local()
 
     blow_up_calls = 0
@@ -319,6 +319,22 @@ def test_local_del_swallows_type_error(monkeypatch):
 
     monkeypatch.setattr("weakref.WeakSet.__iter__", blow_up)
 
-    test_local.__del__()
+    test_local.clear()
 
     assert blow_up_calls == 1
+
+
+def test_local_clears_on_deletion(monkeypatch):
+    test_local = Local()
+
+    clear_patched_call_count = 0
+
+    def clear_patched(self):
+        nonlocal clear_patched_call_count
+        clear_patched_call_count += 1
+
+    monkeypatch.setattr(test_local.clear, clear_patched)
+
+    del test_local
+
+    assert clear_patched_call_count == 1
