@@ -333,7 +333,7 @@ def test_local_clears_on_deletion(monkeypatch):
         nonlocal clear_patched_call_count
         clear_patched_call_count += 1
 
-    monkeypatch.setattr(test_local.clear, clear_patched)
+    monkeypatch.setattr(test_local, "clear", clear_patched)
 
     del test_local
 
