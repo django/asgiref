@@ -481,6 +481,9 @@ class SyncToAsync:
         else:
             self.launch_map[current_thread] = source_task
             parent_set = True
+        source_task = (
+            None  # allow the task to be garbage-collected in case of exceptions
+        )
         # Run the function
         try:
             # If we have an exception, run the function inside the except block
