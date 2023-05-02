@@ -163,9 +163,7 @@ Response Start - ``send`` event
 '''''''''''''''''''''''''''''''
 
 Sent by the application to start sending a response to the client. Needs to be
-followed by at least one response content message. The protocol server must not
-start sending the response to the client until it has received at least one
-*Response Body* event.
+followed by at least one response content message.
 
 You may send a ``Transfer-Encoding`` header in this message, but the server
 must ignore it. Servers handle ``Transfer-Encoding`` themselves, and may opt
