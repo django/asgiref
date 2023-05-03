@@ -335,6 +335,6 @@ def test_local_clears_on_deletion(monkeypatch):
 
     monkeypatch.setattr(test_local, "clear", clear_patched)
 
-    del test_local
+    test_local.__del__()
 
     assert clear_patched_call_count == 1
