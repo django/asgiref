@@ -204,7 +204,7 @@ Response Body - ``send`` event
 Continues sending a response to the client. Protocol servers must
 flush any data passed to them into the send buffer before returning from a
 send call. If ``more_body`` is set to ``False``, and the server is not
-expecting *Response Trailers* this will close the connection.
+expecting *Response Trailers* this will complete the response.
 
 Keys:
 
