@@ -10,6 +10,7 @@ import warnings
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import (
+    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -30,12 +31,16 @@ if sys.version_info >= (3, 10):
 else:
     from typing_extensions import ParamSpec
 
+if TYPE_CHECKING:
+    # This is not available to import at runtime
+    from _typeshed import OptExcInfo
+
 _F = TypeVar("_F", bound=Callable[..., Any])
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 
-def _restore_context(context):
+def _restore_context(context: contextvars.Context) -> None:
     # Check for changes in contextvars, and set them to the current
     # context for downstream consumers
     for cvar in context:
@@ -228,7 +233,12 @@ class AsyncToSync(Generic[_P, _R]):
         # in this thread.
         try:
             awaitable = self.main_wrap(
-                args, kwargs, call_result, source_thread, sys.exc_info(), context
+                call_result,
+                source_thread,
+                sys.exc_info(),
+                context,
+                *args,
+                **kwargs,
             )
 
             if not (self.main_event_loop and self.main_event_loop.is_running()):
@@ -309,8 +319,14 @@ class AsyncToSync(Generic[_P, _R]):
         return functools.update_wrapper(func, self.awaitable)
 
     async def main_wrap(
-        self, args, kwargs, call_result, source_thread, exc_info, context
-    ):
+        self,
+        call_result: Future[_R],
+        source_thread: threading.Thread,
+        exc_info: "OptExcInfo",
+        context: list[contextvars.Context],
+        *args: _P.args,
+        **kwargs: _P.kwargs,
+    ) -> None:
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
@@ -526,7 +542,7 @@ class SyncToAsync(Generic[_P, _R]):
                 del self.launch_map[current_thread]
 
     @staticmethod
-    def get_current_task():
+    def get_current_task() -> Optional[asyncio.Task[Any]]:
         """
         Implementation of asyncio.current_task()
         that returns None if there is no task.
