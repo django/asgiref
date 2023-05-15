@@ -124,6 +124,17 @@ first class typing support and a full Pydantic integration. Effortlessly Build P
 APIs. 
 
 
+BlackSheep
+---------
+
+*Stable* / https://github.com/Neoteroi/BlackSheep
+
+BlackSheep is typed, fast, minimal web framework. It has performant HTTP client,
+flexible dependency injection model, OpenID Connect integration, automatic
+OpenAPI documentation, dedicated test client and excellent authentication and
+authorization policy implementation. Supports HTTP and WebSockets.
+
+
 Tools
 =====
 
