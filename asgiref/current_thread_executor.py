@@ -1,7 +1,13 @@
 import queue
+import sys
 import threading
 from concurrent.futures import Executor, Future
-from typing import Any, Callable, ParamSpec, TypeVar, Union
+from typing import Any, Callable, TypeVar, Union
+
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
