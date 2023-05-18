@@ -17,6 +17,7 @@ from typing import (
     Coroutine,
     Dict,
     Generic,
+    List,
     Optional,
     TypeVar,
     Union,
@@ -215,7 +216,7 @@ class AsyncToSync(Generic[_P, _R]):
         context = [contextvars.copy_context()]
 
         # Make a future for the return information
-        call_result: Future[_R] = Future()
+        call_result: "Future[_R]" = Future()
         # Get the source thread
         source_thread = threading.current_thread()
         # Make a CurrentThreadExecutor we'll use to idle in this thread - we
@@ -320,10 +321,10 @@ class AsyncToSync(Generic[_P, _R]):
 
     async def main_wrap(
         self,
-        call_result: Future[_R],
+        call_result: "Future[_R]",
         source_thread: threading.Thread,
         exc_info: "OptExcInfo",
-        context: list[contextvars.Context],
+        context: List[contextvars.Context],
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> None:
@@ -542,7 +543,7 @@ class SyncToAsync(Generic[_P, _R]):
                 del self.launch_map[current_thread]
 
     @staticmethod
-    def get_current_task() -> Optional[asyncio.Task[Any]]:
+    def get_current_task() -> Optional["asyncio.Task[Any]"]:
         """
         Implementation of asyncio.current_task()
         that returns None if there is no task.
@@ -569,7 +570,6 @@ def sync_to_async(
 @overload
 def sync_to_async(
     func: Callable[_P, _R],
-    /,
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,

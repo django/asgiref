@@ -2,7 +2,7 @@ import queue
 import sys
 import threading
 from concurrent.futures import Executor, Future
-from typing import Any, Callable, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
@@ -22,7 +22,7 @@ class _WorkItem:
 
     def __init__(
         self,
-        future: Future[_R],
+        future: "Future[_R]",
         fn: Callable[_P, _R],
         *args: _P.args,
         **kwargs: _P.kwargs,
@@ -55,10 +55,10 @@ class CurrentThreadExecutor(Executor):
 
     def __init__(self) -> None:
         self._work_thread = threading.current_thread()
-        self._work_queue: queue.Queue[Union[_WorkItem, Future[Any]]] = queue.Queue()
+        self._work_queue: queue.Queue[Union[_WorkItem, "Future[Any]"]] = queue.Queue()
         self._broken = False
 
-    def run_until_future(self, future: Future[Any]) -> None:
+    def run_until_future(self, future: "Future[Any]") -> None:
         """
         Runs the code in the work queue until a result is available from the future.
         Should be run from the thread the executor is initialised in.
@@ -83,13 +83,12 @@ class CurrentThreadExecutor(Executor):
         finally:
             self._broken = True
 
-    def submit(
+    def _submit(
         self,
         fn: Callable[_P, _R],
-        /,
         *args: _P.args,
         **kwargs: _P.kwargs,
-    ) -> Future[_R]:
+    ) -> "Future[_R]":
         # Check they're not submitting from the same thread
         if threading.current_thread() == self._work_thread:
             raise RuntimeError(
@@ -99,8 +98,18 @@ class CurrentThreadExecutor(Executor):
         if self._broken:
             raise RuntimeError("CurrentThreadExecutor already quit or is broken")
         # Add to work queue
-        f: Future[_R] = Future()
+        f: "Future[_R]" = Future()
         work_item = _WorkItem(f, fn, *args, **kwargs)
         self._work_queue.put(work_item)
         # Return the future
         return f
+
+    # Python 3.9+ has a new signature for submit with a "/" after `fn`, to enforce
+    # it to be a positional argument. If we ignore[override] mypy on 3.9+ will be
+    # happy but 3.7/3.8 will say that the ignore comment is unused, even when
+    # defining them differently based on sys.version_info.
+    # We should be able to remove this when we drop support for 3.7/3.8.
+    if not TYPE_CHECKING:
+
+        def submit(self, fn, *args, **kwargs):
+            return self._submit(fn, *args, **kwargs)
