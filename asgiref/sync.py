@@ -9,21 +9,48 @@ import threading
 import warnings
 import weakref
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable, Dict, Optional, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
+if sys.version_info >= (3, 10):
+    from typing import ParamSpec
+else:
+    from typing_extensions import ParamSpec
 
-def _restore_context(context):
+if TYPE_CHECKING:
+    # This is not available to import at runtime
+    from _typeshed import OptExcInfo
+
+_F = TypeVar("_F", bound=Callable[..., Any])
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def _restore_context(context: contextvars.Context) -> None:
     # Check for changes in contextvars, and set them to the current
     # context for downstream consumers
     for cvar in context:
+        cvalue = context.get(cvar)
         try:
-            if cvar.get() != context.get(cvar):
-                cvar.set(context.get(cvar))
+            if cvar.get() != cvalue:
+                cvar.set(cvalue)
         except LookupError:
-            cvar.set(context.get(cvar))
+            cvar.set(cvalue)
 
 
 # Python 3.12 deprecates asyncio.iscoroutinefunction() as an alias for
@@ -32,29 +59,25 @@ def _restore_context(context):
 # Until 3.12 is the minimum supported Python version, provide a shim.
 # Django 4.0 only supports 3.8+, so don't concern with the _or_partial backport.
 
-# Type hint: should be generic: whatever T it takes it returns. (Same id)
-def markcoroutinefunction(func: Any) -> Any:
-    if hasattr(inspect, "markcoroutinefunction"):
-        return inspect.markcoroutinefunction(func)
-    else:
+if hasattr(inspect, "markcoroutinefunction"):
+    iscoroutinefunction = inspect.iscoroutinefunction
+    markcoroutinefunction: Callable[[_F], _F] = inspect.markcoroutinefunction
+else:
+    iscoroutinefunction = asyncio.iscoroutinefunction  # type: ignore[assignment]
+
+    def markcoroutinefunction(func: _F) -> _F:
         func._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         return func
 
 
-def iscoroutinefunction(func: Any) -> bool:
-    if hasattr(inspect, "markcoroutinefunction"):
-        return inspect.iscoroutinefunction(func)
-    else:
-        return asyncio.iscoroutinefunction(func)
+if sys.version_info >= (3, 8):
+    _iscoroutinefunction_or_partial = iscoroutinefunction
+else:
 
-
-def _iscoroutinefunction_or_partial(func: Any) -> bool:
-    # Python < 3.8 does not correctly determine partially wrapped
-    # coroutine functions are coroutine functions, hence the need for
-    # this to exist. Code taken from CPython.
-    if sys.version_info >= (3, 8):
-        return iscoroutinefunction(func)
-    else:
+    def _iscoroutinefunction_or_partial(func: Any) -> bool:
+        # Python < 3.8 does not correctly determine partially wrapped
+        # coroutine functions are coroutine functions, hence the need for
+        # this to exist. Code taken from CPython.
         while inspect.ismethod(func):
             func = func.__func__
         while isinstance(func, functools.partial):
@@ -104,7 +127,7 @@ class ThreadSensitiveContext:
         SyncToAsync.thread_sensitive_context.reset(self.token)
 
 
-class AsyncToSync:
+class AsyncToSync(Generic[_P, _R]):
     """
     Utility class which turns an awaitable that only works on the thread with
     the event loop into a synchronous callable that works in a subthread.
@@ -128,7 +151,14 @@ class AsyncToSync:
     # inside create_task, we'll look it up here from the running event loop.
     loop_thread_executors: "Dict[asyncio.AbstractEventLoop, CurrentThreadExecutor]" = {}
 
-    def __init__(self, awaitable, force_new_loop=False):
+    def __init__(
+        self,
+        awaitable: Union[
+            Callable[_P, Coroutine[Any, Any, _R]],
+            Callable[_P, Awaitable[_R]],
+        ],
+        force_new_loop: bool = False,
+    ):
         if not callable(awaitable) or (
             not _iscoroutinefunction_or_partial(awaitable)
             and not _iscoroutinefunction_or_partial(
@@ -142,7 +172,7 @@ class AsyncToSync:
             )
         self.awaitable = awaitable
         try:
-            self.__self__ = self.awaitable.__self__
+            self.__self__ = self.awaitable.__self__  # type: ignore[union-attr]
         except AttributeError:
             pass
         if force_new_loop:
@@ -166,7 +196,7 @@ class AsyncToSync:
                 else:
                     self.main_event_loop = None
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
 
         # You can't call AsyncToSync from a thread with a running event loop
@@ -186,7 +216,7 @@ class AsyncToSync:
         context = [contextvars.copy_context()]
 
         # Make a future for the return information
-        call_result = Future()
+        call_result: "Future[_R]" = Future()
         # Get the source thread
         source_thread = threading.current_thread()
         # Make a CurrentThreadExecutor we'll use to idle in this thread - we
@@ -204,7 +234,12 @@ class AsyncToSync:
         # in this thread.
         try:
             awaitable = self.main_wrap(
-                args, kwargs, call_result, source_thread, sys.exc_info(), context
+                call_result,
+                source_thread,
+                sys.exc_info(),
+                context,
+                *args,
+                **kwargs,
             )
 
             if not (self.main_event_loop and self.main_event_loop.is_running()):
@@ -277,7 +312,7 @@ class AsyncToSync:
                 loop.close()
                 asyncio.set_event_loop(self.main_event_loop)
 
-    def __get__(self, parent, objtype):
+    def __get__(self, parent: Any, objtype: Any) -> Callable[_P, _R]:
         """
         Include self for methods
         """
@@ -285,8 +320,14 @@ class AsyncToSync:
         return functools.update_wrapper(func, self.awaitable)
 
     async def main_wrap(
-        self, args, kwargs, call_result, source_thread, exc_info, context
-    ):
+        self,
+        call_result: "Future[_R]",
+        source_thread: threading.Thread,
+        exc_info: "OptExcInfo",
+        context: List[contextvars.Context],
+        *args: _P.args,
+        **kwargs: _P.kwargs,
+    ) -> None:
         """
         Wraps the awaitable with something that puts the result into the
         result/exception future.
@@ -298,6 +339,7 @@ class AsyncToSync:
             _restore_context(context[0])
 
         current_task = SyncToAsync.get_current_task()
+        assert current_task is not None
         self.launch_map[current_task] = source_thread
         try:
             # If we have an exception, run the function inside the except block
@@ -319,7 +361,7 @@ class AsyncToSync:
             context[0] = contextvars.copy_context()
 
 
-class SyncToAsync:
+class SyncToAsync(Generic[_P, _R]):
     """
     Utility class which turns a synchronous callable into an awaitable that
     runs in a threadpool. It also sets a threadlocal inside the thread so
@@ -352,8 +394,8 @@ class SyncToAsync:
 
     # Maintain a contextvar for the current execution context. Optionally used
     # for thread sensitive mode.
-    thread_sensitive_context: "contextvars.ContextVar[str]" = contextvars.ContextVar(
-        "thread_sensitive_context"
+    thread_sensitive_context: "contextvars.ContextVar[ThreadSensitiveContext]" = (
+        contextvars.ContextVar("thread_sensitive_context")
     )
 
     # Contextvar that is used to detect if the single thread executor
@@ -364,13 +406,13 @@ class SyncToAsync:
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
-    context_to_thread_executor: "weakref.WeakKeyDictionary[object, ThreadPoolExecutor]" = (
+    context_to_thread_executor: "weakref.WeakKeyDictionary[ThreadSensitiveContext, ThreadPoolExecutor]" = (
         weakref.WeakKeyDictionary()
     )
 
     def __init__(
         self,
-        func: Callable[..., Any],
+        func: Callable[_P, _R],
         thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
     ) -> None:
@@ -392,7 +434,7 @@ class SyncToAsync:
         except AttributeError:
             pass
 
-    async def __call__(self, *args, **kwargs):
+    async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
         loop = asyncio.get_running_loop()
 
@@ -431,12 +473,10 @@ class SyncToAsync:
         context = contextvars.copy_context()
         child = functools.partial(self.func, *args, **kwargs)
         func = context.run
-        args = (child,)
-        kwargs = {}
 
         try:
             # Run the code in the right thread
-            ret = await loop.run_in_executor(
+            ret: _R = await loop.run_in_executor(
                 executor,
                 functools.partial(
                     self.thread_handler,
@@ -444,8 +484,7 @@ class SyncToAsync:
                     self.get_current_task(),
                     sys.exc_info(),
                     func,
-                    *args,
-                    **kwargs,
+                    child,
                 ),
             )
 
@@ -455,7 +494,9 @@ class SyncToAsync:
 
         return ret
 
-    def __get__(self, parent, objtype):
+    def __get__(
+        self, parent: Any, objtype: Any
+    ) -> Callable[_P, Coroutine[Any, Any, _R]]:
         """
         Include self for methods
         """
@@ -502,7 +543,7 @@ class SyncToAsync:
                 del self.launch_map[current_thread]
 
     @staticmethod
-    def get_current_task():
+    def get_current_task() -> Optional["asyncio.Task[Any]"]:
         """
         Implementation of asyncio.current_task()
         that returns None if there is no task.
@@ -519,27 +560,28 @@ async_to_sync = AsyncToSync
 
 @overload
 def sync_to_async(
-    func: None = None,
+    *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> Callable[[Callable[..., Any]], SyncToAsync]:
+) -> Callable[[Callable[_P, _R]], SyncToAsync[_P, _R]]:
     ...
 
 
 @overload
 def sync_to_async(
-    func: Callable[..., Any],
+    func: Callable[_P, _R],
+    *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> SyncToAsync:
+) -> SyncToAsync[_P, _R]:
     ...
 
 
 def sync_to_async(
-    func=None,
-    thread_sensitive=True,
-    executor=None,
-):
+    func: Optional[Callable[_P, _R]] = None,
+    thread_sensitive: bool = True,
+    executor: Optional["ThreadPoolExecutor"] = None,
+) -> Union[Callable[[Callable[_P, _R]], SyncToAsync[_P, _R]], SyncToAsync[_P, _R]]:
     if func is None:
         return lambda f: SyncToAsync(
             f,
