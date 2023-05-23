@@ -1,3 +1,19 @@
+3.7.0 (2023-05-23)
+------------------
+
+* Contextvars are now required for the implementation of Local as Python 3.6
+  is now no longer a supported version.
+
+* sync_to_async and async_to_sync now pass-through
+
+* Debug and Lifespan State extensions have resulted in a typing change for some
+  request and response types. This change should be backwards-compatible.
+
+* ``asgiref`` frames will now be hidden in Django tracebacks by default.
+
+* Raw performance and garbage collection improvements in Local, SyncToAsync,
+  and AsyncToSync.
+
 3.6.0 (2022-12-20)
 ------------------
 
