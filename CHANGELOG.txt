@@ -1,3 +1,10 @@
+3.7.1 (2023-05-24)
+------------------
+
+* On Python 3.10 and below, the version of the "typing_extensions" package
+  is now constrained to be at least version 4 (as we depend on functionality
+  in that version and above)
+
 3.7.0 (2023-05-23)
 ------------------
 
