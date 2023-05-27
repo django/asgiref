@@ -554,8 +554,54 @@ class SyncToAsync(Generic[_P, _R]):
             return None
 
 
-# Lowercase aliases (and decorator friendliness)
-async_to_sync = AsyncToSync
+@overload
+def async_to_sync(
+    *,
+    force_new_loop: bool = False,
+) -> Callable[
+    [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
+    Callable[_P, _R],
+]:
+    ...
+
+
+@overload
+def async_to_sync(
+    awaitable: Union[
+        Callable[_P, Coroutine[Any, Any, _R]],
+        Callable[_P, Awaitable[_R]],
+    ],
+    *,
+    force_new_loop: bool = False,
+) -> Callable[_P, _R]:
+    ...
+
+
+def async_to_sync(
+    awaitable: Optional[
+        Union[
+            Callable[_P, Coroutine[Any, Any, _R]],
+            Callable[_P, Awaitable[_R]],
+        ]
+    ] = None,
+    *,
+    force_new_loop: bool = False,
+) -> Union[
+    Callable[
+        [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
+        Callable[_P, _R],
+    ],
+    Callable[_P, _R],
+]:
+    if awaitable is None:
+        return lambda f: AsyncToSync(
+            f,
+            force_new_loop=force_new_loop,
+        )
+    return AsyncToSync(
+        awaitable,
+        force_new_loop=force_new_loop,
+    )
 
 
 @overload
@@ -563,7 +609,7 @@ def sync_to_async(
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> Callable[[Callable[_P, _R]], SyncToAsync[_P, _R]]:
+) -> Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]:
     ...
 
 
@@ -573,15 +619,19 @@ def sync_to_async(
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> SyncToAsync[_P, _R]:
+) -> Callable[_P, Coroutine[Any, Any, _R]]:
     ...
 
 
 def sync_to_async(
     func: Optional[Callable[_P, _R]] = None,
+    *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-) -> Union[Callable[[Callable[_P, _R]], SyncToAsync[_P, _R]], SyncToAsync[_P, _R]]:
+) -> Union[
+    Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]],
+    Callable[_P, Coroutine[Any, Any, _R]],
+]:
     if func is None:
         return lambda f: SyncToAsync(
             f,
