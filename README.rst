@@ -1,8 +1,8 @@
 asgiref
 =======
 
-.. image:: https://api.travis-ci.org/django/asgiref.svg
-    :target: https://travis-ci.org/django/asgiref
+.. image:: https://github.com/django/asgiref/actions/workflows/tests.yml/badge.svg
+    :target: https://github.com/django/asgiref/actions/workflows/tests.yml
 
 .. image:: https://img.shields.io/pypi/v/asgiref.svg
     :target: https://pypi.python.org/pypi/asgiref
