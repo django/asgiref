@@ -14,7 +14,7 @@
 3.7.0 (2023-05-23)
 ------------------
 
-* Contextvars are now required for the implementation of Local as Python 3.6
+* Contextvars are now required for the implementation of `sync` as Python 3.6
   is now no longer a supported version.
 
 * sync_to_async and async_to_sync now pass-through
