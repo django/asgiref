@@ -87,10 +87,10 @@ The *connection scope* information passed in ``scope`` contains:
   string, with percent-encoded sequences and UTF-8 byte sequences
   decoded into characters.
 
-* ``raw_path`` (*byte string*) -- The original HTTP path component
-  unmodified from the bytes that were received by the web server. Some
-  web server implementations may be unable to provide this. Optional;
-  if missing defaults to ``None``.
+* ``raw_path`` (*byte string*) -- The original HTTP path component,
+  excluding any query string, unmodified from the bytes that were
+  received by the web server. Some web server implementations may
+  be unable to provide this. Optional; if missing defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the ``?``,
   percent-encoded.
