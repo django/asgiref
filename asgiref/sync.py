@@ -413,7 +413,7 @@ class SyncToAsync(Generic[_P, _R]):
     def __init__(
         self,
         func: Callable[_P, _R],
-        thread_sensitive: bool = True,
+        thread_sensitive: bool = False,
         executor: Optional["ThreadPoolExecutor"] = None,
     ) -> None:
         if (
@@ -607,7 +607,7 @@ def async_to_sync(
 @overload
 def sync_to_async(
     *,
-    thread_sensitive: bool = True,
+    thread_sensitive: bool = False,
     executor: Optional["ThreadPoolExecutor"] = None,
 ) -> Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]:
     ...
@@ -617,7 +617,7 @@ def sync_to_async(
 def sync_to_async(
     func: Callable[_P, _R],
     *,
-    thread_sensitive: bool = True,
+    thread_sensitive: bool = False,
     executor: Optional["ThreadPoolExecutor"] = None,
 ) -> Callable[_P, Coroutine[Any, Any, _R]]:
     ...
@@ -626,7 +626,7 @@ def sync_to_async(
 def sync_to_async(
     func: Optional[Callable[_P, _R]] = None,
     *,
-    thread_sensitive: bool = True,
+    thread_sensitive: bool = False,
     executor: Optional["ThreadPoolExecutor"] = None,
 ) -> Union[
     Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]],
