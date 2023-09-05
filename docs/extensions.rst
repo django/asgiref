@@ -129,6 +129,41 @@ After calling this extension to respond, the ASGI application itself should
 actively close the used file descriptor - ASGI servers are not responsible for
 closing descriptors.
 
+Path Send
+---------
+
+Path Send allows you to send the contents of a file path to the
+HTTP client without handling file descriptors, offloading the operation
+directly to the server.
+
+ASGI servers that implement this extension will provide
+``http.response.pathsend`` in the extensions part of the scope::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.pathsend": {},
+        },
+    }
+
+The ASGI framework can initiate a path-send by sending a message with
+the following keys. This message can be sent at any time after the
+*Response Start* message, and cannot be mixed with ``http.response.body``.
+It can be called just one time in one response.
+Except for the characteristics of path-send, it should behave the same
+as ordinary ``http.response.body``.
+
+Keys:
+
+* ``type`` (*Unicode string*): ``"http.response.pathsend"``
+
+* ``path`` (*Unicode string*): The string representation of the absolute
+file path to be sent by the server, platform specific.
+
+The ASGI application itself is responsible to send the relevant headers
+in the *Response Start* message, like the ``Content-Type`` and
+``Content-Length`` headers for the file to be sent.
+
 TLS
 ---
 
