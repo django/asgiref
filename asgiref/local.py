@@ -15,7 +15,7 @@ class _CVar:
         try:
             return storage_object[key]
         except KeyError:
-            raise AttributeError(key)
+            raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
     def __setattr__(self, key, value) -> None:
         if key == "_data":
