@@ -1,3 +1,4 @@
+import asyncio
 import gc
 import threading
 
@@ -307,18 +308,33 @@ async def test_local_threads_and_tasks():
     assert test_local.counter == 6
 
 
-def test_local_del_swallows_type_error(monkeypatch):
-    test_local = Local()
+def test_thread_critical_local_not_context_dependent_in_sync_thread():
+    # Test function is sync, thread critical local should
+    # be visible everywhere in the sync thread, even if set
+    # from inside a sync_to_async/async_to_sync stack (so
+    # long as it was set in sync code)
+    test_local_tc = Local(thread_critical=True)
+    test_local_not_tc = Local(thread_critical=False)
+    test_thread = threading.current_thread()
 
-    blow_up_calls = 0
+    @sync_to_async
+    def inner_sync_function():
+        # sync_to_async should run this code inside the original
+        # sync thread, confirm this here
+        assert test_thread == threading.current_thread()
+        test_local_tc.test_value = "_123_"
+        test_local_not_tc.test_value = "_456_"
 
-    def blow_up(self):
-        nonlocal blow_up_calls
-        blow_up_calls += 1
-        raise TypeError()
+    @async_to_sync
+    async def async_function():
+        await asyncio.create_task(inner_sync_function())
 
-    monkeypatch.setattr("weakref.WeakSet.__iter__", blow_up)
+    async_function()
 
-    test_local.__del__()
-
-    assert blow_up_calls == 1
+    # assert: the inner_sync_function should have set a value
+    # visible here
+    assert test_local_tc.test_value == "_123_"
+    # however, if the local was non-thread-critical, then the
+    # inner value was set inside a new async context, meaning that
+    # we do not see it, as context vars don't propagate up the stack
+    assert not hasattr(test_local_not_tc, "test_value")
