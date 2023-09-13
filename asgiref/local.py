@@ -38,32 +38,26 @@ class Local:
     """Local storage for async tasks.
 
     This is a namespace object (similar to `threading.local`) where data is
-    also local to the current async task.
+    also local to the current async task (if there is one).
 
-    This is implemented using the `contextvars` module and so "local" means
-    within a context as defined by the `contextvars` module. Generally data
-    visible in the current scope will still be visible:
+    In async threads, local means in the same sense as the `contextvars`
+    module - i.e. a value set in an async frame will be visible:
 
-    - to coroutines directly awaited from the current scope.
+    - to other async code `await`-ed from this frame.
     - to tasks spawned using `asyncio` utilities (`create_task`, `wait_for`,
       `gather` and probably others).
-    - when explicitly maintaining the context using functions from the
-      `contextvars` module like `context.run`.
-    - anything spawned by `async_to_sync` or `sync_to_async`
+    - to code scheduled in a sync thread using `sync_to_async`
 
-    Data stored on this object in a given scope is NOT visible:
+    In "sync" threads (a thread with no async event loop running), the
+    data is thread-local, but additionally shared with async code executed
+    via the `async_to_sync` utility, which schedules async code in a new thread
+    and copies context across to that thread.
 
-    - to async tasks that are running in "parallel" (not spawned or awaited
-      from the current scope).
-    - when the context has been intentionally changed for another one by e.g.
-      created using `contextvars.copy_context`.
-    - to code running in a new thread.
-
-    If `thread_critical` is `False`, data can still be accessed from threads
-    spawned from the current thread if the context is copied across - this
-    happens when the thread is spawned by `async_to_sync`. If
-    `thread_critical` is set to `True`, the data will always be thread-local
-    and will not be transferred to new threads even when using `async_to_sync`.
+    If `thread_critical` is True, then the local will only be visible per-thread,
+    behaving exactly like `threading.local` if the thread is sync, and as
+    `contextvars` if the thread is async. This allows genuinely thread-sensitive
+    code (such as DB handles) to be kept stricly to their initial thread and
+    disable the sharing across `sync_to_async` and `async_to_sync` wrapped calls.
 
     Unlike plain `contextvars` objects, this utility is threadsafe.
     """
