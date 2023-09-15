@@ -2,13 +2,16 @@ import asyncio
 import contextlib
 import contextvars
 import threading
+from typing import Any, Dict, Union
 
 
 class _CVar:
     """Storage utility for Local."""
 
-    def __init__(self):
-        self._data = contextvars.ContextVar("asgiref.local")
+    def __init__(self) -> None:
+        self._data: "contextvars.ContextVar[Dict[str, Any]]" = contextvars.ContextVar(
+            "asgiref.local"
+        )
 
     def __getattr__(self, key):
         storage_object = self._data.get({})
@@ -17,7 +20,7 @@ class _CVar:
         except KeyError:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
-    def __setattr__(self, key, value) -> None:
+    def __setattr__(self, key: str, value: Any) -> None:
         if key == "_data":
             return super().__setattr__(key, value)
 
@@ -25,7 +28,7 @@ class _CVar:
         storage_object[key] = value
         self._data.set(storage_object)
 
-    def __delattr__(self, key) -> None:
+    def __delattr__(self, key: str) -> None:
         storage_object = self._data.get({})
         if key in storage_object:
             del storage_object[key]
@@ -62,9 +65,11 @@ class Local:
     Unlike plain `contextvars` objects, this utility is threadsafe.
     """
 
-    def __init__(self, thread_critical=False):
+    def __init__(self, thread_critical: bool = False) -> None:
         self._thread_critical = thread_critical
         self._thread_lock = threading.RLock()
+
+        self._storage: "Union[threading.local, _CVar]"
 
         if thread_critical:
             # Thread-local storage

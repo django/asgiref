@@ -142,7 +142,7 @@ class AsyncToSync(Generic[_P, _R]):
 
     # Keeps a reference to the CurrentThreadExecutor in local context, so that
     # any sync_to_async inside the wrapped code can find it.
-    executors = Local()
+    executors: "Local" = Local()
 
     # When we can't find a CurrentThreadExecutor from the context, such as
     # inside create_task, we'll look it up here from the running event loop.
