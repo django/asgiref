@@ -53,25 +53,19 @@ def _restore_context(context: contextvars.Context) -> None:
             cvar.set(cvalue)
 
 
-# Python 3.12 deprecates asyncio.iscoroutinefunction() as an alias for
-# inspect.iscoroutinefunction(), whilst also removing the _is_coroutine marker.
-# The latter is replaced with the inspect.markcoroutinefunction decorator.
+# Python 3.12 replaces the _is_coroutine marker with the inspect.markcoroutinefunction decorator.
 # Until 3.12 is the minimum supported Python version, provide a shim.
 # Django 4.0 only supports 3.8+, so don't concern with the _or_partial backport.
 
-if hasattr(inspect, "markcoroutinefunction"):
-    iscoroutinefunction = inspect.iscoroutinefunction
+if sys.version_info >= (3, 12):
     markcoroutinefunction: Callable[[_F], _F] = inspect.markcoroutinefunction
 else:
-    iscoroutinefunction = asyncio.iscoroutinefunction  # type: ignore[assignment]
-
     def markcoroutinefunction(func: _F) -> _F:
         func._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         return func
 
-
 if sys.version_info >= (3, 8):
-    _iscoroutinefunction_or_partial = iscoroutinefunction
+    _iscoroutinefunction_or_partial = inspect.iscoroutinefunction
 else:
 
     def _iscoroutinefunction_or_partial(func: Any) -> bool:
