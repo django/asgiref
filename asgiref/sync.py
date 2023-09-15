@@ -57,7 +57,7 @@ def _restore_context(context: contextvars.Context) -> None:
 # Until 3.12 is the minimum supported Python version, provide a shim.
 # Django 4.0 only supports 3.8+, so don't concern with the _or_partial backport.
 
-if sys.version_info >= (3, 12):
+if hasattr(inspect, "markcoroutinefunction"):
     markcoroutinefunction: Callable[[_F], _F] = inspect.markcoroutinefunction
 else:
     def markcoroutinefunction(func: _F) -> _F:
