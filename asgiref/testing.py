@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import time
 
 from .compatibility import guarantee_single_callable
@@ -16,8 +17,13 @@ class ApplicationCommunicator:
         self.scope = scope
         self.input_queue = asyncio.Queue()
         self.output_queue = asyncio.Queue()
-        self.future = asyncio.ensure_future(
-            self.application(scope, self.input_queue.get, self.output_queue.put)
+        # Clear context - this ensures that context vars set in the testing scope
+        # are not "leaked" into the application which would normally begin with
+        # an empty context. In Python >= 3.11 this could also be written as:
+        # asyncio.create_task(..., context=contextvars.Context())
+        self.future = contextvars.Context().run(
+            asyncio.create_task,
+            self.application(scope, self.input_queue.get, self.output_queue.put),
         )
 
     async def wait(self, timeout=1):

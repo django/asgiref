@@ -721,29 +721,6 @@ async def test_sync_to_async_uses_executor():
     )
 
 
-def test_sync_to_async_deadlock_raises():
-    def db_write():
-        pass
-
-    async def io_task():
-        await sync_to_async(db_write)()
-
-    async def do_io_tasks():
-        t = asyncio.create_task(io_task())
-        await t
-        # await asyncio.gather(io_task()) # Also deadlocks
-        # await io_task() # Works
-
-    def view():
-        async_to_sync(do_io_tasks)()
-
-    async def server_entry():
-        await sync_to_async(view)()
-
-    with pytest.raises(RuntimeError):
-        asyncio.run(server_entry())
-
-
 def test_sync_to_async_deadlock_ignored_with_exception():
     """
     Ensures that throwing an exception from inside a deadlock-protected block
@@ -836,3 +813,39 @@ async def test_sync_to_async_with_blocker_non_thread_sensitive():
         raise
     finally:
         await trigger_task
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_within_create_task():
+    """
+    Test a stack of sync_to_async/async_to_sync/sync_to_async works even when last
+    sync_to_async is wrapped in asyncio.wait_for.
+    """
+    main_thread = threading.current_thread()
+    sync_thread = None
+
+    # Hypothetical Django scenario - middleware function is sync and will run
+    # in a new thread created by sync_to_async
+    def sync_middleware():
+        nonlocal sync_thread
+        sync_thread = threading.current_thread()
+        assert sync_thread != main_thread
+        # View is async and wrapped with async_to_sync.
+        async_to_sync(async_view)()
+
+    async def async_view():
+        # Call a sync function using sync_to_async, but asyncio.wait_for it
+        # rather than directly await it.
+        await asyncio.wait_for(sync_to_async(sync_task)(), timeout=1)
+
+    task_executed = False
+
+    def sync_task():
+        nonlocal task_executed, sync_thread
+        assert sync_thread == threading.current_thread()
+        task_executed = True
+
+    async with ThreadSensitiveContext():
+        await sync_to_async(sync_middleware)()
+
+    assert task_executed

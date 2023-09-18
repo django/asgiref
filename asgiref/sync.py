@@ -140,12 +140,9 @@ class AsyncToSync(Generic[_P, _R]):
     finally exiting once the async task returns.
     """
 
-    # Maps launched Tasks to the threads that launched them (for locals impl)
-    launch_map: "Dict[asyncio.Task[object], threading.Thread]" = {}
-
-    # Keeps track of which CurrentThreadExecutor to use. This uses an asgiref
-    # Local, not a threadlocal, so that tasks can work out what their parent used.
-    executors = Local()
+    # Keeps a reference to the CurrentThreadExecutor in local context, so that
+    # any sync_to_async inside the wrapped code can find it.
+    executors: "Local" = Local()
 
     # When we can't find a CurrentThreadExecutor from the context, such as
     # inside create_task, we'll look it up here from the running event loop.
@@ -211,23 +208,20 @@ class AsyncToSync(Generic[_P, _R]):
                     "just await the async function directly."
                 )
 
+        # Make a future for the return information
+        call_result: "Future[_R]" = Future()
+
+        # Make a CurrentThreadExecutor we'll use to idle in this thread - we
+        # need one for every sync frame, even if there's one above us in the
+        # same thread.
+        old_executor = getattr(self.executors, "current", None)
+        current_executor = CurrentThreadExecutor()
+        self.executors.current = current_executor
+
         # Wrapping context in list so it can be reassigned from within
         # `main_wrap`.
         context = [contextvars.copy_context()]
 
-        # Make a future for the return information
-        call_result: "Future[_R]" = Future()
-        # Get the source thread
-        source_thread = threading.current_thread()
-        # Make a CurrentThreadExecutor we'll use to idle in this thread - we
-        # need one for every sync frame, even if there's one above us in the
-        # same thread.
-        if hasattr(self.executors, "current"):
-            old_current_executor = self.executors.current
-        else:
-            old_current_executor = None
-        current_executor = CurrentThreadExecutor()
-        self.executors.current = current_executor
         loop = None
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread if it's there, otherwise make a new loop
@@ -235,7 +229,6 @@ class AsyncToSync(Generic[_P, _R]):
         try:
             awaitable = self.main_wrap(
                 call_result,
-                source_thread,
                 sys.exc_info(),
                 context,
                 *args,
@@ -267,11 +260,9 @@ class AsyncToSync(Generic[_P, _R]):
             # Clean up any executor we were running
             if loop is not None:
                 del self.loop_thread_executors[loop]
-            if hasattr(self.executors, "current"):
-                del self.executors.current
-            if old_current_executor:
-                self.executors.current = old_current_executor
             _restore_context(context[0])
+            # Restore old current thread executor state
+            self.executors.current = old_executor
 
         # Wait for results from the future.
         return call_result.result()
@@ -322,7 +313,6 @@ class AsyncToSync(Generic[_P, _R]):
     async def main_wrap(
         self,
         call_result: "Future[_R]",
-        source_thread: threading.Thread,
         exc_info: "OptExcInfo",
         context: List[contextvars.Context],
         *args: _P.args,
@@ -338,9 +328,6 @@ class AsyncToSync(Generic[_P, _R]):
         if context is not None:
             _restore_context(context[0])
 
-        current_task = SyncToAsync.get_current_task()
-        assert current_task is not None
-        self.launch_map[current_task] = source_thread
         try:
             # If we have an exception, run the function inside the except block
             # after raising it so exc_info is correctly populated.
@@ -356,8 +343,6 @@ class AsyncToSync(Generic[_P, _R]):
         else:
             call_result.set_result(result)
         finally:
-            del self.launch_map[current_task]
-
             context[0] = contextvars.copy_context()
 
 
@@ -382,9 +367,6 @@ class SyncToAsync(Generic[_P, _R]):
     In order to pass in an executor, thread_sensitive must be set to False, otherwise
     a TypeError will be raised.
     """
-
-    # Maps launched threads to the coroutines that spawned them
-    launch_map: "Dict[threading.Thread, asyncio.Task[object]]" = {}
 
     # Storage for main event loop references
     threadlocal = threading.local()
@@ -440,9 +422,10 @@ class SyncToAsync(Generic[_P, _R]):
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
-            if hasattr(AsyncToSync.executors, "current"):
+            current_thread_executor = getattr(AsyncToSync.executors, "current", None)
+            if current_thread_executor:
                 # If we have a parent sync thread above somewhere, use that
-                executor = AsyncToSync.executors.current
+                executor = current_thread_executor
             elif self.thread_sensitive_context.get(None):
                 # If we have a way of retrieving the current context, attempt
                 # to use a per-context thread pool executor
@@ -481,7 +464,6 @@ class SyncToAsync(Generic[_P, _R]):
                 functools.partial(
                     self.thread_handler,
                     loop,
-                    self.get_current_task(),
                     sys.exc_info(),
                     func,
                     child,
@@ -503,7 +485,7 @@ class SyncToAsync(Generic[_P, _R]):
         func = functools.partial(self.__call__, parent)
         return functools.update_wrapper(func, self.func)
 
-    def thread_handler(self, loop, source_task, exc_info, func, *args, **kwargs):
+    def thread_handler(self, loop, exc_info, func, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
@@ -513,45 +495,17 @@ class SyncToAsync(Generic[_P, _R]):
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
         self.threadlocal.main_event_loop_pid = os.getpid()
-        # Set the task mapping (used for the locals module)
-        current_thread = threading.current_thread()
-        if AsyncToSync.launch_map.get(source_task) == current_thread:
-            # Our parent task was launched from this same thread, so don't make
-            # a launch map entry - let it shortcut over us! (and stop infinite loops)
-            parent_set = False
-        else:
-            self.launch_map[current_thread] = source_task
-            parent_set = True
-        source_task = (
-            None  # allow the task to be garbage-collected in case of exceptions
-        )
-        # Run the function
-        try:
-            # If we have an exception, run the function inside the except block
-            # after raising it so exc_info is correctly populated.
-            if exc_info[1]:
-                try:
-                    raise exc_info[1]
-                except BaseException:
-                    return func(*args, **kwargs)
-            else:
-                return func(*args, **kwargs)
-        finally:
-            # Only delete the launch_map parent if we set it, otherwise it is
-            # from someone else.
-            if parent_set:
-                del self.launch_map[current_thread]
 
-    @staticmethod
-    def get_current_task() -> Optional["asyncio.Task[Any]"]:
-        """
-        Implementation of asyncio.current_task()
-        that returns None if there is no task.
-        """
-        try:
-            return asyncio.current_task()
-        except RuntimeError:
-            return None
+        # Run the function
+        # If we have an exception, run the function inside the except block
+        # after raising it so exc_info is correctly populated.
+        if exc_info[1]:
+            try:
+                raise exc_info[1]
+            except BaseException:
+                return func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
 
 
 @overload
