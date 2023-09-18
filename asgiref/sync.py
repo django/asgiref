@@ -52,7 +52,6 @@ def _restore_context(context: contextvars.Context) -> None:
         except LookupError:
             cvar.set(cvalue)
 
-
 # Python 3.12 replaces the _is_coroutine marker with the
 # inspect.markcoroutinefunction decorator. Until 3.12 is the minimum supported
 # Python version, provide a shim. Django 4.0 only supports 3.8+, so don't
@@ -65,8 +64,9 @@ else:
         func._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         return func
 
+iscoroutinefunction = inspect.iscoroutinefunction
 if sys.version_info >= (3, 8):
-    _iscoroutinefunction_or_partial = inspect.iscoroutinefunction
+    _iscoroutinefunction_or_partial = iscoroutinefunction
 else:
 
     def _iscoroutinefunction_or_partial(func: Any) -> bool:
