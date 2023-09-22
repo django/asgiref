@@ -69,15 +69,15 @@ class WsgiToAsgiInstance:
             "wsgi.run_once": False,
         }
         # Get server name and port - required in WSGI, not in ASGI
-        if "server" in scope:
-            environ["SERVER_NAME"] = scope["server"][0]
-            environ["SERVER_PORT"] = str(scope["server"][1])
-        else:
-            environ["SERVER_NAME"] = "localhost"
-            environ["SERVER_PORT"] = "80"
+        # if "server" in scope:
+        #     environ["SERVER_NAME"] = scope["server"][0]
+        #     environ["SERVER_PORT"] = str(scope["server"][1])
+        # else:
+        #     environ["SERVER_NAME"] = "localhost"
+        #     environ["SERVER_PORT"] = "80"
 
-        if "client" in scope:
-            environ["REMOTE_ADDR"] = scope["client"][0]
+        # if "client" in scope:
+        #     environ["REMOTE_ADDR"] = scope["client"][0]
 
         # Go through headers and make them into environ entries
         for name, value in self.scope.get("headers", []):
