@@ -32,6 +32,7 @@ __all__ = (
     "HTTPResponseStartEvent",
     "HTTPResponseBodyEvent",
     "HTTPResponseTrailersEvent",
+    "HTTPResponsePathsendEvent",
     "HTTPServerPushEvent",
     "HTTPDisconnectEvent",
     "WebSocketConnectEvent",
@@ -136,6 +137,11 @@ class HTTPResponseTrailersEvent(TypedDict):
     type: Literal["http.response.trailers"]
     headers: Iterable[Tuple[bytes, bytes]]
     more_trailers: bool
+
+
+class HTTPResponsePathsendEvent(TypedDict):
+    type: Literal["http.response.pathsend"]
+    path: str
 
 
 class HTTPServerPushEvent(TypedDict):
