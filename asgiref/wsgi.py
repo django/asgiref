@@ -76,7 +76,7 @@ class WsgiToAsgiInstance:
             environ["SERVER_NAME"] = "localhost"
             environ["SERVER_PORT"] = "80"
 
-        if "client" in scope:
+        if scope.get("client") is not None:
             environ["REMOTE_ADDR"] = scope["client"][0]
 
         # Go through headers and make them into environ entries
