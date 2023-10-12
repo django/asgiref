@@ -57,7 +57,6 @@ def _restore_context(context: contextvars.Context) -> None:
 # inspect.iscoroutinefunction(), whilst also removing the _is_coroutine marker.
 # The latter is replaced with the inspect.markcoroutinefunction decorator.
 # Until 3.12 is the minimum supported Python version, provide a shim.
-# Django 4.0 only supports 3.8+, so don't concern with the _or_partial backport.
 
 if hasattr(inspect, "markcoroutinefunction"):
     iscoroutinefunction = inspect.iscoroutinefunction
@@ -70,22 +69,6 @@ else:
         return func
 
 
-if sys.version_info >= (3, 8):
-    _iscoroutinefunction_or_partial = iscoroutinefunction
-else:
-
-    def _iscoroutinefunction_or_partial(func: Any) -> bool:
-        # Python < 3.8 does not correctly determine partially wrapped
-        # coroutine functions are coroutine functions, hence the need for
-        # this to exist. Code taken from CPython.
-        while inspect.ismethod(func):
-            func = func.__func__
-        while isinstance(func, functools.partial):
-            func = func.func
-
-        return iscoroutinefunction(func)
-
-
 class ThreadSensitiveContext:
     """Async context manager to manage context for thread sensitive mode
 
@@ -93,8 +76,8 @@ class ThreadSensitiveContext:
     thread sensitive mode. By default, a single thread pool executor is shared
     within a process.
 
-    In Python 3.7+, the ThreadSensitiveContext() context manager may be used to
-    specify a thread pool per context.
+    The ThreadSensitiveContext() context manager may be used to specify a
+    thread pool per context.
 
     This context manager is re-entrant, so only the outer-most call to
     ThreadSensitiveContext will set the context.
@@ -157,10 +140,8 @@ class AsyncToSync(Generic[_P, _R]):
         force_new_loop: bool = False,
     ):
         if not callable(awaitable) or (
-            not _iscoroutinefunction_or_partial(awaitable)
-            and not _iscoroutinefunction_or_partial(
-                getattr(awaitable, "__call__", awaitable)
-            )
+            not iscoroutinefunction(awaitable)
+            and not iscoroutinefunction(getattr(awaitable, "__call__", awaitable))
         ):
             # Python does not have very reliable detection of async functions
             # (lots of false negatives) so this is just a warning.
@@ -400,8 +381,8 @@ class SyncToAsync(Generic[_P, _R]):
     ) -> None:
         if (
             not callable(func)
-            or _iscoroutinefunction_or_partial(func)
-            or _iscoroutinefunction_or_partial(getattr(func, "__call__", func))
+            or iscoroutinefunction(func)
+            or iscoroutinefunction(getattr(func, "__call__", func))
         ):
             raise TypeError("sync_to_async can only be applied to sync functions.")
         self.func = func
