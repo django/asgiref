@@ -5,16 +5,14 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Literal,
     Optional,
+    Protocol,
     Tuple,
     Type,
+    TypedDict,
     Union,
 )
-
-if sys.version_info >= (3, 8):
-    from typing import Literal, Protocol, TypedDict
-else:
-    from typing_extensions import Literal, Protocol, TypedDict
 
 if sys.version_info >= (3, 11):
     from typing import NotRequired
