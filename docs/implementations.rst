@@ -135,6 +135,19 @@ OpenAPI documentation, dedicated test client and excellent authentication and
 authorization policy implementation. Supports HTTP and WebSockets.
 
 
+Connexion
+---------
+
+*Stable* / https://github.com/spec-first/connexion
+
+Connexion is a modern Python web framework that makes spec-first and API-first development 
+easy. You describe your API in an OpenAPI (or Swagger) specification with as much detail 
+as you want and Connexion will guarantee that it works as you specified.
+
+You can use Connexion either standalone, or in combination with any ASGI or WSGI-compatible 
+framework!
+
+
 Tools
 =====
 
