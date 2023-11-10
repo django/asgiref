@@ -43,13 +43,28 @@ states that for any header field that can appear multiple times, it is exactly
 equivalent to sending that header field only once with all the values joined by
 commas.
 
-However, RFC 7230 and RFC 6265 make it clear that this rule does not apply to
-the various headers used by HTTP cookies (``Cookie`` and ``Set-Cookie``). The
-``Cookie`` header must only be sent once by a user-agent, but the
-``Set-Cookie`` header may appear repeatedly and cannot be joined by commas.
+However, for HTTP cookies (``Cookie`` and ``Set-Cookie``) the allowed behaviour
+does not follow the above rule, and also varies slightly based on the HTTP
+protocol version:
+
+* For the ``Set-Cookie`` header in HTTP/1.0, HTTP/1.1 and HTTP2.0, it may appear
+  repeatedly, but cannot be concatenated by commas (or anything else) into a
+  single header field.
+
+* For the ``Cookie`` header, in HTTP/1.0 and HTTP/1.1, RFC 7230 and RFC 6265
+  make it clear that the ``Cookie`` header must only be sent once by a
+  user-agent, and must be concatenated into a single octet string using the
+  two-octet delimiter of 0x3b, 0x20 (the ASCII string "; "). However in HTTP/2,
+  RFC 9113 states that ``Cookie`` headers MAY appear repeatedly, OR be
+  concatenated using the two-octet delimiter of 0x3b, 0x20
+  (the ASCII string "; ").
+
 The ASGI design decision is to transport both request and response headers as
 lists of 2-element ``[name, value]`` lists and preserve headers exactly as they
 were provided.
+
+For ASGI applications that support HTTP/2, care should be taken to handle the
+special case for ``Cookie`` noted above.
 
 The HTTP protocol should be signified to ASGI applications with a ``type``
 value of ``http``.
