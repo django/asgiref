@@ -69,6 +69,26 @@ special case for ``Cookie`` noted above.
 The HTTP protocol should be signified to ASGI applications with a ``type``
 value of ``http``.
 
+A possible implementation of this protocol is given below::
+
+    async def app(scope, receive, send):
+        if scope['type'] == 'http':
+            body = b'Hello world!'
+            await send({
+              'type': 'http.response.start',
+              'status': 200,
+              'headers': [
+                  (b'content-type', b'text/plan'),
+                  (b'content-length', str(len(body)).encode())
+                ]
+            })
+            await send({
+              'type': 'http.response.body',
+              'body': body
+            })
+        else:
+            pass # Handle other types
+
 
 HTTP Connection Scope
 '''''''''''''''''''''
