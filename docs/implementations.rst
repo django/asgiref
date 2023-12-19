@@ -90,7 +90,7 @@ with Django integration, and any protocol with ASGI-native code.
 
 
 Esmerald
----------------
+--------
 
 *Stable* / https://esmerald.dev/
 
