@@ -18,7 +18,7 @@ of the Django Channels project. Supports HTTP/1, HTTP/2, and WebSockets.
 
 
 Granian
----------
+-------
 
 *Beta* / https://github.com/emmett-framework/granian
 
@@ -36,7 +36,7 @@ Supports HTTP/1, HTTP/2, and WebSockets.
 
 
 NGINX Unit
----------
+----------
 
 *Stable* / https://unit.nginx.org/configuration/#configuration-python
 
@@ -56,7 +56,7 @@ Application Frameworks
 ======================
 
 BlackSheep
----------
+----------
 
 *Stable* / https://github.com/Neoteroi/BlackSheep
 
@@ -108,7 +108,7 @@ Supports HTTP and WebSockets.
 
 
 Litestar
----------------
+--------
 
 *Stable* / https://litestar.dev/
 
