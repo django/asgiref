@@ -21,10 +21,10 @@ class DoubleApplicationClass:
     """
     A classic class-based double-callable application.
     """
-    def __init__(self, scope):
+    def __init__(self, _):
         pass
 
-    async def __call__(self, receive, send):
+    async def __call__(self, _, __, ___):
         pass
 
 
@@ -35,17 +35,16 @@ class DoubleApplicationClassNestedFunction:
     def __init__(self):
         pass
 
-    def __call__(self, scope):
-        async def inner(receive, send):
+    def __call__(self, _):
+        async def inner(_, __):
             pass
         return inner
 
 
-async def single_application_function(scope, receive, send):
+async def single_application_function(_, __, ___):
     """
     A single-function single-callable application.
     """
-    pass
 
 
 class SingleApplicationClass:
@@ -55,7 +54,7 @@ class SingleApplicationClass:
     def __init__(self):
         pass
 
-    async def __call__(self, receive, send):
+    async def __call__(self, _, __):
         pass
 
 
@@ -89,3 +88,19 @@ async def test_double_to_single_communicator():
     instance = ApplicationCommunicator(new_app, {"value": "woohoo"})
     await instance.send_input({"value": 42})
     assert await instance.receive_output() == {"scope": "woohoo", "message": 42}
+
+
+@pytest.mark.asyncio
+async def test_another_feature():
+    """
+    Test another feature or behavior.
+    """
+    # Add your test logic here
+
+
+@pytest.mark.asyncio
+async def test_yet_another_feature():
+    """
+    Test yet another feature or behavior.
+    """
+    # Add your test logic here
