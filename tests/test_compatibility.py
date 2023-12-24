@@ -1,48 +1,10 @@
+"""
+Module for testing ASGI compatibility functions and classes.
+"""
+
 import pytest
 from asgiref.compatibility import double_to_single_callable, is_double_callable
 from asgiref.testing import ApplicationCommunicator
-
-
-def double_application_function(scope):
-    """A nested function-based double-callable application."""
-    async def inner(receive, send):
-        message = await receive()
-        await send({"scope": scope["value"], "message": message["value"]})
-    return inner
-
-
-class DoubleApplicationClass:
-    """A classic class-based double-callable application."""
-    def __init__(self, scope):
-        pass
-
-    async def __call__(self, receive, send):
-        pass
-
-
-class DoubleApplicationClassNestedFunction:
-    """A function closure inside a class."""
-    def __init__(self):
-        pass
-
-    def __call__(self, scope):
-        async def inner(receive, send):
-            pass
-        return inner
-
-
-async def single_application_function(scope, receive, send):
-    """A single-function single-callable application."""
-    pass
-
-
-class SingleApplicationClass:
-    """A single-callable class."""
-    def __init__(self):
-        pass
-
-    async def __call__(self, scope, receive, send):
-        pass
 
 
 @pytest.mark.asyncio
@@ -68,4 +30,54 @@ async def test_double_to_single_communicator():
     new_app = double_to_single_callable(double_application_function)
     instance = ApplicationCommunicator(new_app, {"value": "woohoo"})
     await instance.send_input({"value": 42})
-    assert await instance.receive_output() == {"scope": "woohoo", "message": 42}
+    output = await instance.receive_output()
+    assert output == {"scope": "woohoo", "message": 42}
+
+
+# Additional functions and classes for testing
+def double_application_function(scope):
+    """A nested function-based double-callable application."""
+
+    async def inner(receive, send):
+        message = await receive()
+        await send({"scope": scope["value"], "message": message["value"]})
+
+    return inner
+
+
+class DoubleApplicationClass:
+    """A classic class-based double-callable application."""
+
+    def __init__(self):
+        pass
+
+    async def __call__(self):
+        pass
+
+
+class DoubleApplicationClassNestedFunction:
+    """A function closure inside a class."""
+
+    def __init__(self):
+        pass
+
+    def __call__(self):
+        async def inner():
+            pass
+
+        return inner
+
+
+async def single_application_function():
+    """A single-function single-callable application."""
+
+
+class SingleApplicationClass:
+    """A single-callable class."""
+
+    def __init__(self):
+        pass
+
+    async def __call__(self):
+        pass
+
