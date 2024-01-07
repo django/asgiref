@@ -239,6 +239,15 @@ Keys:
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
 
+.. note::
+
+    The ``http.disconnect`` event is deprecated and will be removed in
+    the next major version of the spec (3.0).
+    It has been replaced by the server raising an specific subclass
+    of ``IOError`` if ``send()`` is called on a closed connection.
+    Servers MUST catch this exception if the application doesn't do so
+    such that it doesn't get propagated to server logs.
+
 Sent to the application if receive is called after a response has been
 sent or after the HTTP connection has been closed. This is mainly useful
 for long-polling, where you may want to trigger cleanup code if the
@@ -418,6 +427,15 @@ keys may be present, however.
 
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
+
+.. note::
+
+    The ``websocket.disconnect`` event is deprecated and will be removed in
+    the next major version of the spec (3.0).
+    It has been replaced by the server raising an specific subclass
+    of ``IOError`` if ``send()`` is called on a closed connection.
+    Servers MUST catch this exception if the application doesn't do so
+    such that it doesn't get propagated to server logs.
 
 Sent to the application when either connection to the client is lost, either from
 the client closing the connection, the server closing the connection, or loss of the
