@@ -239,7 +239,7 @@ Keys:
 Disconnected Client - ``send`` exception
 ''''''''''''''''''''''''''''''''''''''''
 
-If ``send()`` is called on a closed connection the server must raise
+If ``send()`` is called on a closed connection the server should raise
 a server-specific subclass of ``IOError``.
 Applications may catch this exception and do cleanup work before
 re-raising it or returning with no exception.
