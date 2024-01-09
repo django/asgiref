@@ -236,17 +236,18 @@ Keys:
   ignored. Optional; if missing defaults to ``False``.
 
 
+Disconnected Client - ``send`` exception
+''''''''''''''''''''''''''''''''''''''''
+
+If ``send()`` is called on a closed connection the server must raise
+a server-specific subclass of ``IOError``.
+Applications may catch this exception and do cleanup work before
+re-raising it or returning with no exception.
+Servers must be prepared to catch this exception if they raised it and
+should not log it as an error in their server logs.
+
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
-
-.. note::
-
-    The ``http.disconnect`` event is deprecated and will be removed in
-    the next major version of the spec (3.0).
-    It has been replaced by the server raising an specific subclass
-    of ``IOError`` if ``send()`` is called on a closed connection.
-    Servers MUST catch this exception if the application doesn't do so
-    such that it doesn't get propagated to server logs.
 
 Sent to the application if receive is called after a response has been
 sent or after the HTTP connection has been closed. This is mainly useful
@@ -427,15 +428,6 @@ keys may be present, however.
 
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
-
-.. note::
-
-    The ``websocket.disconnect`` event is deprecated and will be removed in
-    the next major version of the spec (3.0).
-    It has been replaced by the server raising an specific subclass
-    of ``IOError`` if ``send()`` is called on a closed connection.
-    Servers MUST catch this exception if the application doesn't do so
-    such that it doesn't get propagated to server logs.
 
 Sent to the application when either connection to the client is lost, either from
 the client closing the connection, the server closing the connection, or loss of the
