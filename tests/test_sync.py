@@ -849,3 +849,122 @@ async def test_sync_to_async_within_create_task():
         await sync_to_async(sync_middleware)()
 
     assert task_executed
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(reason="deadlocks")
+async def test_inner_shield_sync_middleware():
+    """
+    Tests that asyncio.shield is capable of preventing http.disconnect from
+    cancelling a django request task when using sync middleware.
+
+    Currently this tests is skipped as it causes a deadlock.
+    """
+
+    # Hypothetical Django scenario - middleware function is sync
+    def sync_middleware():
+        async_to_sync(async_view)()
+
+    task_complete = False
+    task_cancel_caught = False
+
+    # Future that completes when subtask cancellation attempt is caught
+    task_blocker = asyncio.Future()
+
+    async def async_view():
+        """Async view with a task that is shielded from cancellation."""
+        nonlocal task_complete, task_cancel_caught, task_blocker
+        task = asyncio.create_task(async_task())
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            task_cancel_caught = True
+            task_blocker.set_result(True)
+            await task
+            task_complete = True
+
+    task_executed = False
+
+    # Future that completes after subtask is created
+    task_started_future = asyncio.Future()
+
+    async def async_task():
+        """Async subtask that should not be canceled when parent is canceled."""
+        nonlocal task_started_future, task_executed, task_blocker
+        task_started_future.set_result(True)
+        await task_blocker
+        task_executed = True
+
+    task_cancel_propagated = False
+
+    async with ThreadSensitiveContext():
+        task = asyncio.create_task(sync_to_async(sync_middleware)())
+        await task_started_future
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            task_cancel_propagated = True
+        assert not task_cancel_propagated
+        assert task_cancel_caught
+        assert task_complete
+
+    assert task_executed
+
+
+@pytest.mark.asyncio
+async def test_inner_shield_async_middleware():
+    """
+    Tests that asyncio.shield is capable of preventing http.disconnect from
+    cancelling a django request task when using async middleware.
+    """
+
+    # Hypothetical Django scenario - middleware function is async
+    async def async_middleware():
+        await async_view()
+
+    task_complete = False
+    task_cancel_caught = False
+
+    # Future that completes when subtask cancellation attempt is caught
+    task_blocker = asyncio.Future()
+
+    async def async_view():
+        """Async view with a task that is shielded from cancellation."""
+        nonlocal task_complete, task_cancel_caught, task_blocker
+        task = asyncio.create_task(async_task())
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            task_cancel_caught = True
+            task_blocker.set_result(True)
+            await task
+            task_complete = True
+
+    task_executed = False
+
+    # Future that completes after subtask is created
+    task_started_future = asyncio.Future()
+
+    async def async_task():
+        """Async subtask that should not be canceled when parent is canceled."""
+        nonlocal task_started_future, task_executed, task_blocker
+        task_started_future.set_result(True)
+        await task_blocker
+        task_executed = True
+
+    task_cancel_propagated = False
+
+    async with ThreadSensitiveContext():
+        task = asyncio.create_task(async_middleware())
+        await task_started_future
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            task_cancel_propagated = True
+        assert not task_cancel_propagated
+        assert task_cancel_caught
+        assert task_complete
+
+    assert task_executed
