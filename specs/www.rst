@@ -246,6 +246,7 @@ re-raising it or returning with no exception.
 Servers must be prepared to catch this exception if they raised it and
 should not log it as an error in their server logs.
 
+
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
 
