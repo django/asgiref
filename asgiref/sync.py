@@ -153,29 +153,29 @@ class AsyncToSync(Generic[_P, _R]):
             self.__self__ = self.awaitable.__self__  # type: ignore[union-attr]
         except AttributeError:
             pass
-        if force_new_loop:
-            # They have asked that we always run in a new sub-loop.
-            self.main_event_loop = None
-        else:
-            try:
-                self.main_event_loop = asyncio.get_running_loop()
-            except RuntimeError:
-                # There's no event loop in this thread. Look for the threadlocal if
-                # we're inside SyncToAsync
-                main_event_loop_pid = getattr(
-                    SyncToAsync.threadlocal, "main_event_loop_pid", None
-                )
-                # We make sure the parent loop is from the same process - if
-                # they've forked, this is not going to be valid any more (#194)
-                if main_event_loop_pid and main_event_loop_pid == os.getpid():
-                    self.main_event_loop = getattr(
-                        SyncToAsync.threadlocal, "main_event_loop", None
-                    )
-                else:
-                    self.main_event_loop = None
+        self.force_new_loop = force_new_loop
+        self.main_event_loop = None
+        try:
+            self.main_event_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # There's no event loop in this thread.
+            pass
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
+
+        if not self.force_new_loop and not self.main_event_loop:
+            # There's no event loop in this thread. Look for the threadlocal if
+            # we're inside SyncToAsync
+            main_event_loop_pid = getattr(
+                SyncToAsync.threadlocal, "main_event_loop_pid", None
+            )
+            # We make sure the parent loop is from the same process - if
+            # they've forked, this is not going to be valid any more (#194)
+            if main_event_loop_pid and main_event_loop_pid == os.getpid():
+                self.main_event_loop = getattr(
+                    SyncToAsync.threadlocal, "main_event_loop", None
+                )
 
         # You can't call AsyncToSync from a thread with a running event loop
         try:
