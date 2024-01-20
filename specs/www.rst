@@ -21,7 +21,7 @@ This spec has had the following versions:
 * ``2.1``: Added the ``headers`` key to the WebSocket Accept response
 * ``2.2``: Allow ``None`` in the second item of ``server`` scope value.
 * ``2.3``: Added the ``reason`` key to the WebSocket close event.
-* ``2.4``: Calling ``send()`` on a closed WebSocket connection should raise an error
+* ``2.4``: Calling ``send()`` on a closed connection should raise an error
 
 Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
