@@ -223,6 +223,56 @@ async def test_async_to_sync_to_async():
     assert result["thread"] == threading.current_thread()
 
 
+@pytest.mark.asyncio
+async def test_async_to_sync_to_async_decorator():
+    """
+    Test async_to_sync as a function decorator uses the outer thread
+    when used inside sync_to_async.
+    """
+    result = {}
+
+    # Define async function
+    @async_to_sync
+    async def inner_async_function():
+        result["worked"] = True
+        result["thread"] = threading.current_thread()
+        return 42
+
+    # Define sync function
+    @sync_to_async
+    def sync_function():
+        return inner_async_function()
+
+    # Check it works right
+    number = await sync_function()
+    assert number == 42
+    assert result["worked"]
+    # Make sure that it didn't needlessly make a new async loop
+    assert result["thread"] == threading.current_thread()
+    
+@pytest.mark.asyncio
+async def test_async_to_sync_to_thread_decorator():
+    """
+    Test async_to_sync as a function decorator uses the outer thread
+    when used inside another sync thread.
+    """
+    result = {}
+
+    # Define async function
+    @async_to_sync
+    async def inner_async_function():
+        result["worked"] = True
+        result["thread"] = threading.current_thread()
+        return 42
+
+    # Check it works right
+    number = await asyncio.to_thread(inner_async_function)
+    assert number == 42
+    assert result["worked"]
+    # Make sure that it didn't needlessly make a new async loop
+    assert result["thread"] == threading.current_thread()
+
+
 def test_async_to_sync_fail_non_function():
     """
     async_to_sync raises a TypeError when applied to a non-function.
