@@ -241,9 +241,13 @@ Disconnected Client - ``send`` exception
 ''''''''''''''''''''''''''''''''''''''''
 
 If ``send()`` is called on a closed connection the server should raise
-a server-specific subclass of ``IOError``.
+a server-specific subclass of ``IOError``. This is not guaranteed, however,
+especially on older ASGI server implementations (it was introduced in spec
+version 2.4).
+
 Applications may catch this exception and do cleanup work before
 re-raising it or returning with no exception.
+
 Servers must be prepared to catch this exception if they raised it and
 should not log it as an error in their server logs.
 
@@ -255,6 +259,11 @@ Sent to the application if receive is called after a response has been
 sent or after the HTTP connection has been closed. This is mainly useful
 for long-polling, where you may want to trigger cleanup code if the
 connection closes early.
+
+Once you have received this event, you should expect future calls to ``send()``
+to raise an exception, as described above. However, if you have highly
+concurrent code, you may find calls to ``send()`` erroring slightly before you
+receive this event.
 
 Keys:
 
@@ -435,6 +444,11 @@ Sent to the application when either connection to the client is lost, either fro
 the client closing the connection, the server closing the connection, or loss of the
 socket.
 
+Once you have received this event, you should expect future calls to ``send()``
+to raise an exception, as described below. However, if you have highly
+concurrent code, you may find calls to ``send()`` erroring slightly before you
+receive this event.
+
 Keys:
 
 * ``type`` (*Unicode string*) -- ``"websocket.disconnect"``
@@ -442,6 +456,21 @@ Keys:
 * ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec. If no code
   was received in the frame from the client, the server should set this to ``1005``
   (the default value in the WebSocket specification).
+
+
+Disconnected Client - ``send`` exception
+''''''''''''''''''''''''''''''''''''''''
+
+If ``send()`` is called on a closed connection the server should raise
+a server-specific subclass of ``IOError``. This is not guaranteed, however,
+especially on older ASGI server implementations (it was introduced in spec
+version 2.4).
+
+Applications may catch this exception and do cleanup work before
+re-raising it or returning with no exception.
+
+Servers must be prepared to catch this exception if they raised it and
+should not log it as an error in their server logs.
 
 
 Close - ``send`` event
