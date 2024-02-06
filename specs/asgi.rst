@@ -61,7 +61,7 @@ Like WSGI, the server hosts the application inside it, and dispatches incoming
 requests to it in a standardized format. Unlike WSGI, however, applications
 are asynchronous callables rather than simple callables, and they communicate with
 the server by receiving and sending asynchronous event messages rather than receiving
-a single input stream and returning a single iterable. ASGI applications must run as 
+a single input stream and returning a single iterable. ASGI applications must run as
 ``async`` / ``await`` compatible coroutines (i.e. ``asyncio``-compatible) (on the main thread;
 they are free to use threading or other processes if they need synchronous
 code).
@@ -291,8 +291,13 @@ options - but they must terminate the application instance and its associated
 connection if this happens.
 
 Note that messages received by a server after the connection has been
-closed are not considered errors. In this case the ``send`` awaitable
-callable should act as a no-op.
+closed are generally not considered errors unless specified by a protocol.
+If no error condition is specified, the ``send`` awaitable callable should act
+as a no-op.
+
+Even if an error is raised on ``send()``, it should be an error
+class that the server catches and ignores if it is raised out of the
+application, ensuring that the server does not itself error in the process.
 
 Extensions
 ----------
