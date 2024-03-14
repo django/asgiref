@@ -3,7 +3,7 @@ import sys
 import pytest
 
 from asgiref.testing import ApplicationCommunicator
-from asgiref.wsgi import WsgiToAsgi
+from asgiref.wsgi import WsgiToAsgi, WsgiToAsgiInstance
 
 
 @pytest.mark.asyncio
@@ -11,6 +11,7 @@ async def test_basic_wsgi():
     """
     Makes sure the WSGI wrapper has basic functionality.
     """
+
     # Define WSGI app
     def wsgi_application(environ, start_response):
         assert environ["HTTP_TEST_HEADER"] == "test value 1,test value 2"
@@ -55,11 +56,32 @@ async def test_basic_wsgi():
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
 
 
+def test_script_name():
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "root_path": "/base",
+        "path": "/base/foo/",
+        "query_string": b"bar=baz",
+        "headers": [
+            [b"test-header", b"test value 1"],
+            [b"test-header", b"test value 2"],
+        ],
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SCRIPT_NAME"] == "/base"
+    assert environ["PATH_INFO"] == "/foo/"
+
+
 @pytest.mark.asyncio
 async def test_wsgi_path_encoding():
     """
     Makes sure the WSGI wrapper has basic functionality.
     """
+
     # Define WSGI app
     def wsgi_application(environ, start_response):
         assert environ["SCRIPT_NAME"] == "/中国".encode().decode("latin-1")
