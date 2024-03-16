@@ -1,3 +1,19 @@
+3.8.0 (2024-03-20)
+------------------
+
+* Adds support for Python 3.12.
+
+* Drops support for (end-of-life) Python 3.7.
+
+* Fixes task cancellation propagation to subtasks when using synchronous Django
+  middleware.
+
+* Allows nesting ``sync_to_async`` via ``asyncio.wait_for``.
+
+* Corrects WSGI adapter handling of root path.
+
+* Handles case where `"client"` is ``None`` in WsgiToAsgi adapter.
+
 3.7.2 (2023-05-27)
 ------------------
 
