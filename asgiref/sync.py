@@ -519,6 +519,16 @@ class SyncToAsync(Generic[_P, _R]):
         else:
             return func(*args, **kwargs)
 
+    @staticmethod
+    def get_current_task() -> Optional["asyncio.Task[Any]"]:
+        """
+        Implementation of asyncio.current_task()
+        that returns None if there is no task.
+        """
+        try:
+            return asyncio.current_task()
+        except RuntimeError:
+            return None
 
 @overload
 def async_to_sync(
