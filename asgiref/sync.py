@@ -478,6 +478,8 @@ class SyncToAsync(Generic[_P, _R]):
                     pass
             except IndexError:
                 pass
+            if exec_coro.done():
+                raise
             if cancel_parent:
                 exec_coro.cancel()
             ret = await exec_coro
