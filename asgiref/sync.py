@@ -203,10 +203,6 @@ class AsyncToSync(Generic[_P, _R]):
         # `main_wrap`.
         context = [contextvars.copy_context()]
 
-        # Get task context so that parent task knows which task to propagate
-        # an asyncio.CancelledError to.
-        task_context = getattr(SyncToAsync.threadlocal, "task_context", None)
-
         loop = None
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread if it's there, otherwise make a new loop
@@ -215,7 +211,6 @@ class AsyncToSync(Generic[_P, _R]):
             awaitable = self.main_wrap(
                 call_result,
                 sys.exc_info(),
-                task_context,
                 context,
                 *args,
                 **kwargs,
@@ -300,7 +295,6 @@ class AsyncToSync(Generic[_P, _R]):
         self,
         call_result: "Future[_R]",
         exc_info: "OptExcInfo",
-        task_context: "Optional[List[asyncio.Task[Any]]]",
         context: List[contextvars.Context],
         *args: _P.args,
         **kwargs: _P.kwargs,
@@ -314,10 +308,6 @@ class AsyncToSync(Generic[_P, _R]):
 
         if context is not None:
             _restore_context(context[0])
-
-        current_task = asyncio.current_task()
-        if current_task is not None and task_context is not None:
-            task_context.append(current_task)
 
         try:
             # If we have an exception, run the function inside the except block
@@ -334,8 +324,6 @@ class AsyncToSync(Generic[_P, _R]):
         else:
             call_result.set_result(result)
         finally:
-            if current_task is not None and task_context is not None:
-                task_context.remove(current_task)
             context[0] = contextvars.copy_context()
 
 
@@ -449,38 +437,20 @@ class SyncToAsync(Generic[_P, _R]):
         context = contextvars.copy_context()
         child = functools.partial(self.func, *args, **kwargs)
         func = context.run
-        task_context: List[asyncio.Task[Any]] = []
 
-        # Run the code in the right thread
-        exec_coro = loop.run_in_executor(
-            executor,
-            functools.partial(
-                self.thread_handler,
-                loop,
-                sys.exc_info(),
-                task_context,
-                func,
-                child,
-            ),
-        )
-        ret: _R
         try:
-            ret = await asyncio.shield(exec_coro)
-        except asyncio.CancelledError:
-            cancel_parent = True
-            try:
-                task = task_context[0]
-                task.cancel()
-                try:
-                    await task
-                    cancel_parent = False
-                except asyncio.CancelledError:
-                    pass
-            except IndexError:
-                pass
-            if cancel_parent:
-                exec_coro.cancel()
-            ret = await exec_coro
+            # Run the code in the right thread
+            ret: _R = await loop.run_in_executor(
+                executor,
+                functools.partial(
+                    self.thread_handler,
+                    loop,
+                    sys.exc_info(),
+                    func,
+                    child,
+                ),
+            )
+
         finally:
             _restore_context(context)
             self.deadlock_context.set(False)
@@ -496,7 +466,7 @@ class SyncToAsync(Generic[_P, _R]):
         func = functools.partial(self.__call__, parent)
         return functools.update_wrapper(func, self.func)
 
-    def thread_handler(self, loop, exc_info, task_context, func, *args, **kwargs):
+    def thread_handler(self, loop, exc_info, func, *args, **kwargs):
         """
         Wraps the sync application with exception handling.
         """
@@ -506,7 +476,6 @@ class SyncToAsync(Generic[_P, _R]):
         # Set the threadlocal for AsyncToSync
         self.threadlocal.main_event_loop = loop
         self.threadlocal.main_event_loop_pid = os.getpid()
-        self.threadlocal.task_context = task_context
 
         # Run the function
         # If we have an exception, run the function inside the except block
