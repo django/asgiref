@@ -1,3 +1,9 @@
+3.8.1 (2024-03-22)
+------------------
+
+* Fixes a regression in 3.8.0 affecting nested task cancellation inside
+  sync_to_async.
+
 3.8.0 (2024-03-20)
 ------------------
 
