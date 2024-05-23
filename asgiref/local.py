@@ -30,11 +30,12 @@ class _CVar:
 
     def __delattr__(self, key: str) -> None:
         storage_object = self._data.get({})
-        if key in storage_object:
+        try:
             del storage_object[key]
-            self._data.set(storage_object)
-        else:
+        except KeyError:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
+        else:
+            self._data.set(storage_object)
 
 
 class Local:
@@ -98,15 +99,15 @@ class Local:
                 # local to this thread, but additionally should
                 # behave like a context var (is only visible with
                 # the same async call stack)
-
-                # Ensure context exists in the current thread
-                if not hasattr(self._storage, "cvar"):
-                    self._storage.cvar = _CVar()
-
                 # self._storage is a thread local, so the members
                 # can't be accessed in another thread (we don't
                 # need any locks)
-                yield self._storage.cvar
+                try:
+                    yield self._storage.cvar
+                except AttributeError:
+                    # Ensure context exists in the current thread
+                    self._storage.cvar = _CVar()
+                    yield self._storage.cvar
         else:
             # Lock for thread_critical=False as other threads
             # can access the exact same storage object
