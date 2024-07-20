@@ -242,7 +242,7 @@ Disconnected Client - ``send`` exception
 ''''''''''''''''''''''''''''''''''''''''
 
 If ``send()`` is called on a closed connection the server should raise
-a server-specific subclass of ``IOError``. This is not guaranteed, however,
+a server-specific subclass of ``OSError``. This is not guaranteed, however,
 especially on older ASGI server implementations (it was introduced in spec
 version 2.4).
 
@@ -467,7 +467,7 @@ Disconnected Client - ``send`` exception
 ''''''''''''''''''''''''''''''''''''''''
 
 If ``send()`` is called on a closed connection the server should raise
-a server-specific subclass of ``IOError``. This is not guaranteed, however,
+a server-specific subclass of ``OSError``. This is not guaranteed, however,
 especially on older ASGI server implementations (it was introduced in spec
 version 2.4).
 
