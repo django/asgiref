@@ -4,6 +4,7 @@ import multiprocessing
 import sys
 import threading
 import time
+from typing import Any
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
@@ -1174,3 +1175,28 @@ async def test_inner_shield_sync_and_async_middleware_sync_task():
         assert task_complete
 
     assert task_executed
+
+
+def test_async_to_sync_overlapping_kwargs() -> None:
+    """
+    async_to_sync correctly passes kwargs
+    """
+
+    @async_to_sync
+    async def test_function(**kwargs: Any) -> None:
+        assert kwargs
+
+    test_function(context=1)
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_overlapping_kwargs() -> None:
+    """
+    sync_to_async correctly passes kwargs
+    """
+
+    @sync_to_async
+    def test_function(task_context: int) -> None:
+        assert task_context
+
+    await test_function(task_context=1)
