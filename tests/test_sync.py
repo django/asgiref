@@ -4,10 +4,10 @@ import multiprocessing
 import sys
 import threading
 import time
-from typing import Any
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
+from typing import Any
 from unittest import TestCase
 
 import pytest
