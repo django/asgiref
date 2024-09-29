@@ -212,13 +212,17 @@ class AsyncToSync(Generic[_P, _R]):
         # main event loop's thread if it's there, otherwise make a new loop
         # in this thread.
         try:
-            partial_fn = functools.partial(self.awaitable, *args, **kwargs)
+            # make a function taking no args/kwargs which can be passed as is
+            # to self.main_wrap, so that `args` and `kwargs` don't need to be
+            # destructured when passed to self.main_wrap
+            # (which is required by `ParamSpec`)
+            awaitable_fn = functools.partial(self.awaitable, *args, **kwargs)
             awaitable = self.main_wrap(
                 call_result,
                 sys.exc_info(),
                 task_context,
                 context,
-                partial_fn,
+                awaitable_fn,
             )
 
             if not (self.main_event_loop and self.main_event_loop.is_running()):
@@ -302,7 +306,7 @@ class AsyncToSync(Generic[_P, _R]):
         exc_info: "OptExcInfo",
         task_context: "Optional[List[asyncio.Task[Any]]]",
         context: List[contextvars.Context],
-        awaitable: Callable[[], Awaitable[_R]],
+        awaitable_fn: Callable[[], Awaitable[_R]],
     ) -> None:
         """
         Wraps the awaitable with something that puts the result into the
@@ -325,9 +329,9 @@ class AsyncToSync(Generic[_P, _R]):
                 try:
                     raise exc_info[1]
                 except BaseException:
-                    result = await awaitable()
+                    result = await awaitable_fn()
             else:
-                result = await awaitable()
+                result = await awaitable_fn()
         except BaseException as e:
             call_result.set_exception(e)
         else:
