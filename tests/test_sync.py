@@ -7,6 +7,7 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
+from typing import Any
 from unittest import TestCase
 
 import pytest
@@ -1174,3 +1175,36 @@ async def test_inner_shield_sync_and_async_middleware_sync_task():
         assert task_complete
 
     assert task_executed
+
+
+def test_async_to_sync_overlapping_kwargs() -> None:
+    """
+    Tests that AsyncToSync correctly passes through kwargs to the wrapped function,
+    particularly in the case where the wrapped function uses same names for the parameters
+    as the wrapper.
+    """
+
+    @async_to_sync
+    async def test_function(**kwargs: Any) -> None:
+        assert kwargs
+
+    # AsyncToSync.main_wrap has a param named `context`.
+    # So we pass the same argument here to test for the error
+    # "AsyncToSync.main_wrap() got multiple values for argument '<kwarg>'"
+    test_function(context=1)
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_overlapping_kwargs() -> None:
+    """
+    Tests that SyncToAsync correctly passes through kwargs to the wrapped function,
+    particularly in the case where the wrapped function uses same names for the parameters
+    as the wrapper.
+    """
+
+    @sync_to_async
+    def test_function(**kwargs: Any) -> None:
+        assert kwargs
+
+    # SyncToAsync.__call__.loop.run_in_executor has a param named `task_context`.
+    await test_function(task_context=1)
