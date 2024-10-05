@@ -233,9 +233,8 @@ class AsyncToSync(Generic[_P, _R]):
                 loop_future = loop_executor.submit(
                     self._run_event_loop, loop, awaitable
                 )
-                if current_executor:
-                    # Run the CurrentThreadExecutor until the future is done
-                    current_executor.run_until_future(loop_future)
+                # Run the CurrentThreadExecutor until the future is done.
+                current_executor.run_until_future(loop_future)
                 # Wait for future and/or allow for exception propagation
                 loop_future.result()
             else:
@@ -243,9 +242,8 @@ class AsyncToSync(Generic[_P, _R]):
                 self.main_event_loop.call_soon_threadsafe(
                     self.main_event_loop.create_task, awaitable
                 )
-                if current_executor:
-                    # Run the CurrentThreadExecutor until the future is done
-                    current_executor.run_until_future(call_result)
+                # Run the CurrentThreadExecutor until the future is done.
+                current_executor.run_until_future(call_result)
         finally:
             # Clean up any executor we were running
             if loop is not None:
