@@ -1,3 +1,5 @@
+# type: ignore
+
 import asyncio
 import gc
 import threading
