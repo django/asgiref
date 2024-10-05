@@ -24,9 +24,8 @@ class _CVar:
         if key == "_data":
             return super().__setattr__(key, value)
 
-        storage_object = self._data.get({})
-        storage_object[key] = value
-        self._data.set(storage_object)
+        # Update a copy of the existing storage.
+        self._data.set({**self._data.get({}), key: value})
 
     def __delattr__(self, key: str) -> None:
         storage_object = self._data.get({})
