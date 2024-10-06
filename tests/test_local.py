@@ -1,6 +1,7 @@
 import asyncio
 import gc
 import threading
+from threading import Thread
 
 import pytest
 
@@ -338,3 +339,39 @@ def test_thread_critical_local_not_context_dependent_in_sync_thread():
     # inner value was set inside a new async context, meaning that
     # we do not see it, as context vars don't propagate up the stack
     assert not hasattr(test_local_not_tc, "test_value")
+
+
+def test_visibility_thread_asgiref() -> None:
+    """Check visibility with subthreads."""
+    test_local = Local()
+    test_local.value = 0
+
+    def _test() -> None:
+        # Local() is cleared when changing thread
+        assert not hasattr(test_local, "value")
+        setattr(test_local, "value", 1)
+        assert test_local.value == 1
+
+    thread = Thread(target=_test)
+    thread.start()
+    thread.join()
+
+    assert test_local.value == 0
+
+
+@pytest.mark.asyncio
+async def test_visibility_task() -> None:
+    """Check visibility with asyncio tasks."""
+    test_local = Local()
+    test_local.value = 0
+
+    async def _test() -> None:
+        # Local is inherited when changing task
+        assert test_local.value == 0
+        test_local.value = 1
+        assert test_local.value == 1
+
+    await asyncio.create_task(_test())
+
+    # Changes should not leak to the caller
+    assert test_local.value == 0
