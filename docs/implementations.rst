@@ -97,6 +97,17 @@ Esmerald
 Esmerald is a modern, powerful, flexible, high performant web framework designed to build not only APIs but also full scalable applications from the smallest to enterprise level. Modular, elagant and pluggable at its core.
 
 
+Falcon
+------
+
+*Stable* / https://falconframework.org/
+
+Falcon is a no-magic web API and microservices framework, with a focus on
+reliability, correctness, and performance at scale.
+Supports both WSGI and ASGI, without any hard dependencies outside of the
+standard library.
+
+
 FastAPI
 -------
 
