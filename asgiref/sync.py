@@ -196,7 +196,7 @@ class AsyncToSync(Generic[_P, _R]):
         # need one for every sync frame, even if there's one above us in the
         # same thread.
         old_executor = getattr(self.executors, "current", None)
-        current_executor = CurrentThreadExecutor()
+        current_executor = CurrentThreadExecutor(old_executor)
         self.executors.current = current_executor
 
         # Wrapping context in list so it can be reassigned from within
