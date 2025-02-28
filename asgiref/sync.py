@@ -452,22 +452,29 @@ class SyncToAsync(Generic[_P, _R]):
         func = context.run
         task_context: List[asyncio.Task[Any]] = []
 
-        # Run the code in the right thread
-        exec_coro = loop.run_in_executor(
-            executor,
-            functools.partial(
-                self.thread_handler,
-                loop,
-                sys.exc_info(),
-                task_context,
-                func,
-                child,
-            ),
-        )
+        try:
+            # Run the code in the right thread
+            exec_coro = loop.run_in_executor(
+                executor,
+                functools.partial(
+                    self.thread_handler,
+                    loop,
+                    sys.exc_info(),
+                    task_context,
+                    func,
+                    child,
+                ),
+            )
+        except:
+            _restore_context(context)
+            self.deadlock_context.set(False)
+            raise
+
         ret: _R
         try:
             ret = await asyncio.shield(exec_coro)
         except asyncio.CancelledError:
+            # catch CancelledError only in await
             cancel_parent = True
             try:
                 task = task_context[0]
