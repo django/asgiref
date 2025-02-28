@@ -212,7 +212,6 @@ async def test_sync_to_async_broken_executor(exc_cls):
             await async_function()
 
 
-
 @pytest.mark.asyncio
 async def test_async_to_sync_to_async():
     """

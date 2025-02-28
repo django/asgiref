@@ -465,7 +465,7 @@ class SyncToAsync(Generic[_P, _R]):
                     child,
                 ),
             )
-        except:
+        except Exception:
             _restore_context(context)
             self.deadlock_context.set(False)
             raise
