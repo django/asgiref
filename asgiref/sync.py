@@ -183,11 +183,10 @@ class AsyncToSync(Generic[_P, _R]):
         except RuntimeError:
             pass
         else:
-            if event_loop.is_running():
-                raise RuntimeError(
-                    "You cannot use AsyncToSync in the same thread as an async event loop - "
-                    "just await the async function directly."
-                )
+            raise RuntimeError(
+                "You cannot use AsyncToSync in the same thread as an async event loop - "
+                "just await the async function directly."
+            )
 
         # Make a future for the return information
         call_result: "Future[_R]" = Future()
@@ -232,7 +231,22 @@ class AsyncToSync(Generic[_P, _R]):
                 finally:
                     del self.loop_thread_executors[loop]
 
-            if not (self.main_event_loop and self.main_event_loop.is_running()):
+
+            if self.main_event_loop is not None:
+                try:
+                    self.main_event_loop.call_soon_threadsafe(
+                        self.main_event_loop.create_task, awaitable
+                    )
+                except RuntimeError:
+                    running_in_main_event_loop = False
+                else:
+                    running_in_main_event_loop = True
+                    # Run the CurrentThreadExecutor until the future is done.
+                    current_executor.run_until_future(call_result)
+            else:
+                running_in_main_event_loop = False
+
+            if not running_in_main_event_loop:
                 # Make our own event loop - in a new thread - and run inside that.
                 loop_executor = ThreadPoolExecutor(max_workers=1)
                 loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
@@ -240,13 +254,6 @@ class AsyncToSync(Generic[_P, _R]):
                 current_executor.run_until_future(loop_future)
                 # Wait for future and/or allow for exception propagation
                 loop_future.result()
-            else:
-                # Call it inside the existing loop
-                self.main_event_loop.call_soon_threadsafe(
-                    self.main_event_loop.create_task, awaitable
-                )
-                # Run the CurrentThreadExecutor until the future is done.
-                current_executor.run_until_future(call_result)
         finally:
             _restore_context(context[0])
             # Restore old current thread executor state
