@@ -46,6 +46,7 @@ async def test_receive_nothing():
     # Response received completely
     assert await instance.receive_nothing(0.01) is True
 
+
 def test_receive_nothing_lazy_loop():
     """
     Tests ApplicationCommunicator.receive_nothing to return the correct value.

@@ -42,7 +42,9 @@ class ApplicationCommunicator:
             # asyncio.create_task(..., context=contextvars.Context())
             self._future = contextvars.Context().run(
                 asyncio.create_task,
-                self.application(self.scope, self.input_queue.get, self.output_queue.put),
+                self.application(
+                    self.scope, self.input_queue.get, self.output_queue.put
+                ),
             )
         return self._future
 
