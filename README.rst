@@ -96,7 +96,7 @@ file handles for incoming POST bodies).
 Dependencies
 ------------
 
-``asgiref`` requires Python 3.8 or higher.
+``asgiref`` requires Python 3.9 or higher.
 
 
 Contributing
@@ -146,7 +146,7 @@ Then, build and push the packages::
 
     python -m build
     twine upload dist/*
-    rm -r build/ dist/
+    rm -r asgiref.egg-info dist
 
 
 Implementation Details

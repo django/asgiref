@@ -158,7 +158,7 @@ Keys:
 * ``type`` (*Unicode string*): ``"http.response.pathsend"``
 
 * ``path`` (*Unicode string*): The string representation of the absolute
-file path to be sent by the server, platform specific.
+  file path to be sent by the server, platform specific.
 
 The ASGI application itself is responsible to send the relevant headers
 in the *Response Start* message, like the ``Content-Type`` and

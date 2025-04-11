@@ -2,7 +2,7 @@
 HTTP & WebSocket ASGI Message Format
 ====================================
 
-**Version**: 2.3 (2021-02-02)
+**Version**: 2.5 (2024-06-05)
 
 The HTTP+WebSocket ASGI sub-specification outlines how to transport HTTP/1.1,
 HTTP/2 and WebSocket connections within ASGI.
@@ -15,12 +15,14 @@ are able to be handled by WSGI.
 Spec Versions
 -------------
 
-This spec has had three versions:
+This spec has had the following versions:
 
 * ``2.0``: The first version of the spec, released with ASGI 2.0
 * ``2.1``: Added the ``headers`` key to the WebSocket Accept response
 * ``2.2``: Allow ``None`` in the second item of ``server`` scope value.
 * ``2.3``: Added the ``reason`` key to the WebSocket close event.
+* ``2.4``: Calling ``send()`` on a closed connection should raise an error
+* ``2.5``: Added the ``reason`` key to the WebSocket disconnect event.
 
 Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
@@ -43,13 +45,28 @@ states that for any header field that can appear multiple times, it is exactly
 equivalent to sending that header field only once with all the values joined by
 commas.
 
-However, RFC 7230 and RFC 6265 make it clear that this rule does not apply to
-the various headers used by HTTP cookies (``Cookie`` and ``Set-Cookie``). The
-``Cookie`` header must only be sent once by a user-agent, but the
-``Set-Cookie`` header may appear repeatedly and cannot be joined by commas.
+However, for HTTP cookies (``Cookie`` and ``Set-Cookie``) the allowed behaviour
+does not follow the above rule, and also varies slightly based on the HTTP
+protocol version:
+
+* For the ``Set-Cookie`` header in HTTP/1.0, HTTP/1.1 and HTTP2.0, it may appear
+  repeatedly, but cannot be concatenated by commas (or anything else) into a
+  single header field.
+
+* For the ``Cookie`` header, in HTTP/1.0 and HTTP/1.1, RFC 7230 and RFC 6265
+  make it clear that the ``Cookie`` header must only be sent once by a
+  user-agent, and must be concatenated into a single octet string using the
+  two-octet delimiter of 0x3b, 0x20 (the ASCII string "; "). However in HTTP/2,
+  RFC 9113 states that ``Cookie`` headers MAY appear repeatedly, OR be
+  concatenated using the two-octet delimiter of 0x3b, 0x20
+  (the ASCII string "; ").
+
 The ASGI design decision is to transport both request and response headers as
 lists of 2-element ``[name, value]`` lists and preserve headers exactly as they
 were provided.
+
+For ASGI applications that support HTTP/2, care should be taken to handle the
+special case for ``Cookie`` noted above.
 
 The HTTP protocol should be signified to ASGI applications with a ``type``
 value of ``http``.
@@ -73,8 +90,8 @@ The *connection scope* information passed in ``scope`` contains:
 * ``asgi["version"]`` (*Unicode string*) -- Version of the ASGI spec.
 
 * ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI
-  HTTP spec this server understands; one of ``"2.0"``, ``"2.1"``, ``"2.2"`` or
-  ``"2.3"``. Optional; if missing assume ``2.0``.
+  HTTP spec this server understands; for example: ``"2.0"``, ``"2.1"``, ``"2.2"``,
+  etc. Optional; if missing assume ``"2.0"``.
 
 * ``http_version`` (*Unicode string*) -- One of ``"1.0"``, ``"1.1"`` or ``"2"``.
 
@@ -221,6 +238,21 @@ Keys:
   ignored. Optional; if missing defaults to ``False``.
 
 
+Disconnected Client - ``send`` exception
+''''''''''''''''''''''''''''''''''''''''
+
+If ``send()`` is called on a closed connection the server should raise
+a server-specific subclass of ``OSError``. This is not guaranteed, however,
+especially on older ASGI server implementations (it was introduced in spec
+version 2.4).
+
+Applications may catch this exception and do cleanup work before
+re-raising it or returning with no exception.
+
+Servers must be prepared to catch this exception if they raised it and
+should not log it as an error in their server logs.
+
+
 Disconnect - ``receive`` event
 ''''''''''''''''''''''''''''''
 
@@ -228,6 +260,11 @@ Sent to the application if receive is called after a response has been
 sent or after the HTTP connection has been closed. This is mainly useful
 for long-polling, where you may want to trigger cleanup code if the
 connection closes early.
+
+Once you have received this event, you should expect future calls to ``send()``
+to raise an exception, as described above. However, if you have highly
+concurrent code, you may find calls to ``send()`` erroring slightly before you
+receive this event.
 
 Keys:
 
@@ -278,10 +315,10 @@ metadata (mostly from the HTTP request line and headers):
   string, with percent-encoded sequences and UTF-8 byte sequences
   decoded into characters.
 
-* ``raw_path`` (*byte string*) -- The original HTTP path component
-  unmodified from the bytes that were received by the web server. Some
-  web server implementations may be unable to provide this. Optional;
-  if missing defaults to ``None``.
+* ``raw_path`` (*byte string*) -- The original HTTP path component,
+  excluding any query string, unmodified from the bytes that were
+  received by the web server. Some web server implementations may
+  be unable to provide this. Optional; if missing defaults to ``None``.
 
 * ``query_string`` (*byte string*) -- URL portion after the
   ``?``. Optional; if missing or ``None`` default is empty string.
@@ -408,6 +445,11 @@ Sent to the application when either connection to the client is lost, either fro
 the client closing the connection, the server closing the connection, or loss of the
 socket.
 
+Once you have received this event, you should expect future calls to ``send()``
+to raise an exception, as described below. However, if you have highly
+concurrent code, you may find calls to ``send()`` erroring slightly before you
+receive this event.
+
 Keys:
 
 * ``type`` (*Unicode string*) -- ``"websocket.disconnect"``
@@ -415,6 +457,25 @@ Keys:
 * ``code`` (*int*) -- The WebSocket close code, as per the WebSocket spec. If no code
   was received in the frame from the client, the server should set this to ``1005``
   (the default value in the WebSocket specification).
+
+* ``reason`` (*Unicode string*) -- A reason given for the disconnect, can
+  be any string. Optional; if missing or ``None`` default is empty
+  string.
+
+
+Disconnected Client - ``send`` exception
+''''''''''''''''''''''''''''''''''''''''
+
+If ``send()`` is called on a closed connection the server should raise
+a server-specific subclass of ``OSError``. This is not guaranteed, however,
+especially on older ASGI server implementations (it was introduced in spec
+version 2.4).
+
+Applications may catch this exception and do cleanup work before
+re-raising it or returning with no exception.
+
+Servers must be prepared to catch this exception if they raised it and
+should not log it as an error in their server logs.
 
 
 Close - ``send`` event
