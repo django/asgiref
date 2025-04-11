@@ -52,7 +52,7 @@ class timeout:
 
     def __exit__(
         self,
-        exc_type: Type[BaseException],
+        exc_type: type[BaseException],
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> Optional[bool]:
@@ -64,7 +64,7 @@ class timeout:
 
     async def __aexit__(
         self,
-        exc_type: Type[BaseException],
+        exc_type: type[BaseException],
         exc_val: BaseException,
         exc_tb: TracebackType,
     ) -> None:
@@ -101,7 +101,7 @@ class timeout:
         self._cancel_handler = self._loop.call_at(self._cancel_at, self._cancel_task)
         return self
 
-    def _do_exit(self, exc_type: Type[BaseException]) -> None:
+    def _do_exit(self, exc_type: type[BaseException]) -> None:
         if exc_type is asyncio.CancelledError and self._cancelled:
             self._cancel_handler = None
             self._task = None

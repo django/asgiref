@@ -40,6 +40,7 @@ async def test_sync_to_async_contextvars():
     present in the called context, and that any changes in the called context
     are then propagated back to the calling context.
     """
+
     # Define sync function
     def sync_function():
         time.sleep(1)
@@ -61,6 +62,7 @@ def test_async_to_sync_contextvars():
     present in the called context, and that any changes in the called context
     are then propagated back to the calling context.
     """
+
     # Define sync function
     async def async_function():
         await asyncio.sleep(1)

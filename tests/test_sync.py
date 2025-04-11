@@ -27,6 +27,7 @@ async def test_sync_to_async():
     Tests we can call sync functions from an async thread
     (even if the number of thread workers is less than the number of calls)
     """
+
     # Define sync function
     def sync_function():
         time.sleep(1)
@@ -123,6 +124,7 @@ async def test_sync_to_async_decorator():
     """
     Tests sync_to_async as a decorator
     """
+
     # Define sync function
     @sync_to_async
     def test_function():
@@ -162,6 +164,7 @@ async def test_sync_to_async_method_decorator():
     """
     Tests sync_to_async as a method decorator
     """
+
     # Define sync function
     class TestClass:
         @sync_to_async
@@ -463,6 +466,7 @@ def test_async_to_sync_method_self_attribute():
     """
     Tests async_to_sync on a method copies __self__.
     """
+
     # Define async function.
     class TestClass:
         async def test_function(self):
