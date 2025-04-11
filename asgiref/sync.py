@@ -179,7 +179,7 @@ class AsyncToSync(Generic[_P, _R]):
 
         # You can't call AsyncToSync from a thread with a running event loop
         try:
-            event_loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             pass
         else:
@@ -230,7 +230,6 @@ class AsyncToSync(Generic[_P, _R]):
                     await awaitable
                 finally:
                     del self.loop_thread_executors[loop]
-
 
             if self.main_event_loop is not None:
                 try:
