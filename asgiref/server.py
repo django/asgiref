@@ -70,7 +70,7 @@ class StatelessServer:
         class Done(Exception):
             pass
 
-        async def handle() -> None:
+        async def handle():
             await self.handle()
             raise Done
 
