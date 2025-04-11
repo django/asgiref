@@ -207,7 +207,6 @@ class AsyncToSync(Generic[_P, _R]):
         # an asyncio.CancelledError to.
         task_context = getattr(SyncToAsync.threadlocal, "task_context", None)
 
-        loop = None
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread if it's there, otherwise make a new loop
         # in this thread.
@@ -225,14 +224,18 @@ class AsyncToSync(Generic[_P, _R]):
                 self.awaitable(*args, **kwargs),
             )
 
+            async def new_loop_wrap() -> None:
+                loop = asyncio.get_running_loop()
+                self.loop_thread_executors[loop] = current_executor
+                try:
+                    await awaitable
+                finally:
+                    del self.loop_thread_executors[loop]
+
             if not (self.main_event_loop and self.main_event_loop.is_running()):
                 # Make our own event loop - in a new thread - and run inside that.
-                loop = asyncio.new_event_loop()
-                self.loop_thread_executors[loop] = current_executor
                 loop_executor = ThreadPoolExecutor(max_workers=1)
-                loop_future = loop_executor.submit(
-                    self._run_event_loop, loop, awaitable
-                )
+                loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
                 # Run the CurrentThreadExecutor until the future is done.
                 current_executor.run_until_future(loop_future)
                 # Wait for future and/or allow for exception propagation
@@ -245,51 +248,12 @@ class AsyncToSync(Generic[_P, _R]):
                 # Run the CurrentThreadExecutor until the future is done.
                 current_executor.run_until_future(call_result)
         finally:
-            # Clean up any executor we were running
-            if loop is not None:
-                del self.loop_thread_executors[loop]
             _restore_context(context[0])
             # Restore old current thread executor state
             self.executors.current = old_executor
 
         # Wait for results from the future.
         return call_result.result()
-
-    def _run_event_loop(self, loop, coro):
-        """
-        Runs the given event loop (designed to be called in a thread).
-        """
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(coro)
-        finally:
-            try:
-                # mimic asyncio.run() behavior
-                # cancel unexhausted async generators
-                tasks = asyncio.all_tasks(loop)
-                for task in tasks:
-                    task.cancel()
-
-                async def gather():
-                    await asyncio.gather(*tasks, return_exceptions=True)
-
-                loop.run_until_complete(gather())
-                for task in tasks:
-                    if task.cancelled():
-                        continue
-                    if task.exception() is not None:
-                        loop.call_exception_handler(
-                            {
-                                "message": "unhandled exception during loop shutdown",
-                                "exception": task.exception(),
-                                "task": task,
-                            }
-                        )
-                if hasattr(loop, "shutdown_asyncgens"):
-                    loop.run_until_complete(loop.shutdown_asyncgens())
-            finally:
-                loop.close()
-                asyncio.set_event_loop(self.main_event_loop)
 
     def __get__(self, parent: Any, objtype: Any) -> Callable[_P, _R]:
         """
