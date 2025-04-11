@@ -1,8 +1,8 @@
 import asyncio
 import socket as sock
-from functools import partial
 
 import pytest
+import pytest_asyncio
 
 from asgiref.server import StatelessServer
 
@@ -74,8 +74,8 @@ class Client:
         self._sock.close()
 
 
-@pytest.fixture(scope="function")
-def server():
+@pytest_asyncio.fixture(scope="function")
+async def server():
     async def app(scope, receive, send):
         while True:
             msg = await receive()
@@ -92,24 +92,11 @@ async def check_client_msg(client, expected_address, expected_msg):
     assert server_addr == expected_address
 
 
-async def server_auto_close(fut, timeout):
-    """Server run based on run_until_complete. It will block forever with handle
-    function because it is a while True loop without break.  Use this method to close
-    server automatically."""
-    loop = asyncio.get_running_loop()
-    task = asyncio.ensure_future(fut, loop=loop)
-    await asyncio.sleep(timeout)
-    task.cancel()
-
-
-def test_stateless_server(server):
+@pytest.mark.asyncio
+async def test_stateless_server(server):
     """StatelessServer can be instantiated with an ASGI 3 application."""
     """Create a UDP Server can register instance based on name from message of client.
     Clients can communicate to other client by name through server"""
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    server.handle = partial(server_auto_close, fut=server.handle(), timeout=1.0)
 
     client1 = Client(name="client1")
     client2 = Client(name="client2")
@@ -124,30 +111,35 @@ def test_stateless_server(server):
         await check_client_msg(client2, server.address, b"Welcome")
         await check_client_msg(client2, server.address, b"Hello")
 
-    task1 = loop.create_task(check_client1_behavior())
-    task2 = loop.create_task(check_client2_behavior())
+    class Done(Exception):
+        pass
 
-    server.run()
+    async def do_test():
+        await asyncio.gather(check_client1_behavior(), check_client2_behavior())
+        raise Done
 
-    assert task1.done()
-    assert task2.done()
+    try:
+        await asyncio.gather(server.arun(), do_test())
+    except Done:
+        pass
 
 
-def test_server_delete_instance(server):
+@pytest.mark.asyncio
+async def test_server_delete_instance(server):
     """The max_applications of Server is 10. After 20 times register, application number should be 10."""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    server.handle = partial(server_auto_close, fut=server.handle(), timeout=1.0)
-
     client1 = Client(name="client1")
+
+    class Done(Exception):
+        pass
 
     async def client1_multiple_register():
         for i in range(20):
             await client1.register(server.address, name=f"client{i}")
             print(f"client{i}")
             await check_client_msg(client1, server.address, b"Welcome")
+        raise Done
 
-    task = loop.create_task(client1_multiple_register())
-    server.run()
-
-    assert task.done()
+    try:
+        await asyncio.gather(client1_multiple_register(), server.arun())
+    except Done:
+        pass

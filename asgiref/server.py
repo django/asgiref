@@ -57,11 +57,27 @@ class StatelessServer:
         Runs the asyncio event loop with our handler loop.
         """
         event_loop = asyncio.get_event_loop()
-        asyncio.ensure_future(self.application_checker())
         try:
-            event_loop.run_until_complete(self.handle())
+            event_loop.run_until_complete(self.arun())
         except KeyboardInterrupt:
             logger.info("Exiting due to Ctrl-C/interrupt")
+
+    async def arun(self):
+        """
+        Runs the asyncio event loop with our handler loop.
+        """
+
+        class Done(Exception):
+            pass
+
+        async def handle():
+            await self.handle()
+            raise Done
+
+        try:
+            await asyncio.gather(self.application_checker(), handle())
+        except Done:
+            pass
 
     async def handle(self):
         raise NotImplementedError("You must implement handle()")
