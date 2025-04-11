@@ -13,18 +13,40 @@ class ApplicationCommunicator:
     """
 
     def __init__(self, application, scope):
+        self._future = None
         self.application = guarantee_single_callable(application)
         self.scope = scope
-        self.input_queue = asyncio.Queue()
-        self.output_queue = asyncio.Queue()
-        # Clear context - this ensures that context vars set in the testing scope
-        # are not "leaked" into the application which would normally begin with
-        # an empty context. In Python >= 3.11 this could also be written as:
-        # asyncio.create_task(..., context=contextvars.Context())
-        self.future = contextvars.Context().run(
-            asyncio.create_task,
-            self.application(scope, self.input_queue.get, self.output_queue.put),
-        )
+        self._input_queue = None
+        self._output_queue = None
+
+    # For Python 3.9 we need to lazily bind the queues, on 3.10+ they bind the
+    # event loop lazily.
+    @property
+    def input_queue(self):
+        if self._input_queue is None:
+            self._input_queue = asyncio.Queue()
+        return self._input_queue
+
+    @property
+    def output_queue(self):
+        if self._output_queue is None:
+            self._output_queue = asyncio.Queue()
+        return self._output_queue
+
+    @property
+    def future(self):
+        if self._future is None:
+            # Clear context - this ensures that context vars set in the testing scope
+            # are not "leaked" into the application which would normally begin with
+            # an empty context. In Python >= 3.11 this could also be written as:
+            # asyncio.create_task(..., context=contextvars.Context())
+            self._future = contextvars.Context().run(
+                asyncio.create_task,
+                self.application(
+                    self.scope, self.input_queue.get, self.output_queue.put
+                ),
+            )
+        return self._future
 
     async def wait(self, timeout=1):
         """
@@ -46,11 +68,15 @@ class ApplicationCommunicator:
                     pass
 
     def stop(self, exceptions=True):
-        if not self.future.done():
-            self.future.cancel()
+        future = self._future
+        if future is None:
+            return
+
+        if not future.done():
+            future.cancel()
         elif exceptions:
             # Give a chance to raise any exceptions
-            self.future.result()
+            future.result()
 
     def __del__(self):
         # Clean up on deletion
@@ -64,6 +90,10 @@ class ApplicationCommunicator:
         """
         Sends a single message to the application
         """
+        # Make sure there's not an exception to raise from the task
+        if self.future.done():
+            self.future.result()
+
         # Give it the message
         await self.input_queue.put(message)
 
@@ -94,6 +124,10 @@ class ApplicationCommunicator:
         """
         Checks that there is no message to receive in the given time.
         """
+        # Make sure there's not an exception to raise from the task
+        if self.future.done():
+            self.future.result()
+
         # `interval` has precedence over `timeout`
         start = time.monotonic()
         while time.monotonic() - start < timeout:
