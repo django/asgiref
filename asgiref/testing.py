@@ -16,8 +16,22 @@ class ApplicationCommunicator:
         self._future = None
         self.application = guarantee_single_callable(application)
         self.scope = scope
-        self.input_queue = asyncio.Queue()
-        self.output_queue = asyncio.Queue()
+        self._input_queue = None
+        self._output_queue = None
+
+    # For Python 3.9 we need to lazily bind the queues, on 3.10+ they bind the
+    # event loop lazily.
+    @property
+    def input_queue(self):
+        if self._input_queue is None:
+            self._input_queue = asyncio.Queue()
+        return self._input_queue
+
+    @property
+    def output_queue(self):
+        if self._output_queue is None:
+            self._output_queue = asyncio.Queue()
+        return self._output_queue
 
     @property
     def future(self):
