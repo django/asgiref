@@ -1,7 +1,6 @@
 import asyncio
 import functools
 import multiprocessing
-import sys
 import threading
 import time
 import warnings

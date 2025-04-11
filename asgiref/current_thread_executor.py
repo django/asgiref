@@ -2,7 +2,7 @@ import queue
 import sys
 import threading
 from concurrent.futures import Executor, Future
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
+from typing import Any, Callable, TypeVar, Union
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec

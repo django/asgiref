@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from typing import Dict, List
 
 #
 # ASGI documentation build configuration file, created by

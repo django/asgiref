@@ -10,7 +10,7 @@ import asyncio
 import warnings
 from types import TracebackType
 from typing import Any  # noqa
-from typing import Optional, Type
+from typing import Optional
 
 
 class timeout:

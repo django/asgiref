@@ -47,7 +47,6 @@ async def single_application_function(scope, receive, send):
     """
     A single-function single-callable application
     """
-    pass
 
 
 class SingleApplicationClass:
