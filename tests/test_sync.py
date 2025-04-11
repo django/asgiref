@@ -254,7 +254,6 @@ async def test_async_to_sync_to_async_decorator():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="requires python3.9")
 async def test_async_to_sync_to_thread_decorator():
     """
     Test async_to_sync as a function decorator uses the outer thread

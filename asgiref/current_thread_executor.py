@@ -83,9 +83,10 @@ class CurrentThreadExecutor(Executor):
         finally:
             self._broken = True
 
-    def _submit(
+    def submit(
         self,
         fn: Callable[_P, _R],
+        /,
         *args: _P.args,
         **kwargs: _P.kwargs,
     ) -> "Future[_R]":
@@ -103,13 +104,3 @@ class CurrentThreadExecutor(Executor):
         self._work_queue.put(work_item)
         # Return the future
         return f
-
-    # Python 3.9+ has a new signature for submit with a "/" after `fn`, to enforce
-    # it to be a positional argument. If we ignore[override] mypy on 3.9+ will be
-    # happy but 3.8 will say that the ignore comment is unused, even when
-    # defining them differently based on sys.version_info.
-    # We should be able to remove this when we drop support for 3.8.
-    if not TYPE_CHECKING:
-
-        def submit(self, fn, *args, **kwargs):
-            return self._submit(fn, *args, **kwargs)
