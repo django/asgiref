@@ -120,8 +120,10 @@ async def _asyncio_wrap_task_context(task_context, awaitable):
 
 
 try:
+    import outcome
     import sniffio
     import trio.lowlevel
+    import trio.to_thread
 except ModuleNotFoundError:
     from asyncio import get_running_loop
 
@@ -166,14 +168,45 @@ else:
 
         return _asyncio_create_task_threadsafe(loop, awaitable)
 
+    class TrioToThreadFut:
+        def __init__(self, cs):
+            self._cs = cs
+            self._outcome = None
+
+        def cancel(self):
+            self._cs.cancel()
+
+        def result(self):
+            return self._outcome.unwrap()
+
+        def set_result(self, outcome):
+            self._outcome = outcome
+
     def run_in_executor(loop, executor, in_thread, callback):
         if isinstance(loop, trio.lowlevel.TrioToken):
+            if executor is not None:
 
-            def sync_callback(fut):
-                loop.run_sync_soon(callback, fut)
+                def sync_callback(fut):
+                    loop.run_sync_soon(callback, fut)
 
-            fut = executor.submit(in_thread)
-            fut.add_done_callback(sync_callback)
+                fut = executor.submit(in_thread)
+                fut.add_done_callback(sync_callback)
+                return fut
+
+            # executor is None - we need to run on the trio
+            # thread pool, which is a bit more complicated.
+            cs = trio.CancelScope()
+            fut = TrioToThreadFut(cs)
+
+            async def run_in_scope():
+                with cs:
+                    await trio.to_thread.run_sync(in_thread)
+
+            async def run_in_thread():
+                fut.set_result(await outcome.acapture(run_in_scope))
+                callback(fut)
+
+            trio.lowlevel.spawn_system_task(run_in_thread)
             return fut
 
         return _asyncio_run_in_executor(executor, in_thread, callback)
