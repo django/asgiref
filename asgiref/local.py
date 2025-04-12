@@ -4,6 +4,7 @@ import contextvars
 import threading
 from typing import Any, Union
 
+
 def _is_asyncio_running():
     try:
         asyncio.get_running_loop()
@@ -12,11 +13,13 @@ def _is_asyncio_running():
     else:
         return True
 
+
 try:
     import sniffio
 except ModuleNotFoundError:
     _is_async = _is_asyncio_running
 else:
+
     def _is_async():
         try:
             sniffio.current_async_library()

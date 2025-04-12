@@ -1,6 +1,6 @@
-import asyncio
 import asyncio.coroutines
 import contextvars
+import enum
 import functools
 import inspect
 import os
@@ -69,6 +69,141 @@ else:
         return func
 
 
+def _asyncio_create_task_threadsafe(loop, awaitable):
+    loop.call_soon_threadsafe(loop.create_task, awaitable)
+
+
+def _asyncio_run_in_executor(loop, executor, in_thread, callback):
+    fut = loop.run_in_executor(executor, in_thread)
+    fut.add_done_callback(callback)
+    return fut
+
+
+class AsyncioTaskContext:
+    def __init__(self, task):
+        self._task = task
+
+    def cancel(self):
+        return self._task.cancel()
+
+    async def wait(self):
+        return await self._task
+
+
+class TrioTaskContext:
+    def __init__(self, cs, event):
+        self._cs = cs
+        self._event = event
+
+    def cancel(self):
+        return self._cs.cancel()
+
+    async def wait(self):
+        return await self._event.wait()
+
+
+async def _asyncio_wrap_task_context(task_context, awaitable):
+    if task_context is None:
+        return await awaitable
+
+    current_task = asyncio.current_task()
+    if current_task is None:
+        return await awaitable
+
+    task_context_wrapped = AsyncioTaskContext(current_task)
+    task_context.append(task_context_wrapped)
+    try:
+        return await awaitable
+    finally:
+        if current_task is not None:
+            task_context.remove(task_context_wrapped)
+
+
+try:
+    import sniffio
+    import trio.lowlevel
+except ModuleNotFoundError:
+    from asyncio import get_running_loop
+
+    create_task_threadsafe = _asyncio_create_task_threadsafe
+    run_in_executor = _asyncio_run_in_executor
+    wrap_task_context = _asyncio_wrap_task_context
+
+    def event(loop):
+        return asyncio.Event()
+
+    def get_cancelled_exc(loop):
+        return asyncio.CancelledError
+
+else:
+
+    def get_running_loop():
+        try:
+            asynclib = sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            return asyncio.get_running_loop()
+
+        if asynclib == "asyncio":
+            return asyncio.get_running_loop()
+        if asynclib == "trio":
+            return trio.lowlevel.current_token()
+        raise RuntimeError(f"unsupported library {asynclib}")
+
+    @trio.lowlevel.disable_ki_protection
+    async def wrap_awaitable(awaitable):
+        return await awaitable
+
+    def create_task_threadsafe(loop, awaitable):
+        if isinstance(loop, trio.lowlevel.TrioToken):
+            try:
+                loop.run_sync_soon(
+                    trio.lowlevel.spawn_system_task,
+                    wrap_awaitable,
+                    awaitable,
+                )
+            except trio.RunFinishedError:
+                raise RuntimeError("trio loop no-longer running")
+
+        return _asyncio_create_task_threadsafe(loop, awaitable)
+
+    def run_in_executor(loop, executor, in_thread, callback):
+        if isinstance(loop, trio.lowlevel.TrioToken):
+
+            def sync_callback(fut):
+                loop.run_sync_soon(callback, fut)
+
+            fut = executor.submit(in_thread)
+            fut.add_done_callback(sync_callback)
+            return fut
+
+        return _asyncio_run_in_executor(executor, in_thread, callback)
+
+    def event(loop):
+        if isinstance(loop, trio.lowlevel.TrioToken):
+            return trio.Event()
+        return asyncio.Event()
+
+    def get_cancelled_exc(loop):
+        if isinstance(loop, trio.lowlevel.TrioToken):
+            return trio.Cancelled
+        return asyncio.CancelledError
+
+    async def wrap_task_context(loop, task_context, awaitable):
+        if task_context is None:
+            return await awaitable
+
+        if isinstance(loop, trio.lowlevel.TrioToken):
+            with trio.CancelScope as scope:
+                ctx = TrioTaskContext(scope)
+                task_context.append(ctx)
+                try:
+                    return await awaitable
+                finally:
+                    task_context.remove(ctx)
+
+        return await _asyncio_wrap_task_context(task_context, awaitable)
+
+
 class ThreadSensitiveContext:
     """Async context manager to manage context for thread sensitive mode
 
@@ -110,6 +245,19 @@ class ThreadSensitiveContext:
         SyncToAsync.thread_sensitive_context.reset(self.token)
 
 
+class LoopType(enum.Enum):
+    ASYNCIO = enum.auto()
+    TRIO = enum.auto()
+
+
+def run(async_backend, callable, /, *args):
+    if async_backend is LoopType.TRIO:
+        import trio
+
+        return trio.run(callable, *args)
+    return asyncio.run(callable(*args))
+
+
 class AsyncToSync(Generic[_P, _R]):
     """
     Utility class which turns an awaitable that only works on the thread with
@@ -129,7 +277,7 @@ class AsyncToSync(Generic[_P, _R]):
 
     # When we can't find a CurrentThreadExecutor from the context, such as
     # inside create_task, we'll look it up here from the running event loop.
-    loop_thread_executors: "Dict[asyncio.AbstractEventLoop, CurrentThreadExecutor]" = {}
+    loop_thread_executors: "Dict[object, CurrentThreadExecutor]" = {}
 
     def __init__(
         self,
@@ -137,8 +285,11 @@ class AsyncToSync(Generic[_P, _R]):
             Callable[_P, Coroutine[Any, Any, _R]],
             Callable[_P, Awaitable[_R]],
         ],
-        force_new_loop: bool = False,
+        force_new_loop: Union[LoopType, bool] = False,
     ):
+        if force_new_loop and not isinstance(LoopType):
+            force_new_loop = LoopType.ASYNCIO
+
         if not callable(awaitable) or (
             not iscoroutinefunction(awaitable)
             and not iscoroutinefunction(getattr(awaitable, "__call__", awaitable))
@@ -156,7 +307,7 @@ class AsyncToSync(Generic[_P, _R]):
         self.force_new_loop = force_new_loop
         self.main_event_loop = None
         try:
-            self.main_event_loop = asyncio.get_running_loop()
+            self.main_event_loop = get_running_loop()
         except RuntimeError:
             # There's no event loop in this thread.
             pass
@@ -179,7 +330,7 @@ class AsyncToSync(Generic[_P, _R]):
 
         # You can't call AsyncToSync from a thread with a running event loop
         try:
-            asyncio.get_running_loop()
+            get_running_loop()
         except RuntimeError:
             pass
         else:
@@ -224,7 +375,7 @@ class AsyncToSync(Generic[_P, _R]):
             )
 
             async def new_loop_wrap() -> None:
-                loop = asyncio.get_running_loop()
+                loop = get_running_loop()
                 self.loop_thread_executors[loop] = current_executor
                 try:
                     await awaitable
@@ -233,8 +384,9 @@ class AsyncToSync(Generic[_P, _R]):
 
             if self.main_event_loop is not None:
                 try:
-                    self.main_event_loop.call_soon_threadsafe(
-                        self.main_event_loop.create_task, awaitable
+                    create_task_threadsafe(
+                        self.main_event_loop,
+                        awaitable,
                     )
                 except RuntimeError:
                     running_in_main_event_loop = False
@@ -248,7 +400,9 @@ class AsyncToSync(Generic[_P, _R]):
             if not running_in_main_event_loop:
                 # Make our own event loop - in a new thread - and run inside that.
                 loop_executor = ThreadPoolExecutor(max_workers=1)
-                loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
+                loop_future = loop_executor.submit(
+                    run, self.force_new_loop, new_loop_wrap
+                )
                 # Run the CurrentThreadExecutor until the future is done.
                 current_executor.run_until_future(loop_future)
                 # Wait for future and/or allow for exception propagation
@@ -286,10 +440,6 @@ class AsyncToSync(Generic[_P, _R]):
         if context is not None:
             _restore_context(context[0])
 
-        current_task = asyncio.current_task()
-        if current_task is not None and task_context is not None:
-            task_context.append(current_task)
-
         try:
             # If we have an exception, run the function inside the except block
             # after raising it so exc_info is correctly populated.
@@ -297,16 +447,14 @@ class AsyncToSync(Generic[_P, _R]):
                 try:
                     raise exc_info[1]
                 except BaseException:
-                    result = await awaitable
+                    result = await wrap_task_context(task_context, awaitable)
             else:
-                result = await awaitable
+                result = await wrap_task_context(task_context, awaitable)
         except BaseException as e:
             call_result.set_exception(e)
         else:
             call_result.set_result(result)
         finally:
-            if current_task is not None and task_context is not None:
-                task_context.remove(current_task)
             context[0] = contextvars.copy_context()
 
 
@@ -382,7 +530,7 @@ class SyncToAsync(Generic[_P, _R]):
 
     async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
-        loop = asyncio.get_running_loop()
+        loop = get_running_loop()
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
@@ -422,10 +570,19 @@ class SyncToAsync(Generic[_P, _R]):
         func = context.run
         task_context: List[asyncio.Task[Any]] = []
 
+        executor_done = event(loop)
+        executor_result = None
+
+        def callback(fut):
+            nonlocal executor_result
+            executor_done.set()
+            executor_result = fut
+
         # Run the code in the right thread
-        exec_coro = loop.run_in_executor(
-            executor,
-            functools.partial(
+        exec_fut = run_in_executor(
+            loop=loop,
+            executor=executor,
+            in_thread=functools.partial(
                 self.thread_handler,
                 loop,
                 sys.exc_info(),
@@ -433,32 +590,34 @@ class SyncToAsync(Generic[_P, _R]):
                 func,
                 child,
             ),
+            callback=callback,
         )
-        ret: _R
+        # hmm this is a bit messy - needs a while loop and shield or it can
+        # loose cancellations on multi-cancel.
         try:
-            ret = await asyncio.shield(exec_coro)
-        except asyncio.CancelledError:
+            await executor_done.wait()
+        except get_cancelled_exc(loop):
             cancel_parent = True
             try:
                 task = task_context[0]
                 task.cancel()
                 try:
-                    await task
+                    await task.wait()
                     cancel_parent = False
-                except asyncio.CancelledError:
+                except get_cancelled_exc(loop):
                     pass
             except IndexError:
                 pass
-            if exec_coro.done():
+            if executor_done.is_set():
                 raise
             if cancel_parent:
-                exec_coro.cancel()
-            ret = await exec_coro
+                exec_fut.cancel()
+            await executor_done.wait()
+            return executor_result.result()
         finally:
             _restore_context(context)
             self.deadlock_context.set(False)
-
-        return ret
+        return executor_result.result()
 
     def __get__(
         self, parent: Any, objtype: Any
