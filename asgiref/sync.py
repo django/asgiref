@@ -655,7 +655,7 @@ class SyncToAsync(Generic[_P, _R]):
 @overload
 def async_to_sync(
     *,
-    force_new_loop: bool = False,
+    force_new_loop: Union[LoopType, bool] = False,
 ) -> Callable[
     [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
     Callable[_P, _R],
@@ -670,7 +670,7 @@ def async_to_sync(
         Callable[_P, Awaitable[_R]],
     ],
     *,
-    force_new_loop: bool = False,
+    force_new_loop: Union[LoopType, bool] = False,
 ) -> Callable[_P, _R]:
     ...
 
@@ -683,7 +683,7 @@ def async_to_sync(
         ]
     ] = None,
     *,
-    force_new_loop: bool = False,
+    force_new_loop: Union[LoopType, bool] = False,
 ) -> Union[
     Callable[
         [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
