@@ -73,54 +73,69 @@ def _asyncio_create_task_threadsafe(loop, awaitable):
     loop.call_soon_threadsafe(loop.create_task, awaitable)
 
 
-def _asyncio_run_in_executor(loop, executor, in_thread, callback):
-    fut = loop.run_in_executor(executor, in_thread)
-    fut.add_done_callback(callback)
-    return fut
-
-
-class AsyncioTaskContext:
-    def __init__(self, task):
-        self._task = task
-
-    def cancel(self):
-        return self._task.cancel()
-
-    async def wait(self):
-        return await self._task
-
-
-class TrioTaskContext:
-    def __init__(self, cs, event):
-        self._cs = cs
-        self._event = event
-
-    def cancel(self):
-        return self._cs.cancel()
-
-    async def wait(self):
-        return await self._event.wait()
-
-
-async def _asyncio_wrap_task_context(task_context, awaitable):
+async def _asyncio_wrap_task_context(loop, task_context, awaitable):
     if task_context is None:
         return await awaitable
 
-    current_task = asyncio.current_task()
+    current_task = asyncio.current_task(loop)
     if current_task is None:
         return await awaitable
 
-    task_context_wrapped = AsyncioTaskContext(current_task)
-    task_context.append(task_context_wrapped)
+    task_context.append(current_task)
     try:
         return await awaitable
     finally:
-        if current_task is not None:
-            task_context.remove(task_context_wrapped)
+        task_context.remove(current_task)
+
+
+async def _asyncio_run_in_executor(*, loop, executor, thread_handler, child):
+    context = contextvars.copy_context()
+    func = context.run
+    task_context: List[asyncio.Task[Any]] = []
+
+    # Run the code in the right thread
+    exec_coro = loop.run_in_executor(
+        executor,
+        functools.partial(
+            thread_handler,
+            loop,
+            sys.exc_info(),
+            task_context,
+            func,
+            child,
+        ),
+    )
+    ret: _R
+    try:
+        ret = await asyncio.shield(exec_coro)
+    except asyncio.CancelledError:
+        cancel_parent = True
+        try:
+            task = task_context[0]
+            task.cancel()
+            try:
+                await task
+                cancel_parent = False
+            except asyncio.CancelledError:
+                pass
+        except IndexError:
+            pass
+        if exec_coro.done():
+            raise
+        if cancel_parent:
+            exec_coro.cancel()
+        ret = await exec_coro
+    finally:
+        _restore_context(context)
+
+    return ret
+
+
+class TrioThreadCancelled(BaseException):
+    pass
 
 
 try:
-    import outcome
     import sniffio
     import trio.lowlevel
     import trio.to_thread
@@ -130,12 +145,6 @@ except ModuleNotFoundError:
     create_task_threadsafe = _asyncio_create_task_threadsafe
     run_in_executor = _asyncio_run_in_executor
     wrap_task_context = _asyncio_wrap_task_context
-
-    def event(loop):
-        return asyncio.Event()
-
-    def get_cancelled_exc(loop):
-        return asyncio.CancelledError
 
 else:
 
@@ -168,58 +177,69 @@ else:
 
         return _asyncio_create_task_threadsafe(loop, awaitable)
 
-    class TrioToThreadFut:
-        def __init__(self, cs):
-            self._cs = cs
-            self._outcome = None
-
-        def cancel(self):
-            self._cs.cancel()
-
-        def result(self):
-            return self._outcome.unwrap()
-
-        def set_result(self, outcome):
-            self._outcome = outcome
-
-    def run_in_executor(loop, executor, in_thread, callback):
+    async def run_in_executor(*, loop, executor, thread_handler, child):
         if isinstance(loop, trio.lowlevel.TrioToken):
-            if executor is not None:
+            context = contextvars.copy_context()
+            func = context.run
+            task_context: List[asyncio.Task[Any]] = []
 
-                def sync_callback(fut):
-                    loop.run_sync_soon(callback, fut)
+            # Run the code in the right thread
+            full_func = functools.partial(
+                thread_handler,
+                loop,
+                sys.exc_info(),
+                task_context,
+                func,
+                child,
+            )
+            try:
+                if executor is None:
+                    async with trio.open_nursery() as nursery:
 
-                fut = executor.submit(in_thread)
-                fut.add_done_callback(sync_callback)
-                return fut
+                        async def handle_abort():
+                            try:
+                                await trio.sleep_forever()
+                            except trio.Cancelled:
+                                if task_context:
+                                    task_context[0].cancel()
+                                raise
 
-            # executor is None - we need to run on the trio
-            # thread pool, which is a bit more complicated.
-            cs = trio.CancelScope()
-            fut = TrioToThreadFut(cs)
+                        try:
+                            return await trio.to_thread.run_sync(
+                                thread_handler, func, abandon_on_cancel=False
+                            )
+                        finally:
+                            nursery.cancel_scope.cancel()
+                else:
+                    event = trio.Event()
 
-            async def run_in_scope():
-                with cs:
-                    await trio.to_thread.run_sync(in_thread)
+                    def callback(fut):
+                        loop.run_sync_soon(event.set)
 
-            async def run_in_thread():
-                fut.set_result(await outcome.acapture(run_in_scope))
-                callback(fut)
+                    fut = executor.submit(full_func)
+                    fut.add_done_callback(callback)
 
-            trio.lowlevel.spawn_system_task(run_in_thread)
-            return fut
+                    async with trio.open_nursery() as nursery:
 
-        return _asyncio_run_in_executor(executor, in_thread, callback)
+                        async def handle_abort():
+                            try:
+                                await trio.sleep_forever()
+                            except trio.Cancelled:
+                                fut.cancel()
+                                if task_context:
+                                    task_context[0].cancel()
+                                raise
 
-    def event(loop):
-        if isinstance(loop, trio.lowlevel.TrioToken):
-            return trio.Event()
-        return asyncio.Event()
+                        with trio.CancelScope(shield=True):
+                            await event.wait()
+                            nursery.cancel_scope.cancel()
+                            return fut.result()
+            finally:
+                _restore_context(context)
 
-    def get_cancelled_exc(loop):
-        if isinstance(loop, trio.lowlevel.TrioToken):
-            return trio.Cancelled
-        return asyncio.CancelledError
+        return await _asyncio_run_in_executor(
+            loop=loop, executor=executor, thread_handler=thread_handler, func=func
+        )
 
     async def wrap_task_context(loop, task_context, awaitable):
         if task_context is None:
@@ -227,14 +247,15 @@ else:
 
         if isinstance(loop, trio.lowlevel.TrioToken):
             with trio.CancelScope as scope:
-                ctx = TrioTaskContext(scope)
-                task_context.append(ctx)
+                task_context.append(scope)
                 try:
                     return await awaitable
                 finally:
-                    task_context.remove(ctx)
+                    task_context.remove(scope)
+            if scope.cancelled_caught:
+                raise TrioThreadCancelled
 
-        return await _asyncio_wrap_task_context(task_context, awaitable)
+        return await _asyncio_wrap_task_context(loop, task_context, awaitable)
 
 
 class ThreadSensitiveContext:
@@ -470,6 +491,7 @@ class AsyncToSync(Generic[_P, _R]):
 
         __traceback_hide__ = True  # noqa: F841
 
+        loop = get_running_loop()
         if context is not None:
             _restore_context(context[0])
 
@@ -480,9 +502,9 @@ class AsyncToSync(Generic[_P, _R]):
                 try:
                     raise exc_info[1]
                 except BaseException:
-                    result = await wrap_task_context(task_context, awaitable)
+                    result = await wrap_task_context(loop, task_context, awaitable)
             else:
-                result = await wrap_task_context(task_context, awaitable)
+                result = await wrap_task_context(loop, task_context, awaitable)
         except BaseException as e:
             call_result.set_exception(e)
         else:
@@ -598,59 +620,15 @@ class SyncToAsync(Generic[_P, _R]):
             # Use the passed in executor, or the loop's default if it is None
             executor = self._executor
 
-        context = contextvars.copy_context()
-        child = functools.partial(self.func, *args, **kwargs)
-        func = context.run
-        task_context: List[asyncio.Task[Any]] = []
-
-        executor_done = event(loop)
-        executor_result = None
-
-        def callback(fut):
-            nonlocal executor_result
-            executor_done.set()
-            executor_result = fut
-
-        # Run the code in the right thread
-        exec_fut = run_in_executor(
-            loop=loop,
-            executor=executor,
-            in_thread=functools.partial(
-                self.thread_handler,
-                loop,
-                sys.exc_info(),
-                task_context,
-                func,
-                child,
-            ),
-            callback=callback,
-        )
-        # hmm this is a bit messy - needs a while loop and shield or it can
-        # loose cancellations on multi-cancel.
         try:
-            await executor_done.wait()
-        except get_cancelled_exc(loop):
-            cancel_parent = True
-            try:
-                task = task_context[0]
-                task.cancel()
-                try:
-                    await task.wait()
-                    cancel_parent = False
-                except get_cancelled_exc(loop):
-                    pass
-            except IndexError:
-                pass
-            if executor_done.is_set():
-                raise
-            if cancel_parent:
-                exec_fut.cancel()
-            await executor_done.wait()
-            return executor_result.result()
+            return await run_in_executor(
+                loop=loop,
+                executor=executor,
+                thread_handler=self.thread_handler,
+                child=functools.partial(self.func, *args, **kwargs),
+            )
         finally:
-            _restore_context(context)
             self.deadlock_context.set(False)
-        return executor_result.result()
 
     def __get__(
         self, parent: Any, objtype: Any
