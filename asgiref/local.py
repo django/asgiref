@@ -4,6 +4,29 @@ import contextvars
 import threading
 from typing import Any, Union
 
+def _is_asyncio_running():
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    else:
+        return True
+
+try:
+    import sniffio
+except ModuleNotFoundError:
+    _is_async = _is_asyncio_running
+else:
+    def _is_async():
+        try:
+            sniffio.current_async_library()
+        except sniffio.AsyncLibraryNotFoundError:
+            pass
+        else:
+            return True
+
+        return _is_asyncio_running()
+
 
 class _CVar:
     """Storage utility for Local."""
@@ -83,18 +106,9 @@ class Local:
     def _lock_storage(self):
         # Thread safe access to storage
         if self._thread_critical:
-            try:
-                # this is a test for are we in a async or sync
-                # thread - will raise RuntimeError if there is
-                # no current loop
-                asyncio.get_running_loop()
-            except RuntimeError:
-                # We are in a sync thread, the storage is
-                # just the plain thread local (i.e, "global within
-                # this thread" - it doesn't matter where you are
-                # in a call stack you see the same storage)
-                yield self._storage
-            else:
+            # this is a test for are we in a async or sync
+            # thread
+            if _is_async():
                 # We are in an async thread - storage is still
                 # local to this thread, but additionally should
                 # behave like a context var (is only visible with
@@ -108,6 +122,12 @@ class Local:
                 # can't be accessed in another thread (we don't
                 # need any locks)
                 yield self._storage.cvar
+            else:
+                # We are in a sync thread, the storage is
+                # just the plain thread local (i.e, "global within
+                # this thread" - it doesn't matter where you are
+                # in a call stack you see the same storage)
+                yield self._storage
         else:
             # Lock for thread_critical=False as other threads
             # can access the exact same storage object
