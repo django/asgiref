@@ -194,16 +194,17 @@ else:
             )
             try:
                 if executor is None:
+
+                    async def handle_cancel():
+                        try:
+                            await trio.sleep_forever()
+                        except trio.Cancelled:
+                            if task_context:
+                                task_context[0].cancel()
+                            raise
+
                     async with trio.open_nursery() as nursery:
-
-                        async def handle_abort():
-                            try:
-                                await trio.sleep_forever()
-                            except trio.Cancelled:
-                                if task_context:
-                                    task_context[0].cancel()
-                                raise
-
+                        nursery.start_soon(handle_cancel)
                         try:
                             return await trio.to_thread.run_sync(
                                 thread_handler, func, abandon_on_cancel=False
@@ -219,17 +220,17 @@ else:
                     fut = executor.submit(full_func)
                     fut.add_done_callback(callback)
 
+                    async def handle_cancel_fut():
+                        try:
+                            await trio.sleep_forever()
+                        except trio.Cancelled:
+                            fut.cancel()
+                            if task_context:
+                                task_context[0].cancel()
+                            raise
+
                     async with trio.open_nursery() as nursery:
-
-                        async def handle_abort():
-                            try:
-                                await trio.sleep_forever()
-                            except trio.Cancelled:
-                                fut.cancel()
-                                if task_context:
-                                    task_context[0].cancel()
-                                raise
-
+                        nursery.start_soon(handle_cancel_fut)
                         with trio.CancelScope(shield=True):
                             await event.wait()
                             nursery.cancel_scope.cancel()
