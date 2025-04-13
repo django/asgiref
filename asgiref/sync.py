@@ -209,6 +209,8 @@ else:
                             return await trio.to_thread.run_sync(
                                 thread_handler, func, abandon_on_cancel=False
                             )
+                        except TrioThreadCancelled:
+                            pass
                         finally:
                             nursery.cancel_scope.cancel()
                 else:
@@ -234,7 +236,10 @@ else:
                         with trio.CancelScope(shield=True):
                             await event.wait()
                             nursery.cancel_scope.cancel()
-                            return fut.result()
+                            try:
+                                return fut.result()
+                            except TrioThreadCancelled:
+                                pass
             finally:
                 _restore_context(context)
 
@@ -247,7 +252,7 @@ else:
             return await awaitable
 
         if isinstance(loop, trio.lowlevel.TrioToken):
-            with trio.CancelScope as scope:
+            with trio.CancelScope() as scope:
                 task_context.append(scope)
                 try:
                     return await awaitable
