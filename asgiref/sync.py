@@ -24,6 +24,7 @@ from typing import (
     overload,
 )
 
+from ._context import restore_context as _restore_context
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
@@ -36,21 +37,33 @@ if TYPE_CHECKING:
     # This is not available to import at runtime
     from _typeshed import OptExcInfo
 
+    from ._trio import (
+        create_task_threadsafe,
+        get_running_loop,
+        run_in_executor,
+        wrap_task_context,
+    )
+else:
+    try:
+        __import__("trio")
+    except ModuleNotFoundError:
+        from ._asyncio import (
+            create_task_threadsafe,
+            get_running_loop,
+            run_in_executor,
+            wrap_task_context,
+        )
+    else:
+        from ._trio import (
+            create_task_threadsafe,
+            get_running_loop,
+            run_in_executor,
+            wrap_task_context,
+        )
+
 _F = TypeVar("_F", bound=Callable[..., Any])
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
-
-
-def _restore_context(context: contextvars.Context) -> None:
-    # Check for changes in contextvars, and set them to the current
-    # context for downstream consumers
-    for cvar in context:
-        cvalue = context.get(cvar)
-        try:
-            if cvar.get() != cvalue:
-                cvar.set(cvalue)
-        except LookupError:
-            cvar.set(cvalue)
 
 
 # Python 3.12 deprecates asyncio.iscoroutinefunction() as an alias for
@@ -67,201 +80,6 @@ else:
     def markcoroutinefunction(func: _F) -> _F:
         func._is_coroutine = asyncio.coroutines._is_coroutine  # type: ignore
         return func
-
-
-def _asyncio_create_task_threadsafe(loop, awaitable):
-    loop.call_soon_threadsafe(loop.create_task, awaitable)
-
-
-async def _asyncio_wrap_task_context(loop, task_context, awaitable):
-    if task_context is None:
-        return await awaitable
-
-    current_task = asyncio.current_task(loop)
-    if current_task is None:
-        return await awaitable
-
-    task_context.append(current_task)
-    try:
-        return await awaitable
-    finally:
-        task_context.remove(current_task)
-
-
-async def _asyncio_run_in_executor(*, loop, executor, thread_handler, child):
-    context = contextvars.copy_context()
-    func = context.run
-    task_context: List[asyncio.Task[Any]] = []
-
-    # Run the code in the right thread
-    exec_coro = loop.run_in_executor(
-        executor,
-        functools.partial(
-            thread_handler,
-            loop,
-            sys.exc_info(),
-            task_context,
-            func,
-            child,
-        ),
-    )
-    ret: _R
-    try:
-        ret = await asyncio.shield(exec_coro)
-    except asyncio.CancelledError:
-        cancel_parent = True
-        try:
-            task = task_context[0]
-            task.cancel()
-            try:
-                await task
-                cancel_parent = False
-            except asyncio.CancelledError:
-                pass
-        except IndexError:
-            pass
-        if exec_coro.done():
-            raise
-        if cancel_parent:
-            exec_coro.cancel()
-        ret = await exec_coro
-    finally:
-        _restore_context(context)
-
-    return ret
-
-
-class TrioThreadCancelled(BaseException):
-    pass
-
-
-try:
-    import sniffio
-    import trio.lowlevel
-    import trio.to_thread
-except ModuleNotFoundError:
-    from asyncio import get_running_loop
-
-    create_task_threadsafe = _asyncio_create_task_threadsafe
-    run_in_executor = _asyncio_run_in_executor
-    wrap_task_context = _asyncio_wrap_task_context
-
-else:
-
-    def get_running_loop():
-        try:
-            asynclib = sniffio.current_async_library()
-        except sniffio.AsyncLibraryNotFoundError:
-            return asyncio.get_running_loop()
-
-        if asynclib == "asyncio":
-            return asyncio.get_running_loop()
-        if asynclib == "trio":
-            return trio.lowlevel.current_token()
-        raise RuntimeError(f"unsupported library {asynclib}")
-
-    @trio.lowlevel.disable_ki_protection
-    async def wrap_awaitable(awaitable):
-        return await awaitable
-
-    def create_task_threadsafe(loop, awaitable):
-        if isinstance(loop, trio.lowlevel.TrioToken):
-            try:
-                loop.run_sync_soon(
-                    trio.lowlevel.spawn_system_task,
-                    wrap_awaitable,
-                    awaitable,
-                )
-            except trio.RunFinishedError:
-                raise RuntimeError("trio loop no-longer running")
-
-        return _asyncio_create_task_threadsafe(loop, awaitable)
-
-    async def run_in_executor(*, loop, executor, thread_handler, child):
-        if isinstance(loop, trio.lowlevel.TrioToken):
-            context = contextvars.copy_context()
-            func = context.run
-            task_context: List[asyncio.Task[Any]] = []
-
-            # Run the code in the right thread
-            full_func = functools.partial(
-                thread_handler,
-                loop,
-                sys.exc_info(),
-                task_context,
-                func,
-                child,
-            )
-            try:
-                if executor is None:
-
-                    async def handle_cancel():
-                        try:
-                            await trio.sleep_forever()
-                        except trio.Cancelled:
-                            if task_context:
-                                task_context[0].cancel()
-                            raise
-
-                    async with trio.open_nursery() as nursery:
-                        nursery.start_soon(handle_cancel)
-                        try:
-                            return await trio.to_thread.run_sync(
-                                thread_handler, func, abandon_on_cancel=False
-                            )
-                        except TrioThreadCancelled:
-                            pass
-                        finally:
-                            nursery.cancel_scope.cancel()
-                else:
-                    event = trio.Event()
-
-                    def callback(fut):
-                        loop.run_sync_soon(event.set)
-
-                    fut = executor.submit(full_func)
-                    fut.add_done_callback(callback)
-
-                    async def handle_cancel_fut():
-                        try:
-                            await trio.sleep_forever()
-                        except trio.Cancelled:
-                            fut.cancel()
-                            if task_context:
-                                task_context[0].cancel()
-                            raise
-
-                    async with trio.open_nursery() as nursery:
-                        nursery.start_soon(handle_cancel_fut)
-                        with trio.CancelScope(shield=True):
-                            await event.wait()
-                            nursery.cancel_scope.cancel()
-                            try:
-                                return fut.result()
-                            except TrioThreadCancelled:
-                                pass
-            finally:
-                _restore_context(context)
-
-        return await _asyncio_run_in_executor(
-            loop=loop, executor=executor, thread_handler=thread_handler, func=func
-        )
-
-    async def wrap_task_context(loop, task_context, awaitable):
-        if task_context is None:
-            return await awaitable
-
-        if isinstance(loop, trio.lowlevel.TrioToken):
-            with trio.CancelScope() as scope:
-                task_context.append(scope)
-                try:
-                    return await awaitable
-                finally:
-                    task_context.remove(scope)
-            if scope.cancelled_caught:
-                raise TrioThreadCancelled
-
-        return await _asyncio_wrap_task_context(loop, task_context, awaitable)
 
 
 class ThreadSensitiveContext:
