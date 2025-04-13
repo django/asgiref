@@ -165,7 +165,7 @@ class AsyncToSync(Generic[_P, _R]):
         ],
         force_new_loop: Union[LoopType, bool] = False,
     ):
-        if force_new_loop and not isinstance(LoopType):
+        if force_new_loop and not isinstance(force_new_loop, LoopType):
             force_new_loop = LoopType.ASYNCIO
 
         if not callable(awaitable) or (
@@ -319,6 +319,7 @@ class AsyncToSync(Generic[_P, _R]):
         if context is not None:
             _restore_context(context[0])
 
+        result: _R
         try:
             # If we have an exception, run the function inside the except block
             # after raising it so exc_info is correctly populated.

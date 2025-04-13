@@ -6,23 +6,33 @@ __all__ = [
 ]
 
 import asyncio
+import concurrent.futures
 import contextvars
 import functools
 import sys
+import types
 from asyncio import get_running_loop
-from collections.abc import Callable
-from typing import Any, TypeVar
+from collections.abc import Awaitable, Callable, Coroutine
+from typing import Any, Generic, Protocol, TypeVar, Union
 
 from ._context import restore_context as _restore_context
 
 _R = TypeVar("_R")
 
+Coro = Coroutine[Any, Any, _R]
 
-def create_task_threadsafe(loop, awaitable) -> None:
+
+def create_task_threadsafe(
+    loop: asyncio.AbstractEventLoop, awaitable: Coro[object]
+) -> None:
     loop.call_soon_threadsafe(loop.create_task, awaitable)
 
 
-async def wrap_task_context(loop, task_context, awaitable):
+async def wrap_task_context(
+    loop: asyncio.AbstractEventLoop,
+    task_context: list[asyncio.Task[Any]],
+    awaitable: Awaitable[_R],
+) -> _R:
     if task_context is None:
         return await awaitable
 
@@ -37,8 +47,30 @@ async def wrap_task_context(loop, task_context, awaitable):
         task_context.remove(current_task)
 
 
+ExcInfo = Union[
+    tuple[type[BaseException], BaseException, types.TracebackType],
+    tuple[None, None, None],
+]
+
+
+class ThreadHandlerType(Protocol, Generic[_R]):
+    def __call__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        exc_info: ExcInfo,
+        task_context: list[asyncio.Task[Any]],
+        func: Callable[[Callable[[], _R]], _R],
+        child: Callable[[], _R],
+    ) -> _R:
+        ...
+
+
 async def run_in_executor(
-    *, loop, executor, thread_handler, child: Callable[[], _R]
+    *,
+    loop: asyncio.AbstractEventLoop,
+    executor: concurrent.futures.ThreadPoolExecutor,
+    thread_handler: ThreadHandlerType[_R],
+    child: Callable[[], _R],
 ) -> _R:
     context = contextvars.copy_context()
     func = context.run
