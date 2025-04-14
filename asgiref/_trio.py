@@ -114,7 +114,7 @@ async def run_in_executor(
                     nursery.start_soon(handle_cancel)
                     try:
                         return await trio.to_thread.run_sync(
-                            thread_handler, func, abandon_on_cancel=False
+                            full_func, abandon_on_cancel=False
                         )
                     except TrioThreadCancelled:
                         pass
