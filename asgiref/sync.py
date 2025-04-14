@@ -1,6 +1,6 @@
-import asyncio
 import asyncio.coroutines
 import contextvars
+import enum
 import functools
 import inspect
 import os
@@ -24,6 +24,7 @@ from typing import (
     overload,
 )
 
+from ._context import restore_context as _restore_context
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
 
@@ -36,21 +37,33 @@ if TYPE_CHECKING:
     # This is not available to import at runtime
     from _typeshed import OptExcInfo
 
+    from ._trio import (
+        create_task_threadsafe,
+        get_running_loop,
+        run_in_executor,
+        wrap_task_context,
+    )
+else:
+    try:
+        __import__("trio")
+    except ModuleNotFoundError:
+        from ._asyncio import (
+            create_task_threadsafe,
+            get_running_loop,
+            run_in_executor,
+            wrap_task_context,
+        )
+    else:
+        from ._trio import (
+            create_task_threadsafe,
+            get_running_loop,
+            run_in_executor,
+            wrap_task_context,
+        )
+
 _F = TypeVar("_F", bound=Callable[..., Any])
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
-
-
-def _restore_context(context: contextvars.Context) -> None:
-    # Check for changes in contextvars, and set them to the current
-    # context for downstream consumers
-    for cvar in context:
-        cvalue = context.get(cvar)
-        try:
-            if cvar.get() != cvalue:
-                cvar.set(cvalue)
-        except LookupError:
-            cvar.set(cvalue)
 
 
 # Python 3.12 deprecates asyncio.iscoroutinefunction() as an alias for
@@ -110,6 +123,19 @@ class ThreadSensitiveContext:
         SyncToAsync.thread_sensitive_context.reset(self.token)
 
 
+class LoopType(enum.Enum):
+    ASYNCIO = enum.auto()
+    TRIO = enum.auto()
+
+
+def run(async_backend, callable, /, *args):
+    if async_backend is LoopType.TRIO:
+        import trio
+
+        return trio.run(callable, *args)
+    return asyncio.run(callable(*args))
+
+
 class AsyncToSync(Generic[_P, _R]):
     """
     Utility class which turns an awaitable that only works on the thread with
@@ -129,7 +155,7 @@ class AsyncToSync(Generic[_P, _R]):
 
     # When we can't find a CurrentThreadExecutor from the context, such as
     # inside create_task, we'll look it up here from the running event loop.
-    loop_thread_executors: "Dict[asyncio.AbstractEventLoop, CurrentThreadExecutor]" = {}
+    loop_thread_executors: "Dict[object, CurrentThreadExecutor]" = {}
 
     def __init__(
         self,
@@ -137,8 +163,11 @@ class AsyncToSync(Generic[_P, _R]):
             Callable[_P, Coroutine[Any, Any, _R]],
             Callable[_P, Awaitable[_R]],
         ],
-        force_new_loop: bool = False,
+        force_new_loop: Union[LoopType, bool] = False,
     ):
+        if force_new_loop and not isinstance(force_new_loop, LoopType):
+            force_new_loop = LoopType.ASYNCIO
+
         if not callable(awaitable) or (
             not iscoroutinefunction(awaitable)
             and not iscoroutinefunction(getattr(awaitable, "__call__", awaitable))
@@ -156,7 +185,7 @@ class AsyncToSync(Generic[_P, _R]):
         self.force_new_loop = force_new_loop
         self.main_event_loop = None
         try:
-            self.main_event_loop = asyncio.get_running_loop()
+            self.main_event_loop = get_running_loop()
         except RuntimeError:
             # There's no event loop in this thread.
             pass
@@ -179,7 +208,7 @@ class AsyncToSync(Generic[_P, _R]):
 
         # You can't call AsyncToSync from a thread with a running event loop
         try:
-            asyncio.get_running_loop()
+            get_running_loop()
         except RuntimeError:
             pass
         else:
@@ -224,7 +253,7 @@ class AsyncToSync(Generic[_P, _R]):
             )
 
             async def new_loop_wrap() -> None:
-                loop = asyncio.get_running_loop()
+                loop = get_running_loop()
                 self.loop_thread_executors[loop] = current_executor
                 try:
                     await awaitable
@@ -233,8 +262,9 @@ class AsyncToSync(Generic[_P, _R]):
 
             if self.main_event_loop is not None:
                 try:
-                    self.main_event_loop.call_soon_threadsafe(
-                        self.main_event_loop.create_task, awaitable
+                    create_task_threadsafe(
+                        self.main_event_loop,
+                        awaitable,
                     )
                 except RuntimeError:
                     running_in_main_event_loop = False
@@ -248,7 +278,9 @@ class AsyncToSync(Generic[_P, _R]):
             if not running_in_main_event_loop:
                 # Make our own event loop - in a new thread - and run inside that.
                 loop_executor = ThreadPoolExecutor(max_workers=1)
-                loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
+                loop_future = loop_executor.submit(
+                    run, self.force_new_loop, new_loop_wrap
+                )
                 # Run the CurrentThreadExecutor until the future is done.
                 current_executor.run_until_future(loop_future)
                 # Wait for future and/or allow for exception propagation
@@ -283,13 +315,11 @@ class AsyncToSync(Generic[_P, _R]):
 
         __traceback_hide__ = True  # noqa: F841
 
+        loop = get_running_loop()
         if context is not None:
             _restore_context(context[0])
 
-        current_task = asyncio.current_task()
-        if current_task is not None and task_context is not None:
-            task_context.append(current_task)
-
+        result: _R
         try:
             # If we have an exception, run the function inside the except block
             # after raising it so exc_info is correctly populated.
@@ -297,16 +327,14 @@ class AsyncToSync(Generic[_P, _R]):
                 try:
                     raise exc_info[1]
                 except BaseException:
-                    result = await awaitable
+                    result = await wrap_task_context(loop, task_context, awaitable)
             else:
-                result = await awaitable
+                result = await wrap_task_context(loop, task_context, awaitable)
         except BaseException as e:
             call_result.set_exception(e)
         else:
             call_result.set_result(result)
         finally:
-            if current_task is not None and task_context is not None:
-                task_context.remove(current_task)
             context[0] = contextvars.copy_context()
 
 
@@ -382,7 +410,7 @@ class SyncToAsync(Generic[_P, _R]):
 
     async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
-        loop = asyncio.get_running_loop()
+        loop = get_running_loop()
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
@@ -417,48 +445,15 @@ class SyncToAsync(Generic[_P, _R]):
             # Use the passed in executor, or the loop's default if it is None
             executor = self._executor
 
-        context = contextvars.copy_context()
-        child = functools.partial(self.func, *args, **kwargs)
-        func = context.run
-        task_context: List[asyncio.Task[Any]] = []
-
-        # Run the code in the right thread
-        exec_coro = loop.run_in_executor(
-            executor,
-            functools.partial(
-                self.thread_handler,
-                loop,
-                sys.exc_info(),
-                task_context,
-                func,
-                child,
-            ),
-        )
-        ret: _R
         try:
-            ret = await asyncio.shield(exec_coro)
-        except asyncio.CancelledError:
-            cancel_parent = True
-            try:
-                task = task_context[0]
-                task.cancel()
-                try:
-                    await task
-                    cancel_parent = False
-                except asyncio.CancelledError:
-                    pass
-            except IndexError:
-                pass
-            if exec_coro.done():
-                raise
-            if cancel_parent:
-                exec_coro.cancel()
-            ret = await exec_coro
+            return await run_in_executor(
+                loop=loop,
+                executor=executor,
+                thread_handler=self.thread_handler,
+                child=functools.partial(self.func, *args, **kwargs),
+            )
         finally:
-            _restore_context(context)
             self.deadlock_context.set(False)
-
-        return ret
 
     def __get__(
         self, parent: Any, objtype: Any
@@ -496,7 +491,7 @@ class SyncToAsync(Generic[_P, _R]):
 @overload
 def async_to_sync(
     *,
-    force_new_loop: bool = False,
+    force_new_loop: Union[LoopType, bool] = False,
 ) -> Callable[
     [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
     Callable[_P, _R],
@@ -511,7 +506,7 @@ def async_to_sync(
         Callable[_P, Awaitable[_R]],
     ],
     *,
-    force_new_loop: bool = False,
+    force_new_loop: Union[LoopType, bool] = False,
 ) -> Callable[_P, _R]:
     ...
 
@@ -524,7 +519,7 @@ def async_to_sync(
         ]
     ] = None,
     *,
-    force_new_loop: bool = False,
+    force_new_loop: Union[LoopType, bool] = False,
 ) -> Union[
     Callable[
         [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],

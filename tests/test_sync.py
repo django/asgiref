@@ -1,7 +1,6 @@
 import asyncio
 import functools
 import multiprocessing
-import sys
 import threading
 import time
 import warnings
@@ -10,7 +9,9 @@ from functools import wraps
 from typing import Any
 from unittest import TestCase
 
+import anyio
 import pytest
+import trio.to_thread
 
 from asgiref.sync import (
     ThreadSensitiveContext,
@@ -21,7 +22,7 @@ from asgiref.sync import (
 from asgiref.timeout import timeout
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async():
     """
     Tests we can call sync functions from an async thread
@@ -41,6 +42,16 @@ async def test_sync_to_async():
     end = time.monotonic()
     assert result == 42
     assert end - start >= 1
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_one_worker():
+    # Define sync function
+    @sync_to_async
+    def async_function():
+        time.sleep(1)
+        return 42
+
     # Set workers to 1, call it twice and make sure that works right
     loop = asyncio.get_running_loop()
     old_executor = loop._default_executor or ThreadPoolExecutor()
@@ -72,7 +83,7 @@ def test_sync_to_async_fail_non_function():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_fail_async():
     """
     sync_to_async raises a TypeError when applied to a sync function.
@@ -88,7 +99,7 @@ async def test_sync_to_async_fail_async():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_async_to_sync_fail_partial():
     """
     sync_to_async raises a TypeError when applied to a sync partial.
@@ -106,7 +117,7 @@ async def test_async_to_sync_fail_partial():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_raises_typeerror_for_async_callable_instance():
     class CallableClass:
         async def __call__(self):
@@ -118,7 +129,7 @@ async def test_sync_to_async_raises_typeerror_for_async_callable_instance():
         sync_to_async(CallableClass())
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_decorator():
     """
     Tests sync_to_async as a decorator
@@ -134,7 +145,7 @@ async def test_sync_to_async_decorator():
     assert result == 43
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_nested_sync_to_async_retains_wrapped_function_attributes():
     """
     Tests that attributes of functions wrapped by sync_to_async are retained
@@ -157,7 +168,7 @@ async def test_nested_sync_to_async_retains_wrapped_function_attributes():
     assert test_function.__name__ == "test_function"
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_method_decorator():
     """
     Tests sync_to_async as a method decorator
@@ -175,7 +186,7 @@ async def test_sync_to_async_method_decorator():
     assert result == 44
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_method_self_attribute():
     """
     Tests sync_to_async on a method copies __self__
@@ -197,7 +208,7 @@ async def test_sync_to_async_method_self_attribute():
     assert method.__self__ == instance
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_async_to_sync_to_async():
     """
     Tests we can call async functions from a sync thread created by async_to_sync
@@ -225,7 +236,7 @@ async def test_async_to_sync_to_async():
     assert result["thread"] == threading.current_thread()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_async_to_sync_to_async_decorator():
     """
     Test async_to_sync as a function decorator uses the outer thread
@@ -253,9 +264,8 @@ async def test_async_to_sync_to_async_decorator():
     assert result["thread"] == threading.current_thread()
 
 
-@pytest.mark.asyncio
-@pytest.mark.skipif(sys.version_info < (3, 9), reason="requires python3.9")
-async def test_async_to_sync_to_thread_decorator():
+@pytest.mark.anyio
+async def test_async_to_sync_to_thread_decorator(anyio_backend_name):
     """
     Test async_to_sync as a function decorator uses the outer thread
     when used inside another sync thread.
@@ -270,7 +280,10 @@ async def test_async_to_sync_to_thread_decorator():
         return 42
 
     # Check it works right
-    number = await asyncio.to_thread(inner_async_function)
+    if anyio_backend_name == "trio":
+        number = await trio.to_thread.run_sync(inner_async_function)
+    else:
+        number = await asyncio.to_thread(inner_async_function)
     assert number == 42
     assert result["worked"]
     # Make sure that it didn't needlessly make a new async loop
@@ -363,7 +376,7 @@ def test_async_to_sync_method_decorator():
     assert result["worked"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_async_to_sync_in_async():
     """
     Makes sure async_to_sync bails if you try to call it from an async loop
@@ -509,7 +522,7 @@ def test_thread_sensitive_outside_sync():
     assert result["thread2"] == threading.current_thread()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_thread_sensitive_outside_async():
     """
     Tests that thread_sensitive SyncToAsync where the outside is async code runs
@@ -535,16 +548,16 @@ async def test_thread_sensitive_outside_async():
         result["thread"] = threading.current_thread()
 
     # Run it (in supposed parallel!)
-    await asyncio.wait(
-        [asyncio.create_task(outer(result_1)), asyncio.create_task(inner(result_2))]
-    )
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(outer, result_1)
+        await inner(result_2)
 
     # They should not have run in the main thread, but in the same thread
     assert result_1["thread"] != threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_thread_sensitive_with_context_matches():
     result_1 = {}
     result_2 = {}
@@ -557,12 +570,9 @@ async def test_thread_sensitive_with_context_matches():
     async def fn():
         async with ThreadSensitiveContext():
             # Run it (in supposed parallel!)
-            await asyncio.wait(
-                [
-                    asyncio.create_task(store_thread_async(result_1)),
-                    asyncio.create_task(store_thread_async(result_2)),
-                ]
-            )
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(store_thread_async, result_1)
+                await store_thread_async(result_2)
 
     await fn()
 
@@ -571,7 +581,7 @@ async def test_thread_sensitive_with_context_matches():
     assert result_1["thread"] == result_2["thread"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_thread_sensitive_nested_context():
     result_1 = {}
     result_2 = {}
@@ -590,7 +600,7 @@ async def test_thread_sensitive_nested_context():
     assert result_1["thread"] == result_2["thread"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_thread_sensitive_context_without_sync_work():
     async with ThreadSensitiveContext():
         pass
@@ -629,7 +639,7 @@ def test_thread_sensitive_double_nested_sync():
     assert result["thread"] == threading.current_thread()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_thread_sensitive_double_nested_async():
     """
     Tests that thread_sensitive SyncToAsync nests inside itself where the
@@ -729,7 +739,7 @@ def fork_first():
     return queue.get(True, 1)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_multiprocessing():
     """
     Tests that a forked process can use async_to_sync without it looking for
@@ -738,7 +748,7 @@ async def test_multiprocessing():
     assert await sync_to_async(fork_first)() == 42
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_uses_executor():
     """
     Tests that SyncToAsync uses the passed in executor correctly.
@@ -834,7 +844,7 @@ async def test_sync_to_async_with_blocker_thread_sensitive():
         await trigger_task
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_with_blocker_non_thread_sensitive():
     """
     Tests sync_to_async running on a long-time blocker in a non_thread_sensitive context.
@@ -850,23 +860,20 @@ async def test_sync_to_async_with_blocker_non_thread_sensitive():
 
     async def async_process_that_triggers_event():
         """Sleep, then set the event."""
-        await asyncio.sleep(1)
+        await anyio.sleep(1)
         await sync_to_async(event.set)()
 
-    # Run the event setter as a task.
-    trigger_task = asyncio.ensure_future(async_process_that_triggers_event())
+    async with anyio.create_task_group() as tg:
+        # Run the event setter as a task.
+        tg.start_soon(async_process_that_triggers_event)
 
-    try:
-        # wait on the event waiter, which is now blocking the event setter.
-        async with timeout(delay + 1):
-            assert await async_process_waiting_on_event() == 42
-    except asyncio.TimeoutError:
-        # In case of timeout, set the event to unblock things, else
-        # downstream tests will get fouled up.
-        event.set()
-        raise
-    finally:
-        await trigger_task
+        try:
+            with anyio.fail_after(delay + 1):
+                assert await async_process_waiting_on_event() == 42
+        except TimeoutError:
+            # In case of timeout, set the event to unblock things, else
+            # downstream tests will get fouled up.
+            event.set()
 
 
 @pytest.mark.asyncio
@@ -1194,7 +1201,7 @@ def test_async_to_sync_overlapping_kwargs() -> None:
     test_function(context=1)
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sync_to_async_overlapping_kwargs() -> None:
     """
     Tests that SyncToAsync correctly passes through kwargs to the wrapped function,
