@@ -23,6 +23,7 @@ This spec has had the following versions:
 * ``2.3``: Added the ``reason`` key to the WebSocket close event.
 * ``2.4``: Calling ``send()`` on a closed connection should raise an error
 * ``2.5``: Added the ``reason`` key to the WebSocket disconnect event.
+* ``2.6``: Added mandatory consistency checks for ``Content-Length`` on HTTP requests.
 
 Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
@@ -174,6 +175,13 @@ Keys:
   application should wait until it gets a chunk with this set to
   ``False``. If ``False``, the request is complete and should be
   processed. Optional; if missing defaults to ``False``.
+
+
+The server *must not* read past the client’s specified ``Content-Length``, and
+*should* simulate an end-of-file condition if the application attempts to read past that
+point. The server *may* respond with an 'HTTP 400 - Bad Request' error code in case the
+request body exceeds the announced content length.
+(This behaviour was introduced in spec version 2.6)
 
 
 Response Start - ``send`` event
