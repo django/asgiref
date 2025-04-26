@@ -69,6 +69,45 @@ else:
         return func
 
 
+class AsyncSingleThreadContext:
+    """Context manager to run async code inside the same thread.
+
+    Normally, AsyncToSync functions run either inside a separate ThreadPoolExecutor or
+    the main event loop if it exists. This context manager ensures that all AsyncToSync
+    functions execute within the same thread.
+
+    This context manager is re-entrant, so only the outer-most call to
+    AsyncSingleThreadContext will set the context.
+
+    Usage:
+
+    >>> import asyncio
+    >>> with AsyncSingleThreadContext():
+    ...     async_to_sync(asyncio.sleep(1))()
+    """
+
+    def __init__(self):
+        self.token = None
+
+    def __enter__(self):
+        try:
+            AsyncToSync.async_single_thread_context.get()
+        except LookupError:
+            self.token = AsyncToSync.async_single_thread_context.set(self)
+
+        return self
+
+    def __exit__(self, exc, value, tb):
+        if not self.token:
+            return
+
+        executor = AsyncToSync.context_to_thread_executor.pop(self, None)
+        if executor:
+            executor.shutdown()
+
+        AsyncToSync.async_single_thread_context.reset(self.token)
+
+
 class ThreadSensitiveContext:
     """Async context manager to manage context for thread sensitive mode
 
@@ -130,6 +169,14 @@ class AsyncToSync(Generic[_P, _R]):
     # When we can't find a CurrentThreadExecutor from the context, such as
     # inside create_task, we'll look it up here from the running event loop.
     loop_thread_executors: "Dict[asyncio.AbstractEventLoop, CurrentThreadExecutor]" = {}
+
+    async_single_thread_context: "contextvars.ContextVar[AsyncSingleThreadContext]" = (
+        contextvars.ContextVar("async_single_thread_context")
+    )
+
+    context_to_thread_executor: "weakref.WeakKeyDictionary[AsyncSingleThreadContext, ThreadPoolExecutor]" = (
+        weakref.WeakKeyDictionary()
+    )
 
     def __init__(
         self,
@@ -246,8 +293,24 @@ class AsyncToSync(Generic[_P, _R]):
                 running_in_main_event_loop = False
 
             if not running_in_main_event_loop:
-                # Make our own event loop - in a new thread - and run inside that.
-                loop_executor = ThreadPoolExecutor(max_workers=1)
+                loop_executor = None
+
+                if self.async_single_thread_context.get(None):
+                    single_thread_context = self.async_single_thread_context.get()
+
+                    if single_thread_context in self.context_to_thread_executor:
+                        loop_executor = self.context_to_thread_executor[
+                            single_thread_context
+                        ]
+                    else:
+                        loop_executor = ThreadPoolExecutor(max_workers=1)
+                        self.context_to_thread_executor[
+                            single_thread_context
+                        ] = loop_executor
+                else:
+                    # Make our own event loop - in a new thread - and run inside that.
+                    loop_executor = ThreadPoolExecutor(max_workers=1)
+
                 loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
                 # Run the CurrentThreadExecutor until the future is done.
                 current_executor.run_until_future(loop_future)
