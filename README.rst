@@ -15,7 +15,7 @@ This package includes ASGI base libraries, such as:
 
 * Sync-to-async and async-to-sync function wrappers, ``asgiref.sync``
 * Server base classes, ``asgiref.server``
-* A WSGI-to-ASGI adapter, in ``asgiref.wsgi``
+* A WSGI-to-ASGI adapter, in ``asgirefk.wsgi``
 
 
 Function wrappers
