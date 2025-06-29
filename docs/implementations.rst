@@ -184,6 +184,16 @@ Starlette
 Starlette is a minimalist ASGI library for writing against basic but powerful
 ``Request`` and ``Response`` classes. Supports HTTP and WebSockets.
 
+MicroPie
+--------
+
+*Beta* / https://patx.github.io/micropie
+
+MicroPie is a fast, lightweight, modern Python web framework built on ASGI for 
+asynchronous web applications. Designed for flexibility and simplicity, it 
+enables high-concurrency web apps with built-in WebSockets, session management, 
+middleware, and optional template rendering with method based routing.
+
 
 Tools
 =====
