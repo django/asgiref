@@ -14,12 +14,8 @@ class _CVar:
     def __getattr__(self, key: str) -> Any:
         try:
             var = self._data[key]
-        except KeyError:
-            raise AttributeError(f"{self!r} object has no attribute {key!r}")
-
-        try:
             return var.get()
-        except LookupError:
+        except (KeyError, LookupError):
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
     def __setattr__(self, key: str, value: Any) -> None:
