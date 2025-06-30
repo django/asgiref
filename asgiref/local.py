@@ -83,12 +83,15 @@ class Local:
     def _lock_storage(self):
         # Thread safe access to storage
         if self._thread_critical:
+            is_async = True
             try:
                 # this is a test for are we in a async or sync
                 # thread - will raise RuntimeError if there is
                 # no current loop
                 asyncio.get_running_loop()
             except RuntimeError:
+                is_async = False
+            if not is_async:
                 # We are in a sync thread, the storage is
                 # just the plain thread local (i.e, "global within
                 # this thread" - it doesn't matter where you are
