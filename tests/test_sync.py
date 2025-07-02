@@ -1255,6 +1255,9 @@ def test_double_nested_task() -> None:
     async_to_sync(main)()
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11), reason="asyncio.Barrier is new in PY311"
+)
 def test_two_nested_tasks_with_asyncio_run() -> None:
     barrier = asyncio.Barrier(3)
     event = threading.Event()
