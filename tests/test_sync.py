@@ -1255,28 +1255,29 @@ def test_double_nested_task() -> None:
     async_to_sync(main)()
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11), reason="asyncio.Barrier is new in PY311"
-)
-def test_two_nested_tasks_with_asyncio_run() -> None:
-    barrier = asyncio.Barrier(3)
-    event = threading.Event()
+# asyncio.Barrier is new in Python 3.11. Nest definition (rather than using
+# skipIf) to avoid mypy error.
+if sys.version_info >= (3, 11):
 
-    async def inner() -> None:
-        task = asyncio.create_task(sync_to_async(event.wait)())
-        await barrier.wait()
-        await task
+    def test_two_nested_tasks_with_asyncio_run() -> None:
+        barrier = asyncio.Barrier(3)
+        event = threading.Event()
 
-    async def outer() -> tuple[asyncio.Task[None], asyncio.Task[None]]:
-        task0 = asyncio.create_task(inner())
-        task1 = asyncio.create_task(inner())
-        await barrier.wait()
-        event.set()
-        return task0, task1
+        async def inner() -> None:
+            task = asyncio.create_task(sync_to_async(event.wait)())
+            await barrier.wait()
+            await task
 
-    async def main() -> None:
-        task0, task1 = await sync_to_async(async_to_sync(outer))()
-        await task0
-        await task1
+        async def outer() -> tuple[asyncio.Task[None], asyncio.Task[None]]:
+            task0 = asyncio.create_task(inner())
+            task1 = asyncio.create_task(inner())
+            await barrier.wait()
+            event.set()
+            return task0, task1
 
-    asyncio.run(main())
+        async def main() -> None:
+            task0, task1 = await sync_to_async(async_to_sync(outer))()
+            await task0
+            await task1
+
+        asyncio.run(main())
