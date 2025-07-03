@@ -1,3 +1,20 @@
+3.9.0 (2025-07-03)
+------------------
+
+* Adds support for Python 3.13.
+
+* Drops support for (end-of-life) Python 3.8.
+
+* Fixes an error with conflicting kwargs between AsyncToSync and the wrapped
+  function. (#471)
+
+* Fixes Local isolation between asyncio Tasks. (#478)
+
+* Fixes a reference cycle in Local (#508)
+
+* Fixes a deadlock in CurrentThreadExecutor with nested async_to_sync →
+  sync_to_async → async_to_sync → create_task calls. (#494)
+
 3.8.1 (2024-03-22)
 ------------------
 
