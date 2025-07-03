@@ -1,8 +1,8 @@
-import queue
 import sys
 import threading
+from collections import deque
 from concurrent.futures import Executor, Future
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
@@ -53,10 +53,12 @@ class CurrentThreadExecutor(Executor):
     the thread they came from.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, old_executor: "CurrentThreadExecutor | None") -> None:
         self._work_thread = threading.current_thread()
-        self._work_queue: queue.Queue[Union[_WorkItem, "Future[Any]"]] = queue.Queue()
-        self._broken = False
+        self._work_ready = threading.Condition(threading.Lock())
+        self._work_items = deque[_WorkItem]()  # synchronized by _work_ready
+        self._broken = False  # synchronized by _work_ready
+        self._old_executor = old_executor
 
     def run_until_future(self, future: "Future[Any]") -> None:
         """
@@ -68,20 +70,25 @@ class CurrentThreadExecutor(Executor):
             raise RuntimeError(
                 "You cannot run CurrentThreadExecutor from a different thread"
             )
-        future.add_done_callback(self._work_queue.put)
-        # Keep getting and running work items until we get the future we're waiting for
-        # back via the future's done callback.
-        try:
-            while True:
+
+        def done(future: "Future[Any]") -> None:
+            with self._work_ready:
+                self._broken = True
+                self._work_ready.notify()
+
+        future.add_done_callback(done)
+        # Keep getting and running work items until the future we're waiting for
+        # is done and the queue is empty.
+        while True:
+            with self._work_ready:
+                while not self._work_items and not self._broken:
+                    self._work_ready.wait()
+                if not self._work_items:
+                    break
                 # Get a work item and run it
-                work_item = self._work_queue.get()
-                if work_item is future:
-                    return
-                assert isinstance(work_item, _WorkItem)
-                work_item.run()
-                del work_item
-        finally:
-            self._broken = True
+                work_item = self._work_items.popleft()
+            work_item.run()
+            del work_item
 
     def _submit(
         self,
@@ -94,13 +101,23 @@ class CurrentThreadExecutor(Executor):
             raise RuntimeError(
                 "You cannot submit onto CurrentThreadExecutor from its own thread"
             )
-        # Check they're not too late or the executor errored
-        if self._broken:
-            raise RuntimeError("CurrentThreadExecutor already quit or is broken")
-        # Add to work queue
         f: "Future[_R]" = Future()
         work_item = _WorkItem(f, fn, *args, **kwargs)
-        self._work_queue.put(work_item)
+
+        # Walk up the CurrentThreadExecutor stack to find the closest one still
+        # running
+        executor = self
+        while True:
+            with executor._work_ready:
+                if not executor._broken:
+                    # Add to work queue
+                    executor._work_items.append(work_item)
+                    executor._work_ready.notify()
+                    break
+            if executor._old_executor is None:
+                raise RuntimeError("CurrentThreadExecutor already quit or is broken")
+            executor = executor._old_executor
+
         # Return the future
         return f
 
