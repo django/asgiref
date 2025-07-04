@@ -1,4 +1,7 @@
 import gc
+import sys
+
+import pytest
 
 from asgiref.local import Local
 
@@ -29,6 +32,9 @@ def clean_up_after_garbage_collection_test() -> None:
     gc.enable()
 
 
+@pytest.mark.skipif(
+    sys.implementation.name == "pypy", reason="Test relies on CPython GC internals"
+)
 def test_thread_critical_Local_remove_all_reference_cycles() -> None:
     try:
         # given
