@@ -2,38 +2,37 @@ import asyncio
 import contextlib
 import contextvars
 import threading
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 
 class _CVar:
     """Storage utility for Local."""
 
     def __init__(self) -> None:
-        self._data: dict[str, contextvars.ContextVar[Any]] = {}
+        self._data: "contextvars.ContextVar[Dict[str, Any]]" = contextvars.ContextVar(
+            "asgiref.local"
+        )
 
-    def __getattr__(self, key: str) -> Any:
+    def __getattr__(self, key):
+        storage_object = self._data.get({})
         try:
-            var = self._data[key]
+            return storage_object[key]
         except KeyError:
-            raise AttributeError(f"{self!r} object has no attribute {key!r}")
-
-        try:
-            return var.get()
-        except LookupError:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
     def __setattr__(self, key: str, value: Any) -> None:
         if key == "_data":
             return super().__setattr__(key, value)
 
-        var = self._data.get(key)
-        if var is None:
-            self._data[key] = var = contextvars.ContextVar(key)
-        var.set(value)
+        storage_object = self._data.get({}).copy()
+        storage_object[key] = value
+        self._data.set(storage_object)
 
     def __delattr__(self, key: str) -> None:
-        if key in self._data:
-            del self._data[key]
+        storage_object = self._data.get({}).copy()
+        if key in storage_object:
+            del storage_object[key]
+            self._data.set(storage_object)
         else:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
