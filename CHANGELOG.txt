@@ -1,3 +1,10 @@
+3.9.1 (2025-07-08)
+------------------
+
+* Fixed deletion of Local values affecting other contexts. (#523)
+
+* Skip CPython specific garbage collection test on pypy. (#521)
+
 3.9.0 (2025-07-03)
 ------------------
 
