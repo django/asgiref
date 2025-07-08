@@ -375,3 +375,19 @@ async def test_visibility_task() -> None:
 
     # Changes should not leak to the caller
     assert test_local.value == 0
+
+
+@pytest.mark.asyncio
+async def test_deletion() -> None:
+    """Check visibility with asyncio tasks."""
+    test_local = Local()
+    test_local.value = 123
+
+    async def _test() -> None:
+        # Local is inherited when changing task
+        assert test_local.value == 123
+        del test_local.value
+        assert not hasattr(test_local, "value")
+
+    await asyncio.create_task(_test())
+    assert test_local.value == 123
