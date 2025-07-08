@@ -15,6 +15,11 @@
 * Fixes a deadlock in CurrentThreadExecutor with nested async_to_sync →
   sync_to_async → async_to_sync → create_task calls. (#494)
 
+* The ApplicationCommunicator testing utility will now return the task result
+  if it's already completed on send_input and receive_nothing. You may need to
+  catch (e.g.) the asyncio.exceptions.CancelledError if sending messages to
+  already finished consumers in your tests. (#505)
+
 3.8.1 (2024-03-22)
 ------------------
 
