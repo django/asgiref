@@ -1,4 +1,4 @@
-from io import BytesIO
+import sys
 from tempfile import SpooledTemporaryFile
 
 from asgiref.sync import AsyncToSync, sync_to_async
@@ -67,7 +67,7 @@ class WsgiToAsgiInstance:
             "wsgi.version": (1, 0),
             "wsgi.url_scheme": scope.get("scheme", "http"),
             "wsgi.input": body,
-            "wsgi.errors": BytesIO(),
+            "wsgi.errors": sys.stderr,
             "wsgi.multithread": True,
             "wsgi.multiprocess": True,
             "wsgi.run_once": False,
