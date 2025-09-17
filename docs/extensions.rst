@@ -226,9 +226,9 @@ field ``trailers`` in *Response Start* as ``True``. That will allow the ASGI ser
 to know that after the last ``http.response.body`` message (``more_body`` being ``False``),
 the ASGI framework will send a ``http.response.trailers`` message.
 
-The ASGI framework is in charge of sending the ``Trailers`` headers to let the client know
+The ASGI framework is in charge of sending the ``Trailer`` headers to let the client know
 which trailing headers the server will send. The ASGI server is not responsible for validating
-the ``Trailers`` headers provided.
+the ``Trailer`` headers provided.
 
 Keys:
 
