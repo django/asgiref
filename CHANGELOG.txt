@@ -1,3 +1,11 @@
+3.9.2 (2025-09-23)
+------------------
+
+* Adds support for Python 3.14.
+
+* Fixes wsgi.errors file descriptor in WsgiToAsgi adapter.
+
+
 3.9.1 (2025-07-08)
 ------------------
 
