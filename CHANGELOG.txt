@@ -1,3 +1,10 @@
+3.10.0 (UNRELEASED)
+-------------------
+
+* Added AsyncSingleThreadContext context manager to ensure multiple AsyncToSync
+  invocations use the same thread. (#511)
+
+
 3.9.2 (2025-09-23)
 ------------------
 
