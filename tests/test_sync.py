@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import functools
 import multiprocessing
 import sys
@@ -13,6 +14,7 @@ from unittest import TestCase
 import pytest
 
 from asgiref.sync import (
+    AsyncSingleThreadContext,
     ThreadSensitiveContext,
     async_to_sync,
     iscoroutinefunction,
@@ -541,6 +543,98 @@ async def test_thread_sensitive_outside_async():
 
     # They should not have run in the main thread, but in the same thread
     assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] == result_2["thread"]
+
+
+def test_async_single_thread_context_matches():
+    """
+    Tests that functions wrapped with async_to_sync and executed within an
+    AsyncSingleThreadContext run on the same thread, even without a main_event_loop.
+    """
+    result_1 = {}
+    result_2 = {}
+
+    async def store_thread_async(result):
+        result["thread"] = threading.current_thread()
+
+    with AsyncSingleThreadContext():
+        async_to_sync(store_thread_async)(result_1)
+        async_to_sync(store_thread_async)(result_2)
+
+    # They should not have run in the main thread, and on the same threads
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] == result_2["thread"]
+
+
+def test_async_single_thread_nested_context():
+    """
+    Tests that behavior remains the same when using nested context managers.
+    """
+    result_1 = {}
+    result_2 = {}
+
+    @async_to_sync
+    async def store_thread(result):
+        result["thread"] = threading.current_thread()
+
+    with AsyncSingleThreadContext():
+        store_thread(result_1)
+
+        with AsyncSingleThreadContext():
+            store_thread(result_2)
+
+    # They should not have run in the main thread, and on the same threads
+    assert result_1["thread"] != threading.current_thread()
+    assert result_1["thread"] == result_2["thread"]
+
+
+def test_async_single_thread_context_without_async_work():
+    """
+    Tests everything works correctly without any async_to_sync calls.
+    """
+    with AsyncSingleThreadContext():
+        pass
+
+
+def test_async_single_thread_context_success_share_context():
+    """
+    Tests that we share context between different async_to_sync functions.
+    """
+    connection = contextvars.ContextVar("connection")
+    connection.set(0)
+
+    async def handler():
+        connection.set(connection.get(0) + 1)
+
+    with AsyncSingleThreadContext():
+        async_to_sync(handler)()
+        async_to_sync(handler)()
+
+    assert connection.get() == 2
+
+
+@pytest.mark.asyncio
+async def test_async_single_thread_context_matches_from_async_thread():
+    """
+    Tests that we use main_event_loop for running async_to_sync functions executed
+    within an AsyncSingleThreadContext.
+    """
+    result_1 = {}
+    result_2 = {}
+
+    @async_to_sync
+    async def store_thread_async(result):
+        result["thread"] = threading.current_thread()
+
+    def inner():
+        with AsyncSingleThreadContext():
+            store_thread_async(result_1)
+            store_thread_async(result_2)
+
+    await sync_to_async(inner)()
+
+    # They should both have run in the current thread.
+    assert result_1["thread"] == threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
 
 
