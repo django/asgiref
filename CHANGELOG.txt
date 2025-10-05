@@ -1,9 +1,8 @@
-3.10.0 (UNRELEASED)
+3.10.0 (2025-10-05)
 -------------------
 
 * Added AsyncSingleThreadContext context manager to ensure multiple AsyncToSync
   invocations use the same thread. (#511)
-
 
 3.9.2 (2025-09-23)
 ------------------
@@ -11,7 +10,6 @@
 * Adds support for Python 3.14.
 
 * Fixes wsgi.errors file descriptor in WsgiToAsgi adapter.
-
 
 3.9.1 (2025-07-08)
 ------------------
