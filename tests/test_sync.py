@@ -633,7 +633,7 @@ async def test_async_single_thread_context_matches_from_async_thread():
 
     await sync_to_async(inner)()
 
-    # They should not have run in the main thread, and on the same threads
+    # They should both have run in the current thread.
     assert result_1["thread"] == threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
 
