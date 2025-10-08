@@ -278,7 +278,7 @@ class AsyncToSync(Generic[_P, _R]):
                 finally:
                     del self.loop_thread_executors[loop]
 
-            if self.main_event_loop is not None:
+            if self.main_event_loop is not None and self.main_event_loop.is_running():
                 try:
                     self.main_event_loop.call_soon_threadsafe(
                         self.main_event_loop.create_task, awaitable
