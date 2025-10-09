@@ -9,7 +9,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from typing import Any
-from unittest import TestCase
+from unittest import TestCase, mock
 
 import pytest
 
@@ -197,6 +197,21 @@ async def test_sync_to_async_method_self_attribute():
 
     # Check __self__ has been copied
     assert method.__self__ == instance
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("exc_cls", (RuntimeError, ValueError, Exception))
+async def test_sync_to_async_broken_executor(exc_cls):
+    """
+    Tests sync_to_async catch error in executor and avoid deadlock
+    """
+    with mock.patch.object(ThreadPoolExecutor, "submit") as mock_run:
+        mock_run.side_effect = exc_cls("Test Error")
+        async_function = sync_to_async(lambda: None, thread_sensitive=True)
+        with pytest.raises(exc_cls, match="Test Error"):
+            await async_function()
+        with pytest.raises(exc_cls, match="Test Error"):
+            await async_function()
 
 
 @pytest.mark.asyncio
