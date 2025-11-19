@@ -1,5 +1,5 @@
-Unreleased
-----------
+3.11.0 (2025-11-19)
+-------------------
 
 * ``sync_to_async`` gains a ``context`` parameter, similar to those for
   ``asyncio.create_task``, ``TaskGroup`` &co, that can be used on Python 3.11+ to
@@ -7,7 +7,7 @@ Unreleased
 
   The parent context is already propagated by default but the additional
   control is useful if multiple ``sync_to_async`` calls need to share the same
-  context.
+  context, e.g. when used with ``asyncio.gather()``.
 
 3.10.0 (2025-10-05)
 -------------------
