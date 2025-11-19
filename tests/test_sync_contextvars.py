@@ -59,32 +59,29 @@ async def test_sync_to_async_contextvars():
 @pytest.mark.asyncio
 async def test_sync_to_async_contextvars_with_custom_context():
     """
-    Test that passing a custom context to `sync_to_async` ensures that changes to
-    context variables within the synchronous function are isolated to the
-    provided context and do not affect the caller's context. Specifically,
-    verifies that modifications to a context variable inside the
-    sync function are reflected only in the custom context and not in the
-    outer context.
+    Passing a custom context to `sync_to_async` ensures that changes to context
+    variables within the synchronous function are isolated to the provided
+    context and do not affect the caller's context. Specifically, verifies that
+    modifications to a context variable inside the sync function are reflected
+    only in the custom context and not in the outer context.
     """
-    # Define sync function
+
     def sync_function():
         time.sleep(1)
         assert foo.get() == "bar"
         foo.set("baz")
         return 42
 
-    # Ensure outermost detection works
-    # Wrap it
     foo.set("bar")
     context = contextvars.copy_context()
+
     async_function = sync_to_async(sync_function, context=context)
     assert await async_function() == 42
 
-    # verify that the current context remains unchanged
+    # Current context remains unchanged.
     assert foo.get() == "bar"
 
-    # verify that the custom context reflects the changes made within the
-    # sync function
+    # Custom context reflects the changes made within the sync function.
     assert context.get(foo) == "baz"
 
 
@@ -92,12 +89,10 @@ async def test_sync_to_async_contextvars_with_custom_context():
 @pytest.mark.skipif(sys.version_info < (3, 11), reason="requires python3.11")
 async def test_sync_to_async_contextvars_with_custom_context_and_parallel_tasks():
     """
-    Test that using a custom context with `sync_to_async` and asyncio tasks
-    isolates contextvars changes, leaving the original context unchanged and
-    reflecting all modifications in the custom context.
+    Using a custom context with `sync_to_async` and asyncio tasks isolates
+    contextvars changes, leaving the original context unchanged and reflecting
+    all modifications in the custom context.
     """
-    # Ensure outermost detection works
-    # Wrap it
     foo.set("")
 
     def sync_function():
@@ -117,11 +112,10 @@ async def test_sync_to_async_contextvars_with_custom_context_and_parallel_tasks(
         asyncio.create_task(async_function(), context=context),
     )
 
-    # verify that the current context remains unchanged
+    # Current context remains unchanged
     assert foo.get() == ""
 
-    # verify that the custom context reflects the changes made within the
-    # sync function
+    # Custom context reflects the changes made within all the gathered tasks.
     assert context.get(foo) == "1111"
 
 
