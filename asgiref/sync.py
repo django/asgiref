@@ -432,9 +432,11 @@ class SyncToAsync(Generic[_P, _R]):
             or iscoroutinefunction(getattr(func, "__call__", func))
         ):
             raise TypeError("sync_to_async can only be applied to sync functions.")
+
+        functools.update_wrapper(self, func)
         self.func = func
         self.context = context
-        functools.update_wrapper(self, func)
+
         self._thread_sensitive = thread_sensitive
         markcoroutinefunction(self)
         if thread_sensitive and executor is not None:
