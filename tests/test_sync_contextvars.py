@@ -138,3 +138,24 @@ def test_async_to_sync_contextvars():
     sync_function = async_to_sync(async_function)
     assert sync_function() == 42
     assert foo.get() == "baz"
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_contextvars_with_callable_with_context_attribute():
+    """
+    Tests that a callable object with a `context` attribute
+    can be wrapped with `sync_to_async` without overwriting the `context` attribute
+    and still returns the expected result.
+    """
+    # Define sync Callable
+    class SyncCallable:
+        def __init__(self):
+            # Should not be copied to the SyncToAsync wrapper.
+            self.context = ...
+
+        def __call__(self):
+            return 42
+
+    async_function = sync_to_async(SyncCallable())
+    assert async_function.context is None
+    assert await async_function() == 42

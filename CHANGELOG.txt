@@ -1,3 +1,9 @@
+UNRELEASED
+----------
+
+* Fixed a regression in 3.11.0 in ``sync_to_async`` when wrapping a callable
+  with an attribute named ``context``. (#537)
+
 3.11.0 (2025-11-19)
 -------------------
 
