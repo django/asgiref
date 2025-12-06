@@ -140,6 +140,8 @@ class HTTPResponseTrailersEvent(TypedDict):
 class HTTPResponsePathsendEvent(TypedDict):
     type: Literal["http.response.pathsend"]
     path: str
+    offset: NotRequired[int]
+    count: NotRequired[int]
 
 
 class HTTPServerPushEvent(TypedDict):
