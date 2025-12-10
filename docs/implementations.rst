@@ -29,7 +29,7 @@ Supports ASGI/3, RSGI and WSGI interface applications.
 Hypercorn
 ---------
 
-*Beta* / https://pgjones.gitlab.io/hypercorn/index.html
+*Beta* / https://hypercorn.readthedocs.io/
 
 An ASGI server based on the sans-io hyper, h11, h2, and wsproto libraries.
 Supports HTTP/1, HTTP/2, and WebSockets.
