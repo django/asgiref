@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, Awaitable, Callable, Union, cast
-
+from typing import Any, Awaitable, Callable, Union
 from typing_extensions import TypeAlias
 
 from .sync import iscoroutinefunction
@@ -59,5 +58,5 @@ def guarantee_single_callable(application: ASGIApplication) -> ASGISingleCallabl
     2.0 applications to your server/test harness/etc.
     """
     if is_double_callable(application):
-        return double_to_single_callable(cast(ASGIDoubleCallable, application))
-    return cast(ASGISingleCallable, application)
+        return double_to_single_callable(application)
+    return application
