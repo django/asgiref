@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, Awaitable, Callable, TypeAlias
+from typing import Any, Awaitable, Callable
+
+from typing_extensions import TypeAlias
 
 from .sync import iscoroutinefunction
 
@@ -10,7 +12,10 @@ Scope: TypeAlias = dict[str, Any]
 Receive: TypeAlias = Callable[[], Awaitable[Any]]
 Send: TypeAlias = Callable[[dict[str, Any]], Awaitable[None]]
 
+# ASGI 3.0 style: async callable(scope, receive, send)
 ASGISingleCallable: TypeAlias = Callable[[Scope, Receive, Send], Awaitable[Any]]
+
+# ASGI 2.0 legacy style: callable(scope) -> awaitable callable(receive, send)
 ASGIDoubleCallableInstance: TypeAlias = Callable[[Receive, Send], Awaitable[Any]]
 ASGIDoubleCallable: TypeAlias = Callable[[Scope], ASGIDoubleCallableInstance]
 
@@ -42,7 +47,7 @@ def double_to_single_callable(application: ASGIDoubleCallable) -> ASGISingleCall
     Transforms a double-callable ASGI application into a single-callable one.
     """
 
-    async def new_application(scope: Scope, receive: Recieve, send: Send) -> Any:
+    async def new_application(scope: Scope, receive: Receive, send: Send) -> Any:
         instance = application(scope)
         return await instance(receive, send)
 
