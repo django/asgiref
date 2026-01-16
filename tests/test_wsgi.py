@@ -315,3 +315,68 @@ async def test_wsgi_multi_body():
     }
 
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
+async def test_duplicate_header_limit():
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [])
+        return [b"OK"]
+
+    application = WsgiToAsgi(wsgi_application, duplicate_header_limit=5)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [[b"x-test", b"value"] for _ in range(10)],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 400,
+        "headers": [(b"content-type", b"text/plain")],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"Bad Request: Too many duplicate headers",
+    }
+
+
+@pytest.mark.asyncio
+async def test_duplicate_header_limit_disabled():
+    def wsgi_application(environ, start_response):
+        assert "HTTP_X_TEST" in environ
+        start_response("200 OK", [])
+        return [b"OK"]
+
+    application = WsgiToAsgi(wsgi_application, duplicate_header_limit=None)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [[b"x-test", b"value"] for _ in range(200)],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"OK",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}

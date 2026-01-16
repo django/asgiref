@@ -1,4 +1,5 @@
 import sys
+from collections import defaultdict
 from tempfile import SpooledTemporaryFile
 
 from asgiref.sync import AsyncToSync, sync_to_async
@@ -9,8 +10,9 @@ class WsgiToAsgi:
     Wraps a WSGI application to make it into an ASGI application.
     """
 
-    def __init__(self, wsgi_application):
+    def __init__(self, wsgi_application, duplicate_header_limit=100):
         self.wsgi_application = wsgi_application
+        self.duplicate_header_limit = duplicate_header_limit
 
     async def __call__(self, scope, receive, send):
         """
@@ -18,7 +20,9 @@ class WsgiToAsgi:
         We return a new WsgiToAsgiInstance here with the WSGI app
         and the scope, ready to respond when it is __call__ed.
         """
-        await WsgiToAsgiInstance(self.wsgi_application)(scope, receive, send)
+        await WsgiToAsgiInstance(self.wsgi_application, self.duplicate_header_limit)(
+            scope, receive, send
+        )
 
 
 class WsgiToAsgiInstance:
@@ -26,8 +30,9 @@ class WsgiToAsgiInstance:
     Per-socket instance of a wrapped WSGI application
     """
 
-    def __init__(self, wsgi_application):
+    def __init__(self, wsgi_application, duplicate_header_limit=100):
         self.wsgi_application = wsgi_application
+        self.duplicate_header_limit = duplicate_header_limit
         self.response_started = False
         self.response_content_length = None
 
@@ -84,6 +89,7 @@ class WsgiToAsgiInstance:
             environ["REMOTE_ADDR"] = scope["client"][0]
 
         # Go through headers and make them into environ entries
+        _headers = defaultdict(list)
         for name, value in self.scope.get("headers", []):
             name = name.decode("latin1")
             if name == "content-length":
@@ -94,9 +100,17 @@ class WsgiToAsgiInstance:
                 corrected_name = "HTTP_%s" % name.upper().replace("-", "_")
             # HTTPbis say only ASCII chars are allowed in headers, but we latin1 just in case
             value = value.decode("latin1")
-            if corrected_name in environ:
-                value = environ[corrected_name] + "," + value
-            environ[corrected_name] = value
+            if (
+                self.duplicate_header_limit
+                and len(_headers[corrected_name]) >= self.duplicate_header_limit
+            ):
+                raise ValueError(
+                    f"Too many duplicate headers: {corrected_name} exceeds limit of"
+                    f"{self.duplicate_header_limit}"
+                )
+            _headers[corrected_name].append(value)
+        for name, values in _headers.items():
+            environ[name] = ",".join(values)
         return environ
 
     def start_response(self, status, response_headers, exc_info=None):
@@ -138,7 +152,24 @@ class WsgiToAsgiInstance:
         this so that the start_response callable is called in the same thread.
         """
         # Translate the scope and incoming request body into a WSGI environ
-        environ = self.build_environ(self.scope, body)
+        try:
+            environ = self.build_environ(self.scope, body)
+        except ValueError:
+            # Return 400 Bad Request if header limit exceeded
+            self.sync_send(
+                {
+                    "type": "http.response.start",
+                    "status": 400,
+                    "headers": [(b"content-type", b"text/plain")],
+                }
+            )
+            self.sync_send(
+                {
+                    "type": "http.response.body",
+                    "body": b"Bad Request: Too many duplicate headers",
+                }
+            )
+            return
         # Run the WSGI app
         bytes_sent = 0
         for output in self.wsgi_application(environ, self.start_response):

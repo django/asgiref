@@ -1,6 +1,22 @@
 UNRELEASED
 ----------
 
+* SECURITY FIX CVE-2025-14550: There was a potential DoS vector for users of
+  the ``asgiref.wsgi.WsgiToAsgi`` adapter. Malicious requests, including an unreasonably
+  large number of values for the same header, could lead to resource exhaustion
+  when building the WSGI environment.
+
+  To mitigate this, the algorithm is changed to be more efficient, and
+  ``WsgiToAsgi`` gains a new optional ``duplicate_header_limit`` parameter,
+  which defaults to 100. This specifies the number of times a single header may
+  be repeated before the request is rejected as malformed.
+
+  You may override ``duplicate_header_limit`` when configuring your application::
+
+      application = WsgiToAsgi(wsgi_app, duplicate_header_limit=200)
+
+  Set ``duplicate_header_limit=None`` if you wish to disable this check.
+
 * Fixed a regression in 3.11.0 in ``sync_to_async`` when wrapping a callable
   with an attribute named ``context``. (#537)
 
