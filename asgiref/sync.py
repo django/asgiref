@@ -8,6 +8,7 @@ import sys
 import threading
 import warnings
 import weakref
+from asyncio import constants
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import (
     TYPE_CHECKING,
@@ -32,9 +33,15 @@ if sys.version_info >= (3, 10):
 else:
     from typing_extensions import ParamSpec
 
+THREAD_JOIN_TIMEOUT = getattr(constants, "THREAD_JOIN_TIMEOUT", 0)
+
 if TYPE_CHECKING:
     # This is not available to import at runtime
     from _typeshed import OptExcInfo
+
+    AsyncSingleThreadContextMapType = weakref.WeakKeyDictionary[
+        "AsyncSingleThreadContext", tuple[ThreadPoolExecutor, asyncio.AbstractEventLoop]
+    ]
 
 _F = TypeVar("_F", bound=Callable[..., Any])
 _P = ParamSpec("_P")
@@ -97,11 +104,48 @@ class AsyncSingleThreadContext:
 
         return self
 
+    def _cancel_all_tasks(self, loop):
+        to_cancel = asyncio.all_tasks(loop)
+        if not to_cancel:
+            return
+
+        for task in to_cancel:
+            task.cancel()
+
+        loop.run_until_complete(asyncio.gather(*to_cancel, return_exceptions=True))
+
+        for task in to_cancel:
+            if task.cancelled():
+                continue
+            if task.exception() is not None:
+                loop.call_exception_handler(
+                    {
+                        "message": "unhandled exception during AsyncSingleThreadContext shutdown",
+                        "exception": task.exception(),
+                        "task": task,
+                    }
+                )
+
     def __exit__(self, exc, value, tb):
         if not self.token:
             return
 
-        executor = AsyncToSync.context_to_thread_executor.pop(self, None)
+        executor, loop = AsyncToSync.async_single_thread_context_map.pop(
+            self, (None, None)
+        )
+        if loop:
+            try:
+                self._cancel_all_tasks(loop)
+                loop.run_until_complete(loop.shutdown_asyncgens())
+                if THREAD_JOIN_TIMEOUT:
+                    loop.run_until_complete(
+                        loop.shutdown_default_executor(THREAD_JOIN_TIMEOUT)
+                    )
+                else:
+                    loop.run_until_complete(loop.shutdown_default_executor())
+            finally:
+                loop.close()
+
         if executor:
             executor.shutdown()
 
@@ -174,7 +218,7 @@ class AsyncToSync(Generic[_P, _R]):
         contextvars.ContextVar("async_single_thread_context")
     )
 
-    context_to_thread_executor: "weakref.WeakKeyDictionary[AsyncSingleThreadContext, ThreadPoolExecutor]" = (
+    async_single_thread_context_map: "AsyncSingleThreadContextMapType" = (
         weakref.WeakKeyDictionary()
     )
 
@@ -293,25 +337,29 @@ class AsyncToSync(Generic[_P, _R]):
                 running_in_main_event_loop = False
 
             if not running_in_main_event_loop:
-                loop_executor = None
-
                 if self.async_single_thread_context.get(None):
                     single_thread_context = self.async_single_thread_context.get()
 
-                    if single_thread_context in self.context_to_thread_executor:
-                        loop_executor = self.context_to_thread_executor[
-                            single_thread_context
-                        ]
+                    if single_thread_context in self.async_single_thread_context_map:
+                        (
+                            loop_executor,
+                            context_loop,
+                        ) = self.async_single_thread_context_map[single_thread_context]
                     else:
+                        context_loop = asyncio.new_event_loop()
                         loop_executor = ThreadPoolExecutor(max_workers=1)
-                        self.context_to_thread_executor[
-                            single_thread_context
-                        ] = loop_executor
+                        self.async_single_thread_context_map[single_thread_context] = (
+                            loop_executor,
+                            context_loop,
+                        )
+
+                    loop_future = loop_executor.submit(
+                        context_loop.run_until_complete, new_loop_wrap()
+                    )
                 else:
                     # Make our own event loop - in a new thread - and run inside that.
                     loop_executor = ThreadPoolExecutor(max_workers=1)
-
-                loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
+                    loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
                 # Run the CurrentThreadExecutor until the future is done.
                 current_executor.run_until_future(loop_future)
                 # Wait for future and/or allow for exception propagation

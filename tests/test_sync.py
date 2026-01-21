@@ -15,6 +15,7 @@ import pytest
 
 from asgiref.sync import (
     AsyncSingleThreadContext,
+    AsyncToSync,
     ThreadSensitiveContext,
     async_to_sync,
     iscoroutinefunction,
@@ -549,21 +550,24 @@ async def test_thread_sensitive_outside_async():
 def test_async_single_thread_context_matches():
     """
     Tests that functions wrapped with async_to_sync and executed within an
-    AsyncSingleThreadContext run on the same thread, even without a main_event_loop.
+    AsyncSingleThreadContext run on the same thread/loop, even without a
+    main_event_loop.
     """
     result_1 = {}
     result_2 = {}
 
-    async def store_thread_async(result):
+    async def store_thread_info_async(result):
         result["thread"] = threading.current_thread()
+        result["loop"] = asyncio.get_running_loop()
 
     with AsyncSingleThreadContext():
-        async_to_sync(store_thread_async)(result_1)
-        async_to_sync(store_thread_async)(result_2)
+        async_to_sync(store_thread_info_async)(result_1)
+        async_to_sync(store_thread_info_async)(result_2)
 
     # They should not have run in the main thread, and on the same threads
     assert result_1["thread"] != threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
+    assert result_1["loop"] == result_2["loop"]
 
 
 def test_async_single_thread_nested_context():
@@ -572,20 +576,28 @@ def test_async_single_thread_nested_context():
     """
     result_1 = {}
     result_2 = {}
+    result_3 = {}
 
     @async_to_sync
-    async def store_thread(result):
+    async def store_thread_info(result):
         result["thread"] = threading.current_thread()
+        result["loop"] = asyncio.get_running_loop()
 
     with AsyncSingleThreadContext():
-        store_thread(result_1)
+        store_thread_info(result_1)
 
         with AsyncSingleThreadContext():
-            store_thread(result_2)
+            store_thread_info(result_2)
+
+        # verify that the context does not shut down the executor or event loop
+        store_thread_info(result_3)
 
     # They should not have run in the main thread, and on the same threads
     assert result_1["thread"] != threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
+    assert result_1["thread"] == result_3["thread"]
+    assert result_1["loop"] == result_2["loop"]
+    assert result_1["loop"] == result_3["loop"]
 
 
 def test_async_single_thread_context_without_async_work():
@@ -621,21 +633,54 @@ async def test_async_single_thread_context_matches_from_async_thread():
     """
     result_1 = {}
     result_2 = {}
+    result_3 = {}
 
     @async_to_sync
-    async def store_thread_async(result):
+    async def store_thread_info_async(result):
         result["thread"] = threading.current_thread()
+        result["loop"] = asyncio.get_running_loop()
 
     def inner():
         with AsyncSingleThreadContext():
-            store_thread_async(result_1)
-            store_thread_async(result_2)
+            store_thread_info_async(result_1)
+            store_thread_info_async(result_2)
+
+        # verify that the context does not shut down the executor or event loop
+        store_thread_info_async(result_3)
 
     await sync_to_async(inner)()
 
     # They should both have run in the current thread.
     assert result_1["thread"] == threading.current_thread()
     assert result_1["thread"] == result_2["thread"]
+    assert result_1["thread"] == result_3["thread"]
+    assert result_1["loop"] == result_2["loop"]
+    assert result_1["loop"] == result_3["loop"]
+
+
+def test_async_single_thread_context_shutdown():
+    """
+    Verifies the shutdown process works as expected.
+    """
+    result = {}
+
+    async def inner_long_running_task():
+        await asyncio.sleep(5)
+        result["inner_long_running_task"] = True
+
+    async def handler():
+        # start but do not await, so it runs in the background
+        asyncio.create_task(inner_long_running_task())
+        return True
+
+    with AsyncSingleThreadContext() as ctx:
+        assert async_to_sync(handler)()
+
+        executor, loop = AsyncToSync.async_single_thread_context_map[ctx]
+
+    assert loop.is_closed(), "Event loop was not closed"
+    assert executor._shutdown, "Executor was not shutdown"
+    assert not result, "Background tasks should have been canceled"
 
 
 @pytest.mark.asyncio
