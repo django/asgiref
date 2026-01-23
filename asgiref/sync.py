@@ -19,6 +19,7 @@ from typing import (
     Generic,
     List,
     Optional,
+    ParamSpec,
     TypeVar,
     Union,
     overload,
@@ -26,11 +27,6 @@ from typing import (
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
     # This is not available to import at runtime
