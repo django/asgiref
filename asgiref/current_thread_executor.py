@@ -1,7 +1,8 @@
 import threading
 from collections import deque
+from collections.abc import Callable
 from concurrent.futures import Executor, Future
-from typing import Any, Callable, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 _T = TypeVar("_T")
 _P = ParamSpec("_P")
