@@ -1,5 +1,5 @@
-UNRELEASED
-----------
+3.11.1 (2026-02-03)
+-------------------
 
 * SECURITY FIX CVE-2025-14550: There was a potential DoS vector for users of
   the ``asgiref.wsgi.WsgiToAsgi`` adapter. Malicious requests, including an unreasonably
