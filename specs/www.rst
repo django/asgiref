@@ -161,6 +161,11 @@ Note that if the request is being sent using ``Transfer-Encoding: chunked``,
 the server is responsible for handling this encoding. The ``http.request``
 messages should contain just the decoded contents of each chunk.
 
+After the final ``http.request`` message (``more_body`` is ``False``),
+indicating that all data from the declared ``Content-Length`` or decoded
+chunked body has been received, the provided ``receive()`` callable must remain
+awaitable and continue to block until a ``http.disconnect`` event occurs.
+
 Keys:
 
 * ``type`` (*Unicode string*) -- ``"http.request"``.
