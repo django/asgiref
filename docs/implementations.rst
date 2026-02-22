@@ -25,6 +25,14 @@ Granian
 A Rust HTTP server for Python applications.
 Supports ASGI/3, RSGI and WSGI interface applications.
 
+Gunicorn
+-------
+
+*stable* / https://gunicorn.org
+
+Gunicorn 'Green Unicorn' is a Python HTTP Server for UNIX. It's a pre-fork worker model ported from Ruby's Unicorn project. The Gunicorn server is broadly compatible with various web frameworks, simply implemented, light on server resource usage, and fairly speedy.
+
+Supports HTTP/1, HTTP/2, and WebSockets.
 
 Hypercorn
 ---------
