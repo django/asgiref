@@ -1,5 +1,5 @@
 import asyncio
-import contextlib
+from contextlib import nullcontext
 import contextvars
 import threading
 from typing import Any, Dict, Union
@@ -35,6 +35,23 @@ class _CVar:
             self._data.set(storage_object)
         else:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
+
+
+class _LockContext:
+    """Context manager that acquires a lock and yields a value."""
+
+    __slots__ = ("_lock", "_value")
+
+    def __init__(self, lock: threading.RLock, value: Any) -> None:
+        self._lock = lock
+        self._value = value
+
+    def __enter__(self):
+        self._lock.acquire()
+        return self._value
+
+    def __exit__(self, *exc_info):
+        self._lock.release()
 
 
 class Local:
@@ -77,8 +94,8 @@ class Local:
         else:
             # Contextvar storage
             self._storage = _CVar()
+            self._lock_context = _LockContext(self._thread_lock, self._storage)
 
-    @contextlib.contextmanager
     def _lock_storage(self):
         # Thread safe access to storage
         if self._thread_critical:
@@ -95,7 +112,7 @@ class Local:
                 # just the plain thread local (i.e, "global within
                 # this thread" - it doesn't matter where you are
                 # in a call stack you see the same storage)
-                yield self._storage
+                return nullcontext(self._storage)
             else:
                 # We are in an async thread - storage is still
                 # local to this thread, but additionally should
@@ -109,19 +126,18 @@ class Local:
                 # self._storage is a thread local, so the members
                 # can't be accessed in another thread (we don't
                 # need any locks)
-                yield self._storage.cvar
+                return nullcontext(self._storage.cvar)
         else:
             # Lock for thread_critical=False as other threads
             # can access the exact same storage object
-            with self._thread_lock:
-                yield self._storage
+            return self._lock_context
 
     def __getattr__(self, key):
         with self._lock_storage() as storage:
             return getattr(storage, key)
 
     def __setattr__(self, key, value):
-        if key in ("_local", "_storage", "_thread_critical", "_thread_lock"):
+        if key in ("_local", "_storage", "_thread_critical", "_thread_lock", "_lock_context"):
             return super().__setattr__(key, value)
         with self._lock_storage() as storage:
             setattr(storage, key, value)
