@@ -1,8 +1,7 @@
 import asyncio
-from contextlib import nullcontext
 import contextvars
 import threading
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 
 class _CVar:
@@ -54,6 +53,9 @@ class _LockContext:
         self._lock.release()
 
 
+_object_setattr = object.__setattr__
+
+
 class Local:
     """Local storage for async tasks.
 
@@ -82,66 +84,86 @@ class Local:
     Unlike plain `contextvars` objects, this utility is threadsafe.
     """
 
-    def __init__(self, thread_critical: bool = False) -> None:
-        self._thread_critical = thread_critical
-        self._thread_lock = threading.RLock()
-
-        self._storage: "Union[threading.local, _CVar]"
-
+    def __new__(cls, thread_critical: bool = False) -> "Local":
         if thread_critical:
-            # Thread-local storage
-            self._storage = threading.local()
-        else:
-            # Contextvar storage
-            self._storage = _CVar()
-            self._lock_context = _LockContext(self._thread_lock, self._storage)
+            return object.__new__(_ThreadCriticalLocal)
+        return object.__new__(_DefaultLocal)
 
-    def _lock_storage(self):
-        # Thread safe access to storage
-        if self._thread_critical:
-            is_async = True
-            try:
-                # this is a test for are we in a async or sync
-                # thread - will raise RuntimeError if there is
-                # no current loop
-                asyncio.get_running_loop()
-            except RuntimeError:
-                is_async = False
-            if not is_async:
-                # We are in a sync thread, the storage is
-                # just the plain thread local (i.e, "global within
-                # this thread" - it doesn't matter where you are
-                # in a call stack you see the same storage)
-                return nullcontext(self._storage)
-            else:
-                # We are in an async thread - storage is still
-                # local to this thread, but additionally should
-                # behave like a context var (is only visible with
-                # the same async call stack)
+    def __init__(self, thread_critical: bool = False) -> None:  # pragma: no cover
+        pass
 
-                # Ensure context exists in the current thread
-                if not hasattr(self._storage, "cvar"):
-                    self._storage.cvar = _CVar()
+    # These mark this class as magical to Mypy; the real implementations
+    # are in the concrete subclasses below.
 
-                # self._storage is a thread local, so the members
-                # can't be accessed in another thread (we don't
-                # need any locks)
-                return nullcontext(self._storage.cvar)
-        else:
-            # Lock for thread_critical=False as other threads
-            # can access the exact same storage object
-            return self._lock_context
+    def __getattr__(self, key: str) -> Any:
+        ...
+
+    def __setattr__(self, key: str, value: Any) -> Any:
+        ...
+
+    def __delattr__(self, key: str) -> Any:
+        ...
+
+
+class _DefaultLocal(Local):
+    """Local with thread_critical=False: CVar storage protected by a lock."""
+
+    def __init__(self, thread_critical: bool = False) -> None:
+        super().__init__(thread_critical)
+        storage = _CVar()
+        lock = threading.RLock()
+        _object_setattr(self, "_storage", storage)
+        _object_setattr(self, "_lock_context", _LockContext(lock, storage))
 
     def __getattr__(self, key):
-        with self._lock_storage() as storage:
+        with self._lock_context as storage:
             return getattr(storage, key)
 
     def __setattr__(self, key, value):
-        if key in ("_local", "_storage", "_thread_critical", "_thread_lock", "_lock_context"):
-            return super().__setattr__(key, value)
-        with self._lock_storage() as storage:
+        with self._lock_context as storage:
             setattr(storage, key, value)
 
     def __delattr__(self, key):
-        with self._lock_storage() as storage:
+        with self._lock_context as storage:
             delattr(storage, key)
+
+
+class _ThreadCriticalLocal(Local):
+    """Local with thread_critical=True: thread-local storage, CVar in async."""
+
+    def __init__(self, thread_critical: bool = False) -> None:
+        super().__init__(thread_critical)
+        _object_setattr(self, "_storage", threading.local())
+
+    def _get_storage(self):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # We are in a sync thread, the storage is
+            # just the plain thread local (i.e, "global within
+            # this thread" - it doesn't matter where you are
+            # in a call stack you see the same storage)
+            return self._storage
+
+        # We are in an async thread - storage is still
+        # local to this thread, but additionally should
+        # behave like a context var (is only visible with
+        # the same async call stack)
+
+        # Ensure context exists in the current thread
+        if not hasattr(self._storage, "cvar"):
+            self._storage.cvar = _CVar()
+
+        # self._storage is a thread local, so the members
+        # can't be accessed in another thread (we don't
+        # need any locks)
+        return self._storage.cvar
+
+    def __getattr__(self, key):
+        return getattr(self._get_storage(), key)
+
+    def __setattr__(self, key, value):
+        setattr(self._get_storage(), key, value)
+
+    def __delattr__(self, key):
+        delattr(self._get_storage(), key)
