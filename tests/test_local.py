@@ -6,7 +6,7 @@ from threading import Thread
 
 import pytest
 
-from asgiref.local import Local
+from asgiref.local import Local, _DefaultLocal, _ThreadCriticalLocal
 from asgiref.sync import async_to_sync, sync_to_async
 
 
@@ -441,3 +441,13 @@ def test_data_name_protected() -> None:
     with pytest.raises(AttributeError):
         test_local._data = "user supplied value"
     assert test_local.important == "keep me"
+
+
+def test_new_returns_specialized_subclass() -> None:
+    default = Local()
+    tc = Local(thread_critical=True)
+    assert type(default) is _DefaultLocal
+    assert type(tc) is _ThreadCriticalLocal
+    assert isinstance(default, Local)
+    assert isinstance(tc, Local)
+    assert type(tc) is not type(default)  # type: ignore[comparison-overlap]
