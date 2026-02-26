@@ -258,13 +258,13 @@ ASGISendCallable = Callable[[ASGISendEvent], Awaitable[None]]
 
 
 class ASGI2Protocol(Protocol):
-    def __init__(self, scope: Scope) -> None:
-        ...
+    def __init__(self, scope: Scope) -> None: ...  # noqa: E704
 
-    async def __call__(
-        self, receive: ASGIReceiveCallable, send: ASGISendCallable
-    ) -> None:
-        ...
+    async def __call__(  # noqa: E704
+        self,
+        receive: ASGIReceiveCallable,
+        send: ASGISendCallable,
+    ) -> None: ...
 
 
 ASGI2Application = Type[ASGI2Protocol]
