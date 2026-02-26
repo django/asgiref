@@ -9,7 +9,7 @@ repos:
     rev: 26.1.0
     hooks:
       - id: black
-        args: ["--target-version=py38"]
+        args: ["--target-version=py39"]
 
   - repo: https://github.com/pycqa/isort
     rev: 8.0.0
