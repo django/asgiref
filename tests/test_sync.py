@@ -993,7 +993,7 @@ async def test_sync_to_async_within_create_task():
     task_executed = False
 
     def sync_task():
-        nonlocal task_executed, sync_thread
+        nonlocal task_executed
         assert sync_thread == threading.current_thread()
         task_executed = True
 
@@ -1022,7 +1022,7 @@ async def test_inner_shield_sync_middleware():
 
     async def async_view():
         """Async view with a task that is shielded from cancellation."""
-        nonlocal task_complete, task_cancel_caught, task_blocker
+        nonlocal task_complete, task_cancel_caught
         task = asyncio.create_task(async_task())
         try:
             await asyncio.shield(task)
@@ -1039,7 +1039,7 @@ async def test_inner_shield_sync_middleware():
 
     async def async_task():
         """Async subtask that should not be canceled when parent is canceled."""
-        nonlocal task_started_future, task_executed, task_blocker
+        nonlocal task_executed
         task_started_future.set_result(True)
         await task_blocker
         task_executed = True
@@ -1080,7 +1080,7 @@ async def test_inner_shield_async_middleware():
 
     async def async_view():
         """Async view with a task that is shielded from cancellation."""
-        nonlocal task_complete, task_cancel_caught, task_blocker
+        nonlocal task_complete, task_cancel_caught
         task = asyncio.create_task(async_task())
         try:
             await asyncio.shield(task)
@@ -1097,7 +1097,7 @@ async def test_inner_shield_async_middleware():
 
     async def async_task():
         """Async subtask that should not be canceled when parent is canceled."""
-        nonlocal task_started_future, task_executed, task_blocker
+        nonlocal task_executed
         task_started_future.set_result(True)
         await task_blocker
         task_executed = True
@@ -1155,7 +1155,7 @@ async def test_inner_shield_sync_and_async_middleware():
 
     async def async_view():
         """Async view with a task that is shielded from cancellation."""
-        nonlocal task_complete, task_cancel_caught, task_blocker
+        nonlocal task_complete, task_cancel_caught
         task = asyncio.create_task(async_task())
         try:
             await asyncio.shield(task)
@@ -1172,7 +1172,7 @@ async def test_inner_shield_sync_and_async_middleware():
 
     async def async_task():
         """Async subtask that should not be canceled when parent is canceled."""
-        nonlocal task_started_future, task_executed, task_blocker
+        nonlocal task_executed
         task_started_future.set_result(True)
         await task_blocker
         task_executed = True
@@ -1233,7 +1233,7 @@ async def test_inner_shield_sync_and_async_middleware_sync_task():
 
     async def async_view():
         """Async view with a task that is shielded from cancellation."""
-        nonlocal task_complete, task_cancel_caught, task_blocker
+        nonlocal task_complete, task_cancel_caught
         task = asyncio.create_task(sync_to_async(sync_parent)())
         try:
             await asyncio.shield(task)
@@ -1253,7 +1253,7 @@ async def test_inner_shield_sync_and_async_middleware_sync_task():
 
     async def async_task():
         """Async subtask that should not be canceled when parent is canceled."""
-        nonlocal task_started_future, task_executed, task_blocker
+        nonlocal task_executed
         task_started_future.set_result(True)
         await task_blocker
         task_executed = True
