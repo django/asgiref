@@ -8,29 +8,22 @@ import sys
 import threading
 import warnings
 import weakref
+from collections.abc import Awaitable, Callable, Coroutine
 from concurrent.futures import Future, ThreadPoolExecutor
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
-    Coroutine,
     Dict,
     Generic,
     List,
     Optional,
+    ParamSpec,
     TypeVar,
-    Union,
     overload,
 )
 
 from .current_thread_executor import CurrentThreadExecutor
 from .local import Local
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
     # This is not available to import at runtime
@@ -174,16 +167,13 @@ class AsyncToSync(Generic[_P, _R]):
         contextvars.ContextVar("async_single_thread_context")
     )
 
-    context_to_thread_executor: "weakref.WeakKeyDictionary[AsyncSingleThreadContext, ThreadPoolExecutor]" = (
-        weakref.WeakKeyDictionary()
-    )
+    context_to_thread_executor: (
+        "weakref.WeakKeyDictionary[AsyncSingleThreadContext, ThreadPoolExecutor]"
+    ) = weakref.WeakKeyDictionary()
 
     def __init__(
         self,
-        awaitable: Union[
-            Callable[_P, Coroutine[Any, Any, _R]],
-            Callable[_P, Awaitable[_R]],
-        ],
+        awaitable: Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]],
         force_new_loop: bool = False,
     ):
         if not callable(awaitable) or (
@@ -304,9 +294,9 @@ class AsyncToSync(Generic[_P, _R]):
                         ]
                     else:
                         loop_executor = ThreadPoolExecutor(max_workers=1)
-                        self.context_to_thread_executor[
-                            single_thread_context
-                        ] = loop_executor
+                        self.context_to_thread_executor[single_thread_context] = (
+                            loop_executor
+                        )
                 else:
                     # Make our own event loop - in a new thread - and run inside that.
                     loop_executor = ThreadPoolExecutor(max_workers=1)
@@ -336,8 +326,8 @@ class AsyncToSync(Generic[_P, _R]):
         call_result: "Future[_R]",
         exc_info: "OptExcInfo",
         task_context: "Optional[List[asyncio.Task[Any]]]",
-        context: List[contextvars.Context],
-        awaitable: Union[Coroutine[Any, Any, _R], Awaitable[_R]],
+        context: list[contextvars.Context],
+        awaitable: Coroutine[Any, Any, _R] | Awaitable[_R],
     ) -> None:
         """
         Wraps the awaitable with something that puts the result into the
@@ -415,16 +405,16 @@ class SyncToAsync(Generic[_P, _R]):
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
-    context_to_thread_executor: "weakref.WeakKeyDictionary[ThreadSensitiveContext, ThreadPoolExecutor]" = (
-        weakref.WeakKeyDictionary()
-    )
+    context_to_thread_executor: (
+        "weakref.WeakKeyDictionary[ThreadSensitiveContext, ThreadPoolExecutor]"
+    ) = weakref.WeakKeyDictionary()
 
     def __init__(
         self,
         func: Callable[_P, _R],
         thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
-        context: Optional[contextvars.Context] = None,
+        context: contextvars.Context | None = None,
     ) -> None:
         if (
             not callable(func)
@@ -487,7 +477,7 @@ class SyncToAsync(Generic[_P, _R]):
         context = contextvars.copy_context() if self.context is None else self.context
         child = functools.partial(self.func, *args, **kwargs)
         func = context.run
-        task_context: List[asyncio.Task[Any]] = []
+        task_context: list[asyncio.Task[Any]] = []
 
         # Run the code in the right thread
         exec_coro = loop.run_in_executor(
@@ -566,40 +556,32 @@ def async_to_sync(
     *,
     force_new_loop: bool = False,
 ) -> Callable[
-    [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
+    [Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]]],
     Callable[_P, _R],
-]:
-    ...
+]: ...
 
 
 @overload
 def async_to_sync(
-    awaitable: Union[
-        Callable[_P, Coroutine[Any, Any, _R]],
-        Callable[_P, Awaitable[_R]],
-    ],
+    awaitable: Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]],
     *,
     force_new_loop: bool = False,
-) -> Callable[_P, _R]:
-    ...
+) -> Callable[_P, _R]: ...
 
 
 def async_to_sync(
-    awaitable: Optional[
-        Union[
-            Callable[_P, Coroutine[Any, Any, _R]],
-            Callable[_P, Awaitable[_R]],
-        ]
-    ] = None,
+    awaitable: None | (
+        Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]]
+    ) = None,
     *,
     force_new_loop: bool = False,
-) -> Union[
+) -> (
     Callable[
-        [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
+        [Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]]],
         Callable[_P, _R],
-    ],
-    Callable[_P, _R],
-]:
+    ]
+    | Callable[_P, _R]
+):
     if awaitable is None:
         return lambda f: AsyncToSync(
             f,
@@ -616,9 +598,8 @@ def sync_to_async(
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-    context: Optional[contextvars.Context] = None,
-) -> Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]:
-    ...
+    context: contextvars.Context | None = None,
+) -> Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]: ...
 
 
 @overload
@@ -627,21 +608,20 @@ def sync_to_async(
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-    context: Optional[contextvars.Context] = None,
-) -> Callable[_P, Coroutine[Any, Any, _R]]:
-    ...
+    context: contextvars.Context | None = None,
+) -> Callable[_P, Coroutine[Any, Any, _R]]: ...
 
 
 def sync_to_async(
-    func: Optional[Callable[_P, _R]] = None,
+    func: Callable[_P, _R] | None = None,
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-    context: Optional[contextvars.Context] = None,
-) -> Union[
-    Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]],
-    Callable[_P, Coroutine[Any, Any, _R]],
-]:
+    context: contextvars.Context | None = None,
+) -> (
+    Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]
+    | Callable[_P, Coroutine[Any, Any, _R]]
+):
     if func is None:
         return lambda f: SyncToAsync(
             f,
