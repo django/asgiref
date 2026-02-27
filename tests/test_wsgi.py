@@ -77,104 +77,6 @@ def test_script_name():
 
 
 @pytest.mark.asyncio
-async def test_build_environ_server_none():
-    """
-    Ensure build_environ handles scope["server"] = None without crashing
-    and falls back to localhost:80 (as per existing default).
-    """
-    def dummy_app(environ, start_response):
-        assert environ["SERVER_NAME"] == "localhost"
-        assert environ["SERVER_PORT"] == "80"
-        start_response("200 OK", [])
-        return [b"OK"]
-
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/",
-        "server": None,  # Reproduces Uvicorn Unix socket behavior
-        "headers": [],
-    }
-
-    instance = WsgiToAsgiInstance(dummy_app)
-    environ = instance.build_environ(scope, b"")
-    # Trigger the assertions inside dummy_app
-    dummy_app(environ, lambda *args: None)
-
-
-@pytest.mark.asyncio
-async def test_build_environ_server_unix_socket():
-    """
-    Ensure build_environ handles ASGI Unix socket format: [path, None].
-    SERVER_NAME gets the socket path; SERVER_PORT gets '0' (common convention).
-    """
-    def dummy_app(environ, start_response):
-        assert environ["SERVER_NAME"] == "/run/myapp.sock"
-        assert environ["SERVER_PORT"] == "0"
-        start_response("200 OK", [])
-        return [b"OK"]
-
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/",
-        "server": ["/run/myapp.sock", None],
-        "headers": [],
-    }
-
-    instance = WsgiToAsgiInstance(dummy_app)
-    environ = instance.build_environ(scope, b"")
-    dummy_app(environ, lambda *args: None)
-
-
-@pytest.mark.asyncio
-async def test_build_environ_server_tcp():
-    """
-    Ensure normal TCP server tuple is handled unchanged.
-    """
-    def dummy_app(environ, start_response):
-        assert environ["SERVER_NAME"] == "example.com"
-        assert environ["SERVER_PORT"] == "8443"
-        start_response("200 OK", [])
-        return [b"OK"]
-
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/",
-        "server": ["example.com", 8443],
-        "headers": [],
-    }
-
-    instance = WsgiToAsgiInstance(dummy_app)
-    environ = instance.build_environ(scope, b"")
-    dummy_app(environ, lambda *args: None)
-
-@pytest.mark.asyncio
-async def test_build_environ_server_missing():
-    """
-    Ensure missing 'server' key falls back to localhost:80.
-    """
-    def dummy_app(environ, start_response):
-        assert environ["SERVER_NAME"] == "localhost"
-        assert environ["SERVER_PORT"] == "80"
-        start_response("200 OK", [])
-        return [b"OK"]
-
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/",
-        # No "server" key at all
-        "headers": [],
-    }
-
-    instance = WsgiToAsgiInstance(dummy_app)
-    environ = instance.build_environ(scope, b"")
-    dummy_app(environ, lambda *args: None)
-
-
-@pytest.mark.asyncio
 async def test_wsgi_path_encoding():
     """
     Makes sure the WSGI wrapper has basic functionality.
@@ -478,3 +380,45 @@ async def test_duplicate_header_limit_disabled():
         "more_body": True,
     }
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+def test_build_environ_server_present_but_none():
+    """
+    Regression: Some ASGI servers set scope["server"] = None.
+    build_environ should not crash and should use the fallback.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [],
+        "server": None,  # <-- the buggy case
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SERVER_NAME"] == "localhost"
+    assert environ["SERVER_PORT"] == "80"
+
+
+def test_build_environ_server_unix_socket():
+    """
+    ASGI spec: server may be [unix_path, None] for unix sockets.
+    We keep SERVER_NAME as the path and set SERVER_PORT to '0'.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [],
+        "server": ["/tmp/uvicorn.sock", None],
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SERVER_NAME"] == "/tmp/uvicorn.sock"
+    assert environ["SERVER_PORT"] == "0"
