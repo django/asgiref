@@ -75,7 +75,7 @@ class HTTPScope(TypedDict):
     root_path: str
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
-    server: NotRequired[Optional[Tuple[str, Optional[int]]]]
+    server: Optional[Tuple[str, Optional[int]]]    
     state: NotRequired[Dict[str, Any]]
     extensions: Optional[Dict[str, Dict[object, object]]]
 
@@ -91,7 +91,7 @@ class WebSocketScope(TypedDict):
     root_path: str
     headers: Iterable[Tuple[bytes, bytes]]
     client: Optional[Tuple[str, int]]
-    server: NotRequired[Optional[Tuple[str, Optional[int]]]]
+    server: Optional[Tuple[str, Optional[int]]]    
     subprotocols: Iterable[str]
     state: NotRequired[Dict[str, Any]]
     extensions: Optional[Dict[str, Dict[object, object]]]
