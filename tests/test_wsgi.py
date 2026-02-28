@@ -380,3 +380,45 @@ async def test_duplicate_header_limit_disabled():
         "more_body": True,
     }
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+def test_build_environ_server_present_but_none():
+    """
+    Regression: Some ASGI servers set scope["server"] = None.
+    build_environ should not crash and should use the fallback.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [],
+        "server": None,  # <-- the buggy case
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SERVER_NAME"] == "localhost"
+    assert environ["SERVER_PORT"] == "80"
+
+
+def test_build_environ_server_unix_socket():
+    """
+    ASGI spec: server may be [unix_path, None] for unix sockets.
+    We keep SERVER_NAME as the path and set SERVER_PORT to '0'.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [],
+        "server": ["/tmp/uvicorn.sock", None],
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SERVER_NAME"] == "/tmp/uvicorn.sock"
+    assert environ["SERVER_PORT"] == "0"
