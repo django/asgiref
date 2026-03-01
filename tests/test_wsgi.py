@@ -394,7 +394,7 @@ def test_build_environ_server_present_but_none():
         "path": "/",
         "query_string": b"",
         "headers": [],
-        "server": None,  # <-- the buggy case
+        "server": None,
     }
     adapter = WsgiToAsgiInstance(None)
     adapter.scope = scope
