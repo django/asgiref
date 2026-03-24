@@ -76,26 +76,6 @@ class _CVar:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
 
-class _LockContext:
-    """Context manager that acquires a lock and yields a value."""
-
-    __slots__ = ("_lock", "_value")
-
-    def __init__(self, lock: threading.RLock, value: Any) -> None:
-        self._lock = lock
-        self._value = value
-
-    def __enter__(self):
-        self._lock.acquire()
-        return self._value
-
-    def __exit__(self, *exc_info):
-        self._lock.release()
-
-
-_object_setattr = object.__setattr__
-
-
 class Local:
     """Local storage for async tasks.
 
@@ -152,21 +132,32 @@ class _DefaultLocal(Local):
     def __init__(self, thread_critical: bool = False) -> None:
         super().__init__(thread_critical)
         storage = _CVar()
-        lock = threading.RLock()
+        _object_setattr(self, "_lock", threading.RLock())
         _object_setattr(self, "_storage", storage)
-        _object_setattr(self, "_lock_context", _LockContext(lock, storage))
 
     def __getattr__(self, key):
-        with self._lock_context as storage:
-            return getattr(storage, key)
+        # Lock acquisition inlined here for performance reasons.
+        self._lock.acquire()
+        try:
+            return getattr(self._storage, key)
+        finally:
+            self._lock.release()
 
     def __setattr__(self, key, value):
-        with self._lock_context as storage:
-            setattr(storage, key, value)
+        # Lock acquisition inlined here for performance reasons.
+        self._lock.acquire()
+        try:
+            setattr(self._storage, key, value)
+        finally:
+            self._lock.release()
 
     def __delattr__(self, key):
-        with self._lock_context as storage:
-            delattr(storage, key)
+        # Lock acquisition inlined here for performance reasons.
+        self._lock.acquire()
+        try:
+            delattr(self._storage, key)
+        finally:
+            self._lock.release()
 
 
 class _ThreadCriticalLocal(Local):
