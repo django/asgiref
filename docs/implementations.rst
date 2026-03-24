@@ -35,7 +35,7 @@ Gunicorn 'Green Unicorn' is a Python HTTP Server for UNIX. It's a pre-fork worke
 Supports HTTP/1, HTTP/2, and WebSockets.
 
 Hypercorn
-~~~~~~~~~
+---------
 
 *Beta* / https://hypercorn.readthedocs.io/
 
@@ -44,7 +44,7 @@ Supports HTTP/1, HTTP/2, HTTP/3, and WebSockets.
 HTTP/3 support requires the ``h3`` extra (``pip install hypercorn[h3]``).
 
 Anycorn
-~~~~~~~
+-------
 
 *Beta* / https://github.com/davidbrochart/anycorn
 
