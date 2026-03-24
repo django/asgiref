@@ -2,6 +2,7 @@ import asyncio
 import contextvars
 import functools
 import multiprocessing
+import os
 import sys
 import threading
 import time
@@ -15,6 +16,7 @@ import pytest
 
 from asgiref.sync import (
     AsyncSingleThreadContext,
+    SyncToAsync,
     ThreadSensitiveContext,
     async_to_sync,
     iscoroutinefunction,
@@ -398,6 +400,39 @@ def test_async_to_sync_in_thread():
     thread.start()
     thread.join()
     assert result["worked"]
+
+
+def test_async_to_sync_with_stopped_main_event_loop():
+    """
+    Tests async_to_sync falls back to a new loop if the threadlocal main event
+    loop has stopped but not yet closed.
+    """
+
+    async def inner_async_function():
+        return 84
+
+    stopped_loop = asyncio.new_event_loop()
+    result = {}
+    exception = {}
+
+    def thread_target():
+        SyncToAsync.threadlocal.main_event_loop = stopped_loop
+        SyncToAsync.threadlocal.main_event_loop_pid = os.getpid()
+        try:
+            result["value"] = async_to_sync(inner_async_function)()
+        except BaseException as exc:
+            exception["value"] = exc
+
+    thread = threading.Thread(target=thread_target, daemon=True)
+    thread.start()
+    thread.join(2)
+
+    try:
+        assert not thread.is_alive()
+        assert exception == {}
+        assert result["value"] == 84
+    finally:
+        stopped_loop.close()
 
 
 def test_async_to_sync_in_except():
