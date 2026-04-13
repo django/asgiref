@@ -53,7 +53,6 @@ rather than maintaining separate code paths for each backend.
 Supports HTTP/1, HTTP/2, HTTP/3, WebSockets, and the :doc:`TLS extension <specs/tls>`.
 HTTP/3 support requires the ``h3`` extra (``pip install anycorn[h3]``).
 
-
 NGINX Unit
 ----------
 
