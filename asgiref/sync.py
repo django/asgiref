@@ -142,10 +142,9 @@ class ThreadSensitiveContext:
     """
 
     #: Opt-in: skip the graceful drain on exit. Default preserves historic behaviour.
-    cancel_futures_on_exit: bool = (
-        os.environ.get("ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", "").lower()
-        in ("1", "true", "yes")
-    )
+    cancel_futures_on_exit: bool = os.environ.get(
+        "ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", ""
+    ).lower() in ("1", "true", "yes")
 
     def __init__(self, cancel_futures_on_exit: bool | None = None):
         self.token = None

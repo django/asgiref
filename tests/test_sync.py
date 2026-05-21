@@ -703,15 +703,15 @@ async def test_thread_sensitive_context_default_drains_executor_gracefully(monke
             shutdown_calls.append({"args": args, "kwargs": kwargs})
 
     ctx = ThreadSensitiveContext()
-    assert ctx.cancel_futures_on_exit is False, (
-        "default must preserve historic graceful drain behaviour"
-    )
+    assert (
+        ctx.cancel_futures_on_exit is False
+    ), "default must preserve historic graceful drain behaviour"
     async with ctx:
         SyncToAsync.context_to_thread_executor[ctx] = _Recorder()
 
-    assert shutdown_calls == [{"args": (), "kwargs": {}}], (
-        "default shutdown must remain wait=True with no cancel_futures"
-    )
+    assert shutdown_calls == [
+        {"args": (), "kwargs": {}}
+    ], "default shutdown must remain wait=True with no cancel_futures"
 
 
 @pytest.mark.asyncio
