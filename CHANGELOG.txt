@@ -1,3 +1,15 @@
+Unreleased
+----------
+
+* Added an opt-in ``cancel_futures_on_exit`` flag to ``ThreadSensitiveContext``.
+  When enabled, ``__aexit__`` calls ``executor.shutdown(wait=False,
+  cancel_futures=True)`` instead of waiting for worker threads to drain — an
+  escape hatch for the cross-call deadlock that occurs when sync code in the
+  context calls back into the event loop via ``SyncToAsync``. The default is
+  unchanged. The flag can be set per-instance, per-subclass, or process-wide
+  via the ``ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT`` environment
+  variable.
+
 3.11.1 (2026-02-03)
 -------------------
 

@@ -108,6 +108,17 @@ class AsyncSingleThreadContext:
         AsyncToSync.async_single_thread_context.reset(self.token)
 
 
+def _cancel_futures_on_exit_default_from_env() -> bool:
+    """Read ``ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT`` from the environment.
+
+    Split out so tests can exercise the parsing without importing in a
+    subprocess.
+    """
+    return os.environ.get(
+        "ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", ""
+    ).lower() in ("1", "true", "yes")
+
+
 class ThreadSensitiveContext:
     """Async context manager to manage context for thread sensitive mode
 
@@ -139,14 +150,16 @@ class ThreadSensitiveContext:
     ``executor.shutdown()`` to ``shutdown(wait=False, cancel_futures=True)`` —
     pending futures are cancelled, the event loop is freed, and running
     workers finish in the background. Trade graceful drain for liveness.
+
+    The environment variable is read once when the class is defined, so it
+    must be set before ``asgiref.sync`` is imported. Use the constructor
+    argument or a subclass attribute to change the value at runtime.
     """
 
     #: Opt-in: skip the graceful drain on exit. Default preserves historic behaviour.
-    cancel_futures_on_exit: bool = os.environ.get(
-        "ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", ""
-    ).lower() in ("1", "true", "yes")
+    cancel_futures_on_exit: bool = _cancel_futures_on_exit_default_from_env()
 
-    def __init__(self, cancel_futures_on_exit: bool | None = None):
+    def __init__(self, cancel_futures_on_exit: Optional[bool] = None):
         self.token = None
         if cancel_futures_on_exit is not None:
             self.cancel_futures_on_exit = cancel_futures_on_exit

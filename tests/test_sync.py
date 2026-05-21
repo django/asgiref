@@ -732,29 +732,44 @@ async def test_thread_sensitive_context_cancel_futures_on_exit_per_instance():
     ]
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("1", True),
+        ("true", True),
+        ("True", True),
+        ("YES", True),
+        ("0", False),
+        ("false", False),
+        ("", False),
+        ("anything-else", False),
+    ],
+)
+def test_cancel_futures_on_exit_default_from_env(monkeypatch, value, expected):
+    """Parsing of ``ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT``."""
+    from asgiref.sync import _cancel_futures_on_exit_default_from_env
+
+    monkeypatch.setenv("ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", value)
+    assert _cancel_futures_on_exit_default_from_env() is expected
+
+
 @pytest.mark.asyncio
-async def test_thread_sensitive_context_cancel_futures_on_exit_via_env(monkeypatch):
-    """Global opt-in via ``ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT``."""
-    monkeypatch.setenv("ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", "1")
-
-    # Re-evaluate the class default by reimporting; in-process we mimic that
-    # by setting the class attribute, which is what the env var feeds into.
-    monkeypatch.setattr(ThreadSensitiveContext, "cancel_futures_on_exit", True)
-
+async def test_thread_sensitive_context_explicit_false_overrides_class_attribute():
+    """Instance argument ``cancel_futures_on_exit=False`` wins over a True class attribute."""
     shutdown_calls = []
 
     class _Recorder:
         def shutdown(self, *args, **kwargs):
             shutdown_calls.append({"args": args, "kwargs": kwargs})
 
-    ctx = ThreadSensitiveContext()
-    assert ctx.cancel_futures_on_exit is True
+    class _OptedIn(ThreadSensitiveContext):
+        cancel_futures_on_exit = True
+
+    ctx = _OptedIn(cancel_futures_on_exit=False)
     async with ctx:
         SyncToAsync.context_to_thread_executor[ctx] = _Recorder()
 
-    assert shutdown_calls == [
-        {"args": (), "kwargs": {"wait": False, "cancel_futures": True}}
-    ]
+    assert shutdown_calls == [{"args": (), "kwargs": {}}]
 
 
 @pytest.mark.asyncio
