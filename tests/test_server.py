@@ -124,6 +124,32 @@ async def test_stateless_server(server):
         pass
 
 
+def test_run_creates_event_loop_when_none_exists(monkeypatch):
+    async def app(scope, receive, send):
+        pass
+
+    class RunServer(StatelessServer):
+        def __init__(self):
+            super().__init__(app)
+            self.handled = False
+
+        async def handle(self):
+            self.handled = True
+
+        async def application_send(self, scope, message):
+            pass
+
+    def raise_no_event_loop():
+        raise RuntimeError("There is no current event loop in thread 'MainThread'.")
+
+    monkeypatch.setattr(asyncio, "get_event_loop", raise_no_event_loop)
+
+    server = RunServer()
+    server.run()
+
+    assert server.handled
+
+
 @pytest.mark.asyncio
 async def test_server_delete_instance(server):
     """The max_applications of Server is 10. After 20 times register, application number should be 10."""
