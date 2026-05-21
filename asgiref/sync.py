@@ -126,10 +126,31 @@ class ThreadSensitiveContext:
     >>> import time
     >>> async with ThreadSensitiveContext():
     ...     await sync_to_async(time.sleep, 1)()
+
+    ``__aexit__`` waits for every worker in the context's ``ThreadPoolExecutor``
+    to finish before returning. That is the safe default, but it deadlocks
+    when sync code inside the context calls back into the event loop via
+    ``SyncToAsync`` and the loop ends up cleaning the context while those
+    workers are still parked on a future the loop itself must produce
+    (see issues #545, #495, #458).
+
+    Set ``cancel_futures_on_exit`` (per-instance, per-subclass, or globally
+    via ``ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT=1``) to switch
+    ``executor.shutdown()`` to ``shutdown(wait=False, cancel_futures=True)`` —
+    pending futures are cancelled, the event loop is freed, and running
+    workers finish in the background. Trade graceful drain for liveness.
     """
 
-    def __init__(self):
+    #: Opt-in: skip the graceful drain on exit. Default preserves historic behaviour.
+    cancel_futures_on_exit: bool = (
+        os.environ.get("ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", "").lower()
+        in ("1", "true", "yes")
+    )
+
+    def __init__(self, cancel_futures_on_exit: bool | None = None):
         self.token = None
+        if cancel_futures_on_exit is not None:
+            self.cancel_futures_on_exit = cancel_futures_on_exit
 
     async def __aenter__(self):
         try:
@@ -145,7 +166,10 @@ class ThreadSensitiveContext:
 
         executor = SyncToAsync.context_to_thread_executor.pop(self, None)
         if executor:
-            executor.shutdown()
+            if self.cancel_futures_on_exit:
+                executor.shutdown(wait=False, cancel_futures=True)
+            else:
+                executor.shutdown()
         SyncToAsync.thread_sensitive_context.reset(self.token)
 
 

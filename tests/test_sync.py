@@ -15,6 +15,7 @@ import pytest
 
 from asgiref.sync import (
     AsyncSingleThreadContext,
+    SyncToAsync,
     ThreadSensitiveContext,
     async_to_sync,
     iscoroutinefunction,
@@ -688,6 +689,93 @@ async def test_thread_sensitive_nested_context():
 async def test_thread_sensitive_context_without_sync_work():
     async with ThreadSensitiveContext():
         pass
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_context_default_drains_executor_gracefully(monkeypatch):
+    """Default behaviour: ``executor.shutdown()`` called without ``cancel_futures``."""
+    monkeypatch.delenv("ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", raising=False)
+
+    shutdown_calls = []
+
+    class _Recorder:
+        def shutdown(self, *args, **kwargs):
+            shutdown_calls.append({"args": args, "kwargs": kwargs})
+
+    ctx = ThreadSensitiveContext()
+    assert ctx.cancel_futures_on_exit is False, (
+        "default must preserve historic graceful drain behaviour"
+    )
+    async with ctx:
+        SyncToAsync.context_to_thread_executor[ctx] = _Recorder()
+
+    assert shutdown_calls == [{"args": (), "kwargs": {}}], (
+        "default shutdown must remain wait=True with no cancel_futures"
+    )
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_context_cancel_futures_on_exit_per_instance():
+    """Per-instance opt-in cancels pending futures and skips the join."""
+    shutdown_calls = []
+
+    class _Recorder:
+        def shutdown(self, *args, **kwargs):
+            shutdown_calls.append({"args": args, "kwargs": kwargs})
+
+    ctx = ThreadSensitiveContext(cancel_futures_on_exit=True)
+    async with ctx:
+        SyncToAsync.context_to_thread_executor[ctx] = _Recorder()
+
+    assert shutdown_calls == [
+        {"args": (), "kwargs": {"wait": False, "cancel_futures": True}}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_context_cancel_futures_on_exit_via_env(monkeypatch):
+    """Global opt-in via ``ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT``."""
+    monkeypatch.setenv("ASGIREF_CANCEL_FUTURES_ON_THREADSENSITIVE_EXIT", "1")
+
+    # Re-evaluate the class default by reimporting; in-process we mimic that
+    # by setting the class attribute, which is what the env var feeds into.
+    monkeypatch.setattr(ThreadSensitiveContext, "cancel_futures_on_exit", True)
+
+    shutdown_calls = []
+
+    class _Recorder:
+        def shutdown(self, *args, **kwargs):
+            shutdown_calls.append({"args": args, "kwargs": kwargs})
+
+    ctx = ThreadSensitiveContext()
+    assert ctx.cancel_futures_on_exit is True
+    async with ctx:
+        SyncToAsync.context_to_thread_executor[ctx] = _Recorder()
+
+    assert shutdown_calls == [
+        {"args": (), "kwargs": {"wait": False, "cancel_futures": True}}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_thread_sensitive_context_cancel_futures_on_exit_via_subclass():
+    """Subclass opt-in: override ``cancel_futures_on_exit`` on a subclass."""
+    shutdown_calls = []
+
+    class _Recorder:
+        def shutdown(self, *args, **kwargs):
+            shutdown_calls.append({"args": args, "kwargs": kwargs})
+
+    class _NoDrain(ThreadSensitiveContext):
+        cancel_futures_on_exit = True
+
+    ctx = _NoDrain()
+    async with ctx:
+        SyncToAsync.context_to_thread_executor[ctx] = _Recorder()
+
+    assert shutdown_calls == [
+        {"args": (), "kwargs": {"wait": False, "cancel_futures": True}}
+    ]
 
 
 def test_thread_sensitive_double_nested_sync():
