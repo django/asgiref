@@ -1504,3 +1504,37 @@ if sys.version_info >= (3, 11):
             await task1
 
         asyncio.run(main())
+
+
+def test_async_to_sync_with_stopped_main_loop():
+    """
+    A wrapper built while a loop is running captures that loop. If the loop is
+    later stopped but not closed (e.g. a shared pytest-asyncio loop between
+    tests), calling the wrapper from a sync thread must fall back to a new loop
+    rather than deadlock.
+    """
+    holder = {}
+
+    async def inner():
+        return 42
+
+    async def build():
+        holder["fn"] = async_to_sync(inner)
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(build())
+        assert not loop.is_running() and not loop.is_closed()
+
+        result = {}
+
+        def worker():
+            result["value"] = holder["fn"]()
+
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        thread.join(timeout=5)
+        assert not thread.is_alive(), "async_to_sync deadlocked on a stopped loop"
+        assert result["value"] == 42
+    finally:
+        loop.close()
