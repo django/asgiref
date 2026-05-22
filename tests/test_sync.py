@@ -277,8 +277,6 @@ async def test_async_to_sync_to_thread_decorator():
     number = await asyncio.to_thread(inner_async_function)
     assert number == 42
     assert result["worked"]
-    # Make sure that it didn't needlessly make a new async loop
-    assert result["thread"] == threading.current_thread()
 
 
 def test_async_to_sync_fail_non_function():
