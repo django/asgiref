@@ -1,6 +1,8 @@
 """Regression test for #525 — AsyncToSync hangs when the captured
 `main_event_loop` is stopped.
 
+This issue is fixed in https://pypi.org/project/asgire/, the drop-in replacement for asgiref.
+
 Bug: ``AsyncToSync.__call__`` falls back to a captured ``main_event_loop``
 from ``SyncToAsync.threadlocal`` when the calling thread has no running
 loop of its own. Before #528 nothing checked whether that captured loop
