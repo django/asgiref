@@ -144,9 +144,13 @@ class ThreadSensitiveContext:
             return
 
         executor = SyncToAsync.context_to_thread_executor.pop(self, None)
-        if executor:
-            executor.shutdown()
         SyncToAsync.thread_sensitive_context.reset(self.token)
+        if executor:
+            # The executor's worker thread may itself be waiting for this
+            # event loop, so a blocking shutdown() here would deadlock it.
+            # Join in a separate thread instead.
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, executor.shutdown)
 
 
 class AsyncToSync(Generic[_P, _R]):
