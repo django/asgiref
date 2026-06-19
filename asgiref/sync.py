@@ -196,6 +196,7 @@ class AsyncToSync(Generic[_P, _R]):
                 "async_to_sync was passed a non-async-marked callable", stacklevel=2
             )
         self.awaitable = awaitable
+        functools.update_wrapper(self, awaitable)
         try:
             self.__self__ = self.awaitable.__self__  # type: ignore[union-attr]
         except AttributeError:
