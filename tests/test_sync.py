@@ -74,6 +74,22 @@ def test_sync_to_async_fail_non_function():
     )
 
 
+def test_sync_to_async_fail_generator_function():
+    """
+    sync_to_async raises a TypeError when applied to a generator function.
+    """
+
+    def test_function():
+        yield 1
+
+    with pytest.raises(TypeError) as excinfo:
+        sync_to_async(test_function)
+
+    assert excinfo.value.args == (
+        "sync_to_async can only be applied to sync functions.",
+    )
+
+
 @pytest.mark.asyncio
 async def test_sync_to_async_fail_async():
     """
@@ -113,6 +129,17 @@ async def test_sync_to_async_raises_typeerror_for_async_callable_instance():
     class CallableClass:
         async def __call__(self):
             return None
+
+    with pytest.raises(
+        TypeError, match="sync_to_async can only be applied to sync functions."
+    ):
+        sync_to_async(CallableClass())
+
+
+def test_sync_to_async_raises_typeerror_for_generator_callable_instance():
+    class CallableClass:
+        def __call__(self):
+            yield 1
 
     with pytest.raises(
         TypeError, match="sync_to_async can only be applied to sync functions."

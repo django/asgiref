@@ -426,10 +426,15 @@ class SyncToAsync(Generic[_P, _R]):
         executor: Optional["ThreadPoolExecutor"] = None,
         context: Optional[contextvars.Context] = None,
     ) -> None:
+        func_call = getattr(func, "__call__", func)
         if (
             not callable(func)
             or iscoroutinefunction(func)
-            or iscoroutinefunction(getattr(func, "__call__", func))
+            or iscoroutinefunction(func_call)
+            or inspect.isgeneratorfunction(func)
+            or inspect.isgeneratorfunction(func_call)
+            or inspect.isasyncgenfunction(func)
+            or inspect.isasyncgenfunction(func_call)
         ):
             raise TypeError("sync_to_async can only be applied to sync functions.")
 
