@@ -892,7 +892,7 @@ def test_sync_to_async_deadlock_ignored_with_exception():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail
+@pytest.mark.skip(reason="deadlock")
 async def test_sync_to_async_with_blocker_thread_sensitive():
     """
     Tests sync_to_async running on a long-time blocker in a thread_sensitive context.
@@ -1375,3 +1375,55 @@ if sys.version_info >= (3, 11):
             await task1
 
         asyncio.run(main())
+
+
+def cancel_inside_thread_sensitive_context():
+    """Cancels a thread-sensitive task parked in async_to_sync, then exits the context"""
+    worker_started = threading.Event()
+
+    async def inner():
+        await asyncio.sleep(0.2)
+
+    def sync_code():
+        worker_started.set()
+        async_to_sync(inner)()
+
+    async def main():
+        async with ThreadSensitiveContext():
+            task = asyncio.create_task(
+                sync_to_async(sync_code, thread_sensitive=True)()
+            )
+            # Let the executor pick up sync_code, then hold the event loop
+            # with sync sleeps so the call_soon_threadsafe callback enqueued
+            # by async_to_sync is still queued when the cancellation lands.
+            await asyncio.sleep(0)
+            assert worker_started.wait(5)
+            time.sleep(0.1)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    asyncio.run(main())
+
+
+def test_thread_sensitive_context_exit_does_not_block_event_loop():
+    """
+    Tests that exiting ThreadSensitiveContext does not deadlock the event
+    loop if its executor thread is still parked in AsyncToSync, as happens
+    when the task running the sync code is cancelled before the event loop
+    runs the create_task callback enqueued by async_to_sync. (#535)
+
+    Runs in a separate process as the parked executor thread would otherwise
+    hang the test suite at interpreter exit.
+    """
+    process = multiprocessing.Process(target=cancel_inside_thread_sensitive_context)
+    process.start()
+    process.join(30)
+    # Force cleanup in failed test case
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+        pytest.fail("event loop deadlocked exiting ThreadSensitiveContext")
+    assert process.exitcode == 0
