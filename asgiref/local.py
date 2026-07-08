@@ -59,7 +59,7 @@ class Local:
     If `thread_critical` is True, then the local will only be visible per-thread,
     behaving exactly like `threading.local` if the thread is sync, and as
     `contextvars` if the thread is async. This allows genuinely thread-sensitive
-    code (such as DB handles) to be kept stricly to their initial thread and
+    code (such as DB handles) to be kept strictly to their initial thread and
     disable the sharing across `sync_to_async` and `async_to_sync` wrapped calls.
 
     Unlike plain `contextvars` objects, this utility is threadsafe.
