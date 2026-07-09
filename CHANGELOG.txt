@@ -1,3 +1,18 @@
+Unreleased
+----------
+
+* Event and scope annotations in ``asgiref.typing`` match the specification
+  better (#460)
+
+  Specifically:
+
+  - Optional keys are allowed to be missing
+  - Keys that default to None are allowed to be None
+  - The ``"websocket.send"`` and ``"websocket.receive"`` events must contain
+    exactly one non-None ``"text"`` or ``"bytes"`` key
+  - The ``"lifespan"`` scope allows the ``"extensions"`` key
+  - The ``"websocket.http.response.start"`` event allows the ``"trailers"`` key
+
 3.11.1 (2026-02-03)
 -------------------
 
