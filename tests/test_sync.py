@@ -159,6 +159,23 @@ async def test_nested_sync_to_async_retains_wrapped_function_attributes():
     assert test_function.__name__ == "test_function"
 
 
+def test_async_to_sync_retains_wrapped_function_attributes():
+    """
+    Tests that attributes of functions wrapped by async_to_sync are retained
+    """
+
+    async def test_function():
+        """Docstring."""
+
+    test_function.attr_name = "test_name_attribute"
+
+    wrapped = async_to_sync(test_function)
+    assert wrapped.__name__ == "test_function"
+    assert wrapped.__doc__ == "Docstring."
+    assert wrapped.__wrapped__ is test_function
+    assert wrapped.attr_name == "test_name_attribute"
+
+
 @pytest.mark.asyncio
 async def test_sync_to_async_method_decorator():
     """

@@ -1,3 +1,10 @@
+UNRELEASED
+----------
+
+* ``async_to_sync`` now copies the wrapped function's metadata (``__name__``,
+  ``__wrapped__``, etc.) onto the returned callable, matching ``sync_to_async``.
+  (#500)
+
 3.11.1 (2026-02-03)
 -------------------
 
