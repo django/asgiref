@@ -36,6 +36,7 @@ jobs:
           python -m pip install --upgrade tox tox-py
 
       - name: Run tox targets for ${{ matrix.python-version }}
+        timeout-minutes: 10
         run: tox --py current
 
   lint:
