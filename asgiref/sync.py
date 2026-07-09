@@ -518,9 +518,10 @@ class SyncToAsync(Generic[_P, _R]):
                 pass
             if exec_coro.done():
                 raise
-            if cancel_parent:
-                exec_coro.cancel()
             ret = await exec_coro
+
+            if cancel_parent:
+                raise asyncio.CancelledError
         finally:
             if self.context is None:
                 _restore_context(context)
