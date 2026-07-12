@@ -1,3 +1,10 @@
+UNRELEASED
+----------
+
+* Fixed a deadlock of the entire event loop when exiting
+  ``ThreadSensitiveContext`` while its executor thread was still blocked
+  waiting on the event loop. (#535)
+
 3.11.1 (2026-02-03)
 -------------------
 

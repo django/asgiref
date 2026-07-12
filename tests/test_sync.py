@@ -690,6 +690,134 @@ async def test_thread_sensitive_context_without_sync_work():
         pass
 
 
+def cancel_inside_thread_sensitive_context():
+    """Cancels a thread-sensitive task parked in async_to_sync, then exits the context"""
+    worker_started = threading.Event()
+
+    async def inner():
+        await asyncio.sleep(0.2)
+
+    def sync_code():
+        worker_started.set()
+        async_to_sync(inner)()
+
+    async def main():
+        async with ThreadSensitiveContext():
+            task = asyncio.create_task(
+                sync_to_async(sync_code, thread_sensitive=True)()
+            )
+            # Let the executor pick up sync_code, then hold the event loop
+            # with sync sleeps so the call_soon_threadsafe callback enqueued
+            # by async_to_sync is still queued when the cancellation lands.
+            await asyncio.sleep(0)
+            assert worker_started.wait(5)
+            time.sleep(0.1)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    asyncio.run(main())
+
+
+def test_thread_sensitive_context_exit_does_not_block_event_loop():
+    """
+    Tests that exiting ThreadSensitiveContext does not deadlock the event
+    loop if its executor thread is still parked in AsyncToSync, as happens
+    when the task running the sync code is cancelled before the event loop
+    runs the create_task callback enqueued by async_to_sync. (#535)
+
+    Runs in a separate process as the parked executor thread would otherwise
+    hang the test suite at interpreter exit.
+    """
+    process = multiprocessing.Process(target=cancel_inside_thread_sensitive_context)
+    process.start()
+    process.join(30)
+    # Force cleanup in failed test case
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+        pytest.fail("event loop deadlocked exiting ThreadSensitiveContext")
+    assert process.exitcode == 0
+
+
+def starve_default_executor_exiting_thread_sensitive_context():
+    """
+    Wedges two shutdown joins and the work they depend on into a two-slot
+    default executor.
+
+    Each request's sync code parks in async_to_sync, and the async side needs
+    a default-executor slot only after a sleep - by which time both requests
+    have been cancelled and their context exits occupy both slots.
+    """
+
+    async def inner():
+        # Suspend first, so the context exits (and the shutdown joins claim
+        # their executor slots) before this needs a slot of its own.
+        await asyncio.sleep(0.3)
+        await sync_to_async(time.sleep, thread_sensitive=False)(0.05)
+
+    def make_sync_code(worker_started):
+        def sync_code():
+            worker_started.set()
+            async_to_sync(inner)()
+
+        return sync_code
+
+    async def request(worker_started):
+        async with ThreadSensitiveContext():
+            task = asyncio.create_task(
+                sync_to_async(make_sync_code(worker_started), thread_sensitive=True)()
+            )
+            # Let the executor pick up sync_code, then hold the event loop
+            # with sync sleeps so the call_soon_threadsafe callback enqueued
+            # by async_to_sync is still queued when the cancellation lands.
+            await asyncio.sleep(0)
+            assert worker_started.wait(5)
+            time.sleep(0.1)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+    async def main():
+        # Two slots stand in for the real default executor's min(32, cpus + 4)
+        # so two requests are enough to fill it.
+        asyncio.get_running_loop().set_default_executor(
+            ThreadPoolExecutor(max_workers=2)
+        )
+        await asyncio.gather(request(threading.Event()), request(threading.Event()))
+
+    asyncio.run(main())
+
+
+def test_thread_sensitive_context_exit_does_not_starve_default_executor():
+    """
+    Tests that exiting ThreadSensitiveContext cannot starve the event loop's
+    default executor. If the shutdown join runs on the default executor,
+    concurrent context exits can fill it while their parked worker threads
+    are waiting on work that is queued behind those joins in the same
+    executor - a circular wait that wedges the executor permanently even
+    though the event loop stays responsive. (#535)
+
+    Runs in a separate process as the wedged threads would otherwise hang
+    the test suite at interpreter exit.
+    """
+    process = multiprocessing.Process(
+        target=starve_default_executor_exiting_thread_sensitive_context
+    )
+    process.start()
+    process.join(30)
+    # Force cleanup in failed test case
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+        pytest.fail("default executor starved exiting ThreadSensitiveContext")
+    assert process.exitcode == 0
+
+
 def test_thread_sensitive_double_nested_sync():
     """
     Tests that thread_sensitive SyncToAsync nests inside itself where the
