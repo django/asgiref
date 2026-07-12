@@ -8,7 +8,7 @@ import sys
 import threading
 import warnings
 import weakref
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, InvalidStateError, ThreadPoolExecutor
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -148,9 +148,21 @@ class ThreadSensitiveContext:
         if executor:
             # The executor's worker thread may itself be waiting for this
             # event loop, so a blocking shutdown() here would deadlock it.
-            # Join in a separate thread instead.
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, executor.shutdown)
+            # Join in a dedicated thread, not the loop's default executor:
+            # work queued there may itself be needed to unpark the worker,
+            # and joins occupying its slots would starve it.
+            future: "Future[None]" = Future()
+
+            def join() -> None:
+                executor.shutdown()
+                try:
+                    future.set_result(None)
+                except InvalidStateError:
+                    # The await below was cancelled while we were joining.
+                    pass
+
+            threading.Thread(target=join, daemon=True).start()
+            await asyncio.wrap_future(future)
 
 
 class AsyncToSync(Generic[_P, _R]):
