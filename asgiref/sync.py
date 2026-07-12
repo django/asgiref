@@ -207,17 +207,12 @@ class AsyncToSync(Generic[_P, _R]):
         except AttributeError:
             pass
         self.force_new_loop = force_new_loop
-        self.main_event_loop = None
-        try:
-            self.main_event_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # There's no event loop in this thread.
-            pass
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
 
-        if not self.force_new_loop and not self.main_event_loop:
+        main_event_loop = None
+        if not self.force_new_loop:
             # There's no event loop in this thread. Look for the threadlocal if
             # we're inside SyncToAsync
             main_event_loop_pid = getattr(
@@ -226,7 +221,7 @@ class AsyncToSync(Generic[_P, _R]):
             # We make sure the parent loop is from the same process - if
             # they've forked, this is not going to be valid any more (#194)
             if main_event_loop_pid and main_event_loop_pid == os.getpid():
-                self.main_event_loop = getattr(
+                main_event_loop = getattr(
                     SyncToAsync.threadlocal, "main_event_loop", None
                 )
 
@@ -284,10 +279,10 @@ class AsyncToSync(Generic[_P, _R]):
                 finally:
                     del self.loop_thread_executors[loop]
 
-            if self.main_event_loop is not None:
+            if main_event_loop is not None:
                 try:
-                    self.main_event_loop.call_soon_threadsafe(
-                        self.main_event_loop.create_task, awaitable
+                    main_event_loop.call_soon_threadsafe(
+                        main_event_loop.create_task, awaitable
                     )
                 except RuntimeError:
                     running_in_main_event_loop = False
