@@ -1,9 +1,33 @@
 UNRELEASED
 ----------
 
-* Fixed a deadlock of the entire event loop when exiting
-  ``ThreadSensitiveContext`` while its executor thread was still blocked
-  waiting on the event loop. (#535)
+* ``AsyncToSync`` no longer captures the running event loop on
+  instantiation. (#562)
+
+  This resolves a series of deadlocks that users experienced after asgiref 3.9.0,
+  particularly with pytest-asyncio. pytest-asyncio stops the event loop between
+  tests, and long-running unawaited futures could find themselves trying to
+  schedule work onto a stopped loop, and so would never complete. Ideally, code
+  should be structured to await long-running futures before returning, but this
+  change should help users experiencing issues here.
+
+  The loop is now resolved when the callable is invoked rather than when it is
+  created. If ``async_to_sync`` is called from within ``sync_to_async``, the
+  parent event loop is still used, as before.
+
+  The possibility of deadlock therefore remains in some nested patterns. For
+  example, an async function may call a long-running ``sync_to_async`` function
+  that itself uses ``async_to_sync``; if the outer function returns before the
+  sync future completes, the parent event loop may already be stopped, and the
+  nested calls cannot be driven to completion.
+
+  This is not a bug in asgiref — the same patterns deadlock in plain asyncio. As
+  above, restructure your code to await the ``sync_to_async`` future before
+  exiting the driving coroutine.
+
+* Fixed an event loop deadlock when exiting ``ThreadSensitiveContext``
+  while its executor thread was still blocked waiting on the event loop.
+  (#535)
 
 * Dropped support for EOL Python 3.9.
 
