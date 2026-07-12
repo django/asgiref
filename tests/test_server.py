@@ -1,5 +1,6 @@
 import asyncio
 import socket as sock
+import threading
 
 import pytest
 import pytest_asyncio
@@ -122,6 +123,45 @@ async def test_stateless_server(server):
         await asyncio.gather(server.arun(), do_test())
     except Done:
         pass
+
+
+def test_stateless_server_run():
+    """
+    StatelessServer.run() manages its own event loop.
+
+    Run in a fresh thread, which never has a current event loop — the same
+    situation as the main thread on Python 3.14+.
+    """
+
+    async def app(scope, receive, send):
+        pass
+
+    class RunServer(StatelessServer):
+        handled = False
+
+        async def handle(self):
+            self.handled = True
+
+        async def application_send(self, scope, message):
+            pass
+
+    server = RunServer(app)
+    errors = []
+
+    def run():
+        try:
+            server.run()
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive()
+    if errors:
+        raise errors[0]
+    assert server.handled
 
 
 @pytest.mark.asyncio
