@@ -35,6 +35,15 @@ UNRELEASED
   ``asyncio.get_event_loop()`` no longer creates an event loop if none
   exists. It now uses ``asyncio.run()``. (#559)
 
+* Fixed ``Local`` leaking data between unrelated sync threads when
+  ``sys.flags.thread_inherit_context`` is enabled (Python 3.14+), so a newly
+  started thread inherits a copy of the spawning thread's context. This flag is
+  on by default on free-threaded builds and opt-in on the regular GIL build.
+  ``Local`` storage is now tagged with its owning thread and re-homed only when
+  asgiref intentionally moves work across threads (in ``async_to_sync`` /
+  ``sync_to_async``), restoring the documented thread-local behaviour in sync
+  threads.
+
 3.11.1 (2026-02-03)
 -------------------
 

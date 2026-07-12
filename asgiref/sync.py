@@ -23,7 +23,7 @@ from typing import (
 )
 
 from .current_thread_executor import CurrentThreadExecutor
-from .local import Local
+from .local import Local, _rehome, _Storage
 
 if TYPE_CHECKING:
     # This is not available to import at runtime
@@ -39,6 +39,12 @@ def _restore_context(context: contextvars.Context) -> None:
     # context for downstream consumers
     for cvar in context:
         cvalue = context.get(cvar)
+        # asgiref is deliberately moving this context onto the current thread,
+        # so re-home any Local storage to it. This keeps Local data visible
+        # across async_to_sync / sync_to_async boundaries while leaving data
+        # merely inherited by an unrelated thread isolated (see asgiref.local).
+        if isinstance(cvalue, _Storage):
+            cvalue = _rehome(cvalue)
         try:
             if cvar.get() != cvalue:
                 cvar.set(cvalue)
@@ -486,7 +492,15 @@ class SyncToAsync(Generic[_P, _R]):
             executor = self._executor
 
         context = contextvars.copy_context() if self.context is None else self.context
-        child = functools.partial(self.func, *args, **kwargs)
+        inner = functools.partial(self.func, *args, **kwargs)
+
+        def child() -> _R:
+            # The sync function runs inside ``context`` (a copy of the calling
+            # async context) on a worker thread. Re-home any Local storage to
+            # this thread so it stays visible here (see _restore_context).
+            _restore_context(context)
+            return inner()
+
         func = context.run
         task_context: list[asyncio.Task[Any]] = []
 

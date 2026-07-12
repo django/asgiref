@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import gc
 import threading
 from threading import Thread
@@ -357,6 +358,45 @@ def test_visibility_thread_asgiref() -> None:
     thread.join()
 
     assert test_local.value == 0
+
+
+def test_local_not_inherited_by_new_thread() -> None:
+    """
+    A value set in one sync thread must not be visible in a separately spawned
+    sync thread.
+
+    On Python 3.14+ a new thread inherits a copy of the spawning thread's
+    context when ``sys.flags.thread_inherit_context`` is enabled. That flag
+    defaults to on for free-threaded builds and off for the regular GIL build
+    (where it is opt-in via ``-X thread_inherit_context=1`` /
+    ``PYTHON_THREAD_INHERIT_CONTEXT=1``). When enabled it would otherwise leak
+    non-thread-critical ``Local`` data across unrelated threads.
+    """
+    test_local = Local()
+    test_local.value = "parent"
+
+    # Capture the child's observation in the parent so an in-thread assertion
+    # failure actually fails the test.
+    observed: "dict[str, object]" = {}
+
+    def child() -> None:
+        observed["has_value"] = hasattr(test_local, "value")
+        # The child gets its own isolated storage.
+        test_local.value = "child"
+        observed["child_value"] = test_local.value
+
+    # Force the worst case by running the child in a copy of this thread's
+    # context (mirroring thread_inherit_context), so the test exercises the leak
+    # path on every build regardless of the flag default.
+    parent_context = contextvars.copy_context()
+    thread = Thread(target=lambda: parent_context.run(child))
+    thread.start()
+    thread.join()
+
+    assert observed["has_value"] is False
+    assert observed["child_value"] == "child"
+    # The child's write must not leak back to the parent either.
+    assert test_local.value == "parent"
 
 
 @pytest.mark.asyncio
