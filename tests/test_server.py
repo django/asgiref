@@ -1,5 +1,6 @@
 import asyncio
 import socket as sock
+import threading
 
 import pytest
 import pytest_asyncio
@@ -124,14 +125,19 @@ async def test_stateless_server(server):
         pass
 
 
-def test_run_creates_event_loop_when_none_exists(monkeypatch):
+def test_stateless_server_run():
+    """
+    StatelessServer.run() manages its own event loop.
+
+    Run in a fresh thread, which never has a current event loop — the same
+    situation as the main thread on Python 3.14+.
+    """
+
     async def app(scope, receive, send):
         pass
 
     class RunServer(StatelessServer):
-        def __init__(self):
-            super().__init__(app)
-            self.handled = False
+        handled = False
 
         async def handle(self):
             self.handled = True
@@ -139,14 +145,22 @@ def test_run_creates_event_loop_when_none_exists(monkeypatch):
         async def application_send(self, scope, message):
             pass
 
-    def raise_no_event_loop():
-        raise RuntimeError("There is no current event loop in thread 'MainThread'.")
+    server = RunServer(app)
+    errors = []
 
-    monkeypatch.setattr(asyncio, "get_event_loop", raise_no_event_loop)
+    def run():
+        try:
+            server.run()
+        except BaseException as exc:
+            errors.append(exc)
 
-    server = RunServer()
-    server.run()
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join(timeout=5)
 
+    assert not thread.is_alive()
+    if errors:
+        raise errors[0]
     assert server.handled
 
 

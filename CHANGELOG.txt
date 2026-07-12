@@ -7,6 +7,10 @@ UNRELEASED
 
 * Dropped support for EOL Python 3.9.
 
+* Fixed ``StatelessServer.run()`` failing on Python 3.14, where
+  ``asyncio.get_event_loop()`` no longer creates an event loop if none
+  exists. It now uses ``asyncio.run()``. (#559)
+
 3.11.1 (2026-02-03)
 -------------------
 
