@@ -5,6 +5,8 @@ UNRELEASED
   ``ThreadSensitiveContext`` while its executor thread was still blocked
   waiting on the event loop. (#535)
 
+* Dropped support for EOL Python 3.9.
+
 3.11.1 (2026-02-03)
 -------------------
 

@@ -11,6 +11,7 @@ async def test_receive_nothing():
     """
     Tests ApplicationCommunicator.receive_nothing to return the correct value.
     """
+
     # Get an ApplicationCommunicator instance
     def wsgi_application(environ, start_response):
         start_response("200 OK", [])
@@ -51,6 +52,7 @@ def test_receive_nothing_lazy_loop():
     """
     Tests ApplicationCommunicator.receive_nothing to return the correct value.
     """
+
     # Get an ApplicationCommunicator instance
     def wsgi_application(environ, start_response):
         start_response("200 OK", [])
