@@ -492,16 +492,21 @@ class SyncToAsync(Generic[_P, _R]):
             executor = self._executor
 
         context = contextvars.copy_context() if self.context is None else self.context
-        inner = functools.partial(self.func, *args, **kwargs)
+        # ``child`` is the deferred sync function to be run, with its args
+        # and kwargs bound.
+        child = functools.partial(self.func, *args, **kwargs)
 
-        def child() -> _R:
-            # The sync function runs inside ``context`` (a copy of the calling
-            # async context) on a worker thread. Re-home any Local storage to
-            # this thread so it stays visible here (see _restore_context).
-            _restore_context(context)
-            return inner()
+        # On the worker thread, thread_handler runs ``func(child)``. ``func``
+        # enters ``context`` (via context.run); then, inside it, ``run_child``
+        # re-homes any Local storage to the worker thread so it stays visible
+        # there (see _restore_context), and finally calls ``child``.
+        def func(child: Callable[[], _R]) -> _R:
+            def run_child() -> _R:
+                _restore_context(context)
+                return child()
 
-        func = context.run
+            return context.run(run_child)
+
         task_context: list[asyncio.Task[Any]] = []
 
         # Run the code in the right thread

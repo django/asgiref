@@ -15,6 +15,7 @@ import pytest
 
 from asgiref.sync import (
     AsyncSingleThreadContext,
+    SyncToAsync,
     ThreadSensitiveContext,
     async_to_sync,
     iscoroutinefunction,
@@ -61,6 +62,41 @@ async def test_sync_to_async():
         assert end - start >= 2
     finally:
         loop.set_default_executor(old_executor)
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_thread_handler_child_is_partial():
+    """
+    Canary, not a compatibility promise: APM agents (New Relic, at least)
+    inject a kwarg in SyncToAsync.__call__ and pop it back out of
+    ``child.keywords`` in a wrapper around thread_handler, before the sync
+    function runs — relying on the argument being a functools.partial of
+    the wrapped function (#571).
+
+    Note: The thread_handler argument shape is internal and may change if
+    needed! Ideally APMs are **not** monkey patching internal APIs. If this
+    test breaks, update or remove it, as needed, but provide a release note.
+    """
+    captured = {}
+
+    class Instrumented(SyncToAsync):
+        def thread_handler(self, loop, exc_info, task_context, func, *args):
+            child = args[0]
+            captured["child"] = child
+            child.keywords.pop("_agent_injected", None)
+            return super().thread_handler(loop, exc_info, task_context, func, *args)
+
+    # No **kwargs: if the injected kwarg isn't popped it raises TypeError at
+    # call time, just as in the original report.
+    def sync_function(value):
+        return value
+
+    result = await Instrumented(sync_function)(42, _agent_injected=object())
+    assert result == 42
+    child = captured["child"]
+    assert isinstance(child, functools.partial)
+    assert child.func is sync_function
+    assert child.args == (42,)
 
 
 def test_sync_to_async_fail_non_function():
