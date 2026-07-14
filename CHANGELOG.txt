@@ -1,5 +1,5 @@
-UNRELEASED
-----------
+3.12.0 (2026-07-14)
+-------------------
 
 * ``AsyncToSync`` no longer captures the running event loop on
   instantiation. (#562)
@@ -43,6 +43,9 @@ UNRELEASED
   asgiref intentionally moves work across threads (in ``async_to_sync`` /
   ``sync_to_async``), restoring the documented thread-local behaviour in sync
   threads.
+
+* asgiref is now tested against the free-threaded builds of Python 3.13 and
+  3.14 in CI.
 
 3.11.1 (2026-02-03)
 -------------------
