@@ -1,3 +1,14 @@
+3.12.1 (2026-07-14)
+-------------------
+
+* Restored the previous SyncToAsync.__call__ internal code shape, which was
+  relied on by some APM services. (#572)
+
+  Note, this change was available whilst maintaining the underlying fix (from
+  #564). It does not constitute an API stability promise. Ideally APMs are
+  *not* monkey patching internal APIs, and future changes will be made here if
+  needed.
+
 3.12.0 (2026-07-14)
 -------------------
 
