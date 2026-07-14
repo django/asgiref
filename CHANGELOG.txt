@@ -47,6 +47,9 @@
 * asgiref is now tested against the free-threaded builds of Python 3.13 and
   3.14 in CI.
 
+* The ``tests`` extra no longer installs ``mypy``; a new ``mypy`` extra is
+  available for type-checking the codebase.
+
 3.11.1 (2026-02-03)
 -------------------
 
