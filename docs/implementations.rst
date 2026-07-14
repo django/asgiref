@@ -60,6 +60,14 @@ NGINX Unit
 
 Unit is a lightweight and versatile open-source server that has three core capabilities: it is a web server for static media assets, an application server that runs code in multiple languages, and a reverse proxy.
 
+pyvoy
+-----
+
+*Beta* / https://pyvoy.dev
+
+pyvoy is a modern, fast, and stable Python application server built with [Envoy](https://www.envoyproxy.io/).
+
+Supports HTTP/1/2/3, WebSockets, and all the features of Envoy itself.
 
 Uvicorn
 -------
