@@ -56,7 +56,7 @@ HTTP/3 support requires the ``h3`` extra (``pip install anycorn[h3]``).
 NGINX Unit
 ----------
 
-*Stable* / https://unit.nginx.org/configuration/#configuration-python
+*Archived* / https://unit.nginx.org/configuration/#configuration-python
 
 Unit is a lightweight and versatile open-source server that has three core capabilities: it is a web server for static media assets, an application server that runs code in multiple languages, and a reverse proxy.
 
