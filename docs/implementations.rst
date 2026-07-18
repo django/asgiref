@@ -56,7 +56,7 @@ HTTP/3 support requires the ``h3`` extra (``pip install anycorn[h3]``).
 Uvicorn
 -------
 
-*Stable* / https://www.uvicorn.org/
+*Stable* / https://uvicorn.dev/
 
 A fast ASGI server based on uvloop and httptools.
 Supports HTTP/1 and WebSockets.
@@ -189,7 +189,7 @@ for type conversion. Optional OpenAPI document generation.
 Starlette
 ---------
 
-*Beta* / https://github.com/encode/starlette
+*Stable* / https://starlette.dev/
 
 Starlette is a minimalist ASGI library for writing against basic but powerful
 ``Request`` and ``Response`` classes. Supports HTTP and WebSockets.
