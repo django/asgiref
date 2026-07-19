@@ -53,14 +53,6 @@ rather than maintaining separate code paths for each backend.
 Supports HTTP/1, HTTP/2, HTTP/3, WebSockets, and the :doc:`TLS extension <specs/tls>`.
 HTTP/3 support requires the ``h3`` extra (``pip install anycorn[h3]``).
 
-NGINX Unit
-----------
-
-*Archived* / https://unit.nginx.org/configuration/#configuration-python
-
-Unit is a lightweight and versatile open-source server that has three core capabilities: it is a web server for static media assets, an application server that runs code in multiple languages, and a reverse proxy.
-
-
 Uvicorn
 -------
 
