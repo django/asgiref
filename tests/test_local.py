@@ -27,6 +27,9 @@ async def test_local_task():
     del test_local.foo
     with pytest.raises(AttributeError):
         test_local.foo
+    # Delete again now that it's already gone
+    with pytest.raises(AttributeError):
+        del test_local.foo
 
 
 def test_local_thread():
@@ -232,6 +235,9 @@ async def test_local_critical_no_task_to_thread():
             test_local.foo
         test_local.foo = "secret"
         assert test_local.foo == "secret"
+        del test_local.foo
+        with pytest.raises(AttributeError):
+            del test_local.foo
 
     await sync_to_async(sync_function)()
     # Check the value outside is not touched
@@ -419,7 +425,7 @@ async def test_visibility_task() -> None:
 
 @pytest.mark.asyncio
 async def test_deletion() -> None:
-    """Check visibility with asyncio tasks."""
+    """Check visibility of deletions with asyncio tasks."""
     test_local = Local()
     test_local.value = 123
 
