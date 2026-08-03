@@ -46,7 +46,7 @@ def _restore_context(context: contextvars.Context) -> None:
         if isinstance(cvalue, _Storage):
             cvalue = _rehome(cvalue)
         try:
-            if cvar.get() != cvalue:
+            if cvar.get() is not cvalue:
                 cvar.set(cvalue)
         except LookupError:
             cvar.set(cvalue)

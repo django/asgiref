@@ -3,6 +3,7 @@ import contextvars
 import sys
 import threading
 import time
+from collections.abc import Mapping
 
 import pytest
 
@@ -162,3 +163,43 @@ async def test_sync_to_async_contextvars_with_callable_with_context_attribute():
     async_function = sync_to_async(SyncCallable())
     assert async_function.context is None
     assert await async_function() == 42
+
+
+class ConcurrentlyMutatedMapping(Mapping):
+    """Stands in for a WeakValueDictionary that is mutated while being iterated.
+
+    ``Mapping.__eq__`` is implemented as ``dict(self) == dict(other)``, so any
+    equality comparison iterates the mapping. A ``WeakValueDictionary`` shared
+    across threads can raise from that iteration if another thread inserts a key
+    or a weakref is reaped part-way through.
+    """
+
+    def __init__(self, data):
+        self._data = dict(data)
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __len__(self):
+        return len(self._data)
+
+    def __iter__(self):
+        raise RuntimeError("dictionary changed size during iteration")
+
+
+cache: "contextvars.ContextVar[ConcurrentlyMutatedMapping]" = contextvars.ContextVar(
+    "cache"
+)
+
+
+@pytest.mark.asyncio
+async def test_restore_context_does_not_compare_values_by_equality():
+    """Restoring contextvars must not invoke third-party ``__eq__``."""
+
+    def sync_function():
+        # Replace the value with an equal-but-distinct object, as a library
+        # rebuilding its cache would.
+        cache.set(ConcurrentlyMutatedMapping({"a": 1}))
+
+    cache.set(ConcurrentlyMutatedMapping({"a": 1}))
+    await sync_to_async(sync_function)()
