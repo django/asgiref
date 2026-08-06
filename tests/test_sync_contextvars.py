@@ -165,7 +165,7 @@ async def test_sync_to_async_contextvars_with_callable_with_context_attribute():
     assert await async_function() == 42
 
 
-class ConcurrentlyMutatedMapping(Mapping):
+class ConcurrentlyMutatedMapping(Mapping[str, int]):
     """Stands in for a WeakValueDictionary that is mutated while being iterated.
 
     ``Mapping.__eq__`` is implemented as ``dict(self) == dict(other)``, so any
