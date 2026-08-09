@@ -188,8 +188,7 @@ scope::
 
 An ASGI framework can send an early hint by sending a message with the
 following keys. This message can be sent at any time (and multiple
-times) after the *Response Start* message but before the final
-*Response Body* message.
+times) before the *Response Start* message.
 
 Keys:
 
