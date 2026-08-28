@@ -206,6 +206,16 @@ enables high-concurrency web apps with built-in WebSockets, session management,
 middleware, and optional template rendering with method based routing.
 
 
+Veloce
+------
+
+*Beta* / https://veloceframework.com/
+
+Veloce is an ASGI framework written from scratch, in which one route definition
+drives HTTP dispatch, the OpenAPI schema, and an opt-in MCP tool surface, so the
+three stay in step. Supports HTTP, WebSockets and Server-Sent Events.
+
+
 Tools
 =====
 
