@@ -431,3 +431,13 @@ async def test_deletion() -> None:
 
     await asyncio.create_task(_test())
     assert test_local.value == 123
+
+
+def test_data_name_protected() -> None:
+    test_local = Local()
+    test_local.important = "keep me"
+    # ``_data`` is the name ``_CVar`` uses for its backing ContextVar,
+    # so it may not be set by user code.
+    with pytest.raises(AttributeError):
+        test_local._data = "user supplied value"
+    assert test_local.important == "keep me"
