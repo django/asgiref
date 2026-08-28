@@ -96,7 +96,7 @@ file handles for incoming POST bodies).
 Dependencies
 ------------
 
-``asgiref`` requires Python 3.10 or higher.
+``asgiref`` requires Python 3.11 or higher.
 
 
 Contributing
