@@ -1,9 +1,14 @@
 import asyncio
 import contextvars
+import sys
 import time
 
 from .compatibility import guarantee_single_callable
-from .timeout import timeout as async_timeout
+
+if sys.version_info >= (3, 11):
+    async_timeout = asyncio.timeout
+else:
+    from .timeout import timeout as async_timeout
 
 
 class ApplicationCommunicator:
