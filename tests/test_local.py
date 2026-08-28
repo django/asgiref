@@ -6,7 +6,7 @@ from threading import Thread
 
 import pytest
 
-from asgiref.local import Local
+from asgiref.local import Local, _DefaultLocal, _ThreadCriticalLocal
 from asgiref.sync import async_to_sync, sync_to_async
 
 
@@ -27,6 +27,9 @@ async def test_local_task():
     del test_local.foo
     with pytest.raises(AttributeError):
         test_local.foo
+    # Delete again now that it's already gone
+    with pytest.raises(AttributeError):
+        del test_local.foo
 
 
 def test_local_thread():
@@ -232,6 +235,9 @@ async def test_local_critical_no_task_to_thread():
             test_local.foo
         test_local.foo = "secret"
         assert test_local.foo == "secret"
+        del test_local.foo
+        with pytest.raises(AttributeError):
+            del test_local.foo
 
     await sync_to_async(sync_function)()
     # Check the value outside is not touched
@@ -419,7 +425,7 @@ async def test_visibility_task() -> None:
 
 @pytest.mark.asyncio
 async def test_deletion() -> None:
-    """Check visibility with asyncio tasks."""
+    """Check visibility of deletions with asyncio tasks."""
     test_local = Local()
     test_local.value = 123
 
@@ -431,3 +437,23 @@ async def test_deletion() -> None:
 
     await asyncio.create_task(_test())
     assert test_local.value == 123
+
+
+def test_data_name_protected() -> None:
+    test_local = Local()
+    test_local.important = "keep me"
+    # ``_data`` is the name ``_CVar`` uses for its backing ContextVar,
+    # so it may not be set by user code.
+    with pytest.raises(AttributeError):
+        test_local._data = "user supplied value"
+    assert test_local.important == "keep me"
+
+
+def test_new_returns_specialized_subclass() -> None:
+    default = Local()
+    tc = Local(thread_critical=True)
+    assert type(default) is _DefaultLocal
+    assert type(tc) is _ThreadCriticalLocal
+    assert isinstance(default, Local)
+    assert isinstance(tc, Local)
+    assert type(tc) is not type(default)  # type: ignore[comparison-overlap]
