@@ -10,7 +10,7 @@ Abstract
 This document proposes a standard interface between network protocol
 servers (particularly web servers) and Python applications, intended
 to allow handling of multiple common protocol styles (including HTTP, HTTP/2,
-and WebSocket).
+HTTP/3, and WebSocket).
 
 This base specification is intended to fix in place the set of APIs by which
 these servers interact and run application code;
@@ -37,8 +37,8 @@ asynchronous-friendly sets of messages and generalises it into two parts;
 a standardised interface for communication around which to build servers (this
 document), and a set of standard message formats for each protocol.
 
-Its primary goal is to provide a way to write HTTP/2 and WebSocket code
-alongside normal HTTP handling code, however; part of this design means
+Its primary goal is to provide a way to write HTTP/2, HTTP/3 and WebSocket
+code alongside normal HTTP handling code, however; part of this design means
 ensuring there is an easy path to use both existing WSGI servers and
 applications, as a large majority of Python web usage relies on WSGI and
 providing an easy path forward is critical to adoption. Details on that
