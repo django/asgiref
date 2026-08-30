@@ -103,6 +103,8 @@ class timeout:
 
     def _do_exit(self, exc_type: type[BaseException]) -> None:
         if exc_type is asyncio.CancelledError and self._cancelled:
+            if self._task is not None and hasattr(self._task, "uncancel"):
+                self._task.uncancel()
             self._cancel_handler = None
             self._task = None
             raise asyncio.TimeoutError
