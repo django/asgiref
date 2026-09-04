@@ -2,10 +2,10 @@
 HTTP & WebSocket ASGI Message Format
 ====================================
 
-**Version**: 2.5 (2024-06-05)
+**Version**: 2.6 (2026-08-30)
 
 The HTTP+WebSocket ASGI sub-specification outlines how to transport HTTP/1.1,
-HTTP/2 and WebSocket connections within ASGI.
+HTTP/2, HTTP/3 and WebSocket connections within ASGI.
 
 It is deliberately intended and designed to be a superset of the WSGI format
 and specifies how to translate between the two for the set of requests that
@@ -23,6 +23,7 @@ This spec has had the following versions:
 * ``2.3``: Added the ``reason`` key to the WebSocket close event.
 * ``2.4``: Calling ``send()`` on a closed connection should raise an error
 * ``2.5``: Added the ``reason`` key to the WebSocket disconnect event.
+* ``2.6``: HTTP/3 is an allowed value for ``http_version``.
 
 Spec versions let you understand what the server you are using understands. If
 a server tells you it only supports version ``2.0`` of this spec, then
@@ -34,11 +35,12 @@ They are separate from the HTTP version or the ASGI version.
 HTTP
 ----
 
-The HTTP format covers HTTP/1.0, HTTP/1.1 and HTTP/2, as the changes in
-HTTP/2 are largely on the transport level. A protocol server should give
-different scopes to different requests on the same HTTP/2 connection, and
-correctly multiplex the responses back to the same stream in which they came.
-The HTTP version is available as a string in the scope.
+The HTTP format covers HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/3, as the changes
+in HTTP/2 and HTTP/3 are largely on the transport level. A protocol server
+should give different scopes to different requests on the same HTTP/2 or
+HTTP/3 connection, and correctly multiplex the responses back to the same
+stream in which they came. The HTTP version is available as a string in the
+scope.
 
 Multiple header fields with the same name are complex in HTTP. RFC 7230
 states that for any header field that can appear multiple times, it is exactly
@@ -49,24 +51,24 @@ However, for HTTP cookies (``Cookie`` and ``Set-Cookie``) the allowed behaviour
 does not follow the above rule, and also varies slightly based on the HTTP
 protocol version:
 
-* For the ``Set-Cookie`` header in HTTP/1.0, HTTP/1.1 and HTTP2.0, it may appear
-  repeatedly, but cannot be concatenated by commas (or anything else) into a
-  single header field.
+* For the ``Set-Cookie`` header in HTTP/1.0, HTTP/1.1, HTTP/2 and HTTP/3, it
+  may appear repeatedly, but cannot be concatenated by commas (or anything
+  else) into a single header field.
 
 * For the ``Cookie`` header, in HTTP/1.0 and HTTP/1.1, RFC 7230 and RFC 6265
   make it clear that the ``Cookie`` header must only be sent once by a
   user-agent, and must be concatenated into a single octet string using the
-  two-octet delimiter of 0x3b, 0x20 (the ASCII string "; "). However in HTTP/2,
-  RFC 9113 states that ``Cookie`` headers MAY appear repeatedly, OR be
-  concatenated using the two-octet delimiter of 0x3b, 0x20
+  two-octet delimiter of 0x3b, 0x20 (the ASCII string "; "). However in HTTP/2
+  and HTTP/3, RFC 9113 / RFC 9114 state that ``Cookie`` headers MAY appear
+  repeatedly, OR be concatenated using the two-octet delimiter of 0x3b, 0x20
   (the ASCII string "; ").
 
 The ASGI design decision is to transport both request and response headers as
 lists of 2-element ``[name, value]`` lists and preserve headers exactly as they
 were provided.
 
-For ASGI applications that support HTTP/2, care should be taken to handle the
-special case for ``Cookie`` noted above.
+For ASGI applications that support HTTP/2 or HTTP/3, care should be taken to
+handle the special case for ``Cookie`` noted above.
 
 The HTTP protocol should be signified to ASGI applications with a ``type``
 value of ``http``.
@@ -93,7 +95,8 @@ The *connection scope* information passed in ``scope`` contains:
   HTTP spec this server understands; for example: ``"2.0"``, ``"2.1"``, ``"2.2"``,
   etc. Optional; if missing assume ``"2.0"``.
 
-* ``http_version`` (*Unicode string*) -- One of ``"1.0"``, ``"1.1"`` or ``"2"``.
+* ``http_version`` (*Unicode string*) -- One of ``"1.0"``, ``"1.1"``, ``"2"``
+  or ``"3"``.
 
 * ``method`` (*Unicode string*) -- The HTTP method name, uppercased.
 
@@ -305,8 +308,8 @@ metadata (mostly from the HTTP request line and headers):
   HTTP spec this server understands; one of ``"2.0"``, ``"2.1"``, ``"2.2"`` or
   ``"2.3"``. Optional; if missing assume ``"2.0"``.
 
-* ``http_version`` (*Unicode string*) -- One of ``"1.1"`` or
-  ``"2"``. Optional; if missing default is ``"1.1"``.
+* ``http_version`` (*Unicode string*) -- One of ``"1.1"``, ``"2"`` or
+  ``"3"``. Optional; if missing default is ``"1.1"``.
 
 * ``scheme`` (*Unicode string*) -- URL scheme portion (likely ``"ws"`` or
   ``"wss"``). Optional (but must not be empty); default is ``"ws"``.

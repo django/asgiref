@@ -1,3 +1,9 @@
+UNRELEASED
+----------
+
+* Document HTTP/3 as an allowed ``http_version`` value in the ASGI HTTP
+  spec (``"3"``), including the introductory wording. (#544)
+
 3.12.1 (2026-07-14)
 -------------------
 
