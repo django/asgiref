@@ -1,11 +1,5 @@
-import sys
 from collections.abc import Awaitable, Callable, Iterable
-from typing import Any, Literal, Protocol, TypedDict, Union
-
-if sys.version_info >= (3, 11):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
+from typing import Any, Literal, NotRequired, Protocol, TypedDict, Union
 
 __all__ = (
     "ASGIVersions",

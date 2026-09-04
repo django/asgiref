@@ -2,7 +2,6 @@ import asyncio
 import contextvars
 import functools
 import multiprocessing
-import sys
 import threading
 import time
 import warnings
@@ -1084,7 +1083,7 @@ async def test_sync_to_async_with_blocker_thread_sensitive():
         # wait on the event waiter, which is now blocking the event setter.
         async with timeout(delay + 1):
             assert await async_process_waiting_on_event() == 42
-    except asyncio.TimeoutError:
+    except TimeoutError:
         # In case of timeout, set the event to unblock things, else
         # downstream tests will get fouled up.
         event.set()
@@ -1119,7 +1118,7 @@ async def test_sync_to_async_with_blocker_non_thread_sensitive():
         # wait on the event waiter, which is now blocking the event setter.
         async with timeout(delay + 1):
             assert await async_process_waiting_on_event() == 42
-    except asyncio.TimeoutError:
+    except TimeoutError:
         # In case of timeout, set the event to unblock things, else
         # downstream tests will get fouled up.
         event.set()
@@ -1516,30 +1515,30 @@ def test_double_nested_task() -> None:
 
 # asyncio.Barrier is new in Python 3.11. Nest definition (rather than using
 # skipIf) to avoid mypy error.
-if sys.version_info >= (3, 11):
 
-    def test_two_nested_tasks_with_asyncio_run() -> None:
-        barrier = asyncio.Barrier(3)
-        event = threading.Event()
 
-        async def inner() -> None:
-            task = asyncio.create_task(sync_to_async(event.wait)())
-            await barrier.wait()
-            await task
+def test_two_nested_tasks_with_asyncio_run() -> None:
+    barrier = asyncio.Barrier(3)
+    event = threading.Event()
 
-        async def outer() -> tuple[asyncio.Task[None], asyncio.Task[None]]:
-            task0 = asyncio.create_task(inner())
-            task1 = asyncio.create_task(inner())
-            await barrier.wait()
-            event.set()
-            return task0, task1
+    async def inner() -> None:
+        task = asyncio.create_task(sync_to_async(event.wait)())
+        await barrier.wait()
+        await task
 
-        async def main() -> None:
-            task0, task1 = await sync_to_async(async_to_sync(outer))()
-            await task0
-            await task1
+    async def outer() -> tuple[asyncio.Task[None], asyncio.Task[None]]:
+        task0 = asyncio.create_task(inner())
+        task1 = asyncio.create_task(inner())
+        await barrier.wait()
+        event.set()
+        return task0, task1
 
-        asyncio.run(main())
+    async def main() -> None:
+        task0, task1 = await sync_to_async(async_to_sync(outer))()
+        await task0
+        await task1
+
+    asyncio.run(main())
 
 
 def test_async_to_sync_with_stopped_main_loop():
