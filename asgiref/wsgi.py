@@ -172,24 +172,33 @@ class WsgiToAsgiInstance:
             return
         # Run the WSGI app
         bytes_sent = 0
-        for output in self.wsgi_application(environ, self.start_response):
-            # If this is the first response, include the response headers
-            if not self.response_started:
-                self.response_started = True
-                self.sync_send(self.response_start)
-            # If the application supplies a Content-Length header
-            if self.response_content_length is not None:
-                # The server should not transmit more bytes to the client than the header allows
-                bytes_allowed = self.response_content_length - bytes_sent
-                if len(output) > bytes_allowed:
-                    output = output[:bytes_allowed]
-            self.sync_send(
-                {"type": "http.response.body", "body": output, "more_body": True}
-            )
-            bytes_sent += len(output)
-            # The server should stop iterating over the response when enough data has been sent
-            if bytes_sent == self.response_content_length:
-                break
+        result = self.wsgi_application(environ, self.start_response)
+        try:
+            for output in result:
+                # If this is the first response, include the response headers
+                if not self.response_started:
+                    self.response_started = True
+                    self.sync_send(self.response_start)
+                # If the application supplies a Content-Length header
+                if self.response_content_length is not None:
+                    # The server should not transmit more bytes to the client than the header allows
+                    bytes_allowed = self.response_content_length - bytes_sent
+                    if len(output) > bytes_allowed:
+                        output = output[:bytes_allowed]
+                self.sync_send(
+                    {"type": "http.response.body", "body": output, "more_body": True}
+                )
+                bytes_sent += len(output)
+                # The server should stop iterating over the response when enough data has been sent
+                if bytes_sent == self.response_content_length:
+                    break
+        finally:
+            # PEP 3333 requires the gateway to call close() on the response
+            # iterable, whether iteration completed normally or was terminated
+            # early, so that the application can release its resources.
+            close = getattr(result, "close", None)
+            if close is not None:
+                close()
         # Close connection
         if not self.response_started:
             self.response_started = True
