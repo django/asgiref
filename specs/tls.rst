@@ -51,10 +51,6 @@ The *connection scope* information passed in ``scope`` contains an
 dictionary, the key ``"tls"`` identifies the extension specified in this
 document.  The value will be a dictionary with the following entries:
 
-* ``spec_version`` (*Unicode string*) -- The version of the TLS extension that
-  the server supports.  The value for this version of the specification is
-  ``"0.3"``.  If missing, assume the server implements version ``"0.2"``.
-
 * ``client_cert_chain`` (*Iterable[Unicode string]*) -- An iterable of
   Unicode strings, where each string is a PEM-encoded x509 certificate.
   The first certificate is the client certificate.  Any subsequent certificates
@@ -107,8 +103,7 @@ parsed subset:
 Version History
 ---------------
 
-* 0.3 (2026-09-15): Added ``spec_version`` and removed all fields except
-  ``client_cert_chain``.
+* 0.3 (2026-09-15): Removed all fields except ``client_cert_chain``.
 * 0.2 (2020-10-02): Initial version.
 
 
