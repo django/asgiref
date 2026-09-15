@@ -2,7 +2,7 @@
 ASGI TLS Extension
 ==================
 
-**Version**: 0.2 (2020-10-02)
+**Version**: 0.3 (2026-09-15)
 
 This specification outlines how to report TLS (or SSL) connection information
 in the ASGI *connection scope* object.
@@ -51,6 +51,10 @@ The *connection scope* information passed in ``scope`` contains an
 dictionary, the key ``"tls"`` identifies the extension specified in this
 document.  The value will be a dictionary with the following entries:
 
+* ``spec_version`` (*Unicode string*) -- The version of the TLS extension that
+  the server supports.  The value for this version of the specification is
+  ``"0.3"``.  If missing, assume the server implements version ``"0.2"``.
+
 * ``server_cert`` (*Unicode string or None*) -- The PEM-encoded conversion
   of the x509 certificate sent by the server when establishing the TLS
   connection.  Some web server implementations may be unable to provide this
@@ -66,19 +70,6 @@ document.  The value will be a dictionary with the following entries:
   implementations may be unable to provide this (e.g. if TLS is terminated by a
   separate proxy or load balancer); in that case this shall be an empty
   iterable.  Optional; if missing defaults to empty iterable.
-
-* ``client_cert_name`` (*Unicode string or None*) -- The x509 Distinguished
-  Name of the Subject of the client certificate, as a single string encoded as
-  defined in `RFC4514 <https://tools.ietf.org/html/rfc4514>`_.  If the client
-  did not provide a client certificate then it will be ``None``.  Some web
-  server implementations may be unable to provide this (e.g. if TLS is
-  terminated by a separate proxy or load balancer); in that case this shall be
-  ``None``. If ``client_cert_chain`` is provided and non-empty then this field
-  must be provided and must contain information that is consistent with
-  ``client_cert_chain[0]``.  Note that under some setups, (e.g. where TLS is
-  terminated by a separate proxy or load balancer and that device forwards the
-  client certificate name to the web server), this field may be set even where
-  ``client_cert_chain`` is not set.  Optional; if missing defaults to ``None``.
 
 * ``client_cert_error`` (*Unicode string or None*) -- ``None`` if a client
   certificate was provided and successfully verified, or was not provided.
@@ -183,17 +174,11 @@ Specifying ``cipher_suite`` as an integer, not a string:
 * Using a single integer, rather than a pair of integers, makes handling this
   value simpler and faster.
 
-``client_cert_name`` duplicates information that is also available in
-``client_cert_chain``.  However, many ASGI applications will probably find
-that information is sufficient for their application - it provides a simple
-string that identifies the user.  It is simpler to use than parsing the x509
-certificate.  For the server, this information is readily available.
+Version History
+---------------
 
-There are theoretical interoperability problems with ``client_cert_name``,
-since it depends on a list of object ID names that is maintained by IANA and
-theoretically can change.  In practice, this is not a real problem, since the
-object IDs that are actually used in certificates have not changed in many
-years.  So in practice it will be fine.
+* 0.3 (2026-09-15): Added ``spec_version`` and removed ``client_cert_name``.
+* 0.2 (2020-10-02): Initial version.
 
 
 Copyright
