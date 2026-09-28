@@ -146,6 +146,22 @@ ASGI servers that implement this extension will provide
         },
     }
 
+Servers that support the ``offset`` and ``count`` parameters for range
+requests must advertise this capability via::
+
+    "scope": {
+        ...
+        "extensions": {
+            "http.response.pathsend": {
+                "ranges": True,
+            },
+        },
+    }
+
+Applications should check for the presence of ``ranges`` before using
+``offset`` and ``count`` parameters. Servers that advertise
+``"ranges": True`` must handle these parameters correctly.
+
 The ASGI framework can initiate a path-send by sending a message with
 the following keys. This message can be sent at any time after the
 *Response Start* message, and cannot be mixed with ``http.response.body``.
@@ -159,6 +175,14 @@ Keys:
 
 * ``path`` (*Unicode string*): The string representation of the absolute
   file path to be sent by the server, platform specific.
+
+* ``offset`` (*int*): Optional. If this value exists, it will specify
+  the offset at which the server starts to read data from ``path``.
+  Otherwise, it will be read from the beginning of the file.
+
+* ``count`` (*int*): Optional. ``count`` is the number of bytes to
+  copy from the file. If omitted, the file will be read from the
+  offset (or beginning) until its end.
 
 The ASGI application itself is responsible to send the relevant headers
 in the *Response Start* message, like the ``Content-Type`` and
