@@ -93,6 +93,11 @@ async def check_client_msg(client, expected_address, expected_msg):
     assert server_addr == expected_address
 
 
+async def wait_until(predicate):
+    while not predicate():
+        await asyncio.sleep(0)
+
+
 @pytest.mark.asyncio
 async def test_stateless_server(server):
     """StatelessServer can be instantiated with an ASGI 3 application."""
@@ -162,6 +167,83 @@ def test_stateless_server_run():
     if errors:
         raise errors[0]
     assert server.handled
+
+
+@pytest.mark.asyncio
+async def test_application_checker_survives_cancelled_application():
+    exceptions = []
+
+    async def app(scope, receive, send):
+        if scope["cancel"]:
+            task = asyncio.current_task()
+            assert task is not None
+            task.cancel()
+            await asyncio.sleep(0)
+        raise RuntimeError("application failed")
+
+    class CheckerServer(StatelessServer):
+        application_checker_interval = 0
+
+        async def application_send(self, scope, message):
+            pass
+
+        async def application_exception(self, exception, application_details):
+            exceptions.append(exception)
+
+    server = CheckerServer(app)
+    server.get_or_create_application_instance("cancelled", {"cancel": True})
+    server.get_or_create_application_instance("failed", {"cancel": False})
+    checker = asyncio.create_task(server.application_checker())
+
+    try:
+        await asyncio.wait_for(
+            wait_until(lambda: not server.application_instances), timeout=1
+        )
+        assert not checker.done()
+        assert len(exceptions) == 1
+        assert str(exceptions[0]) == "application failed"
+    finally:
+        checker.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await checker
+
+
+@pytest.mark.asyncio
+async def test_application_checker_survives_exception_handler_failure(caplog):
+    handled = []
+
+    async def app(scope, receive, send):
+        raise RuntimeError(scope)
+
+    class CheckerServer(StatelessServer):
+        application_checker_interval = 0
+
+        async def application_send(self, scope, message):
+            pass
+
+        async def application_exception(self, exception, application_details):
+            handled.append(str(exception))
+            if str(exception) == "first":
+                raise RuntimeError("exception handler failed")
+
+    server = CheckerServer(app)
+    server.get_or_create_application_instance("first", "first")
+    server.get_or_create_application_instance("second", "second")
+    checker = asyncio.create_task(server.application_checker())
+
+    try:
+        await asyncio.wait_for(
+            wait_until(lambda: not server.application_instances), timeout=1
+        )
+        assert not checker.done()
+        assert handled == ["first", "second"]
+        assert "Exception inside application_exception()" in caplog.text
+    finally:
+        checker.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await checker
 
 
 @pytest.mark.asyncio
