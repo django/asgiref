@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import socket as sock
 import threading
 
@@ -6,6 +7,36 @@ import pytest
 import pytest_asyncio
 
 from asgiref.server import StatelessServer
+
+
+@pytest.mark.asyncio
+async def test_application_exception_logging(caplog):
+    """Exception details remain available to logging handlers and formatters."""
+    with pytest.raises(ValueError) as raised:
+        try:
+            raise RuntimeError("underlying failure")
+        except RuntimeError as cause:
+            raise ValueError("application failure") from cause
+
+    exception = raised.value
+    await StatelessServer(None).application_exception(exception, {})
+
+    (record,) = caplog.records
+    assert record.levelno == logging.ERROR
+    assert record.getMessage() == "Exception inside application: application failure"
+    assert record.exc_info == (ValueError, exception, exception.__traceback__)
+    formatted = logging.Formatter().formatException(record.exc_info)
+    assert "RuntimeError: underlying failure" in formatted
+    assert "ValueError: application failure" in formatted
+
+
+@pytest.mark.asyncio
+async def test_application_exception_without_traceback(caplog):
+    exception = ValueError("application failure")
+    await StatelessServer(None).application_exception(exception, {})
+
+    (record,) = caplog.records
+    assert record.exc_info == (ValueError, exception, None)
 
 
 async def sock_recvfrom(sock, n):
