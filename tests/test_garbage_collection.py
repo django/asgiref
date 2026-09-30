@@ -35,6 +35,14 @@ def clean_up_after_garbage_collection_test() -> None:
 @pytest.mark.skipif(
     sys.implementation.name == "pypy", reason="Test relies on CPython GC internals"
 )
+@pytest.mark.skipif(
+    not getattr(sys, "_is_gil_enabled", lambda: True)(),
+    reason=(
+        "On a free-threaded build the cyclic collector may reclaim objects that "
+        "are freed immediately by reference counting under the GIL, so they show "
+        "up in gc.garbage with DEBUG_SAVEALL even without a real leak."
+    ),
+)
 def test_thread_critical_Local_remove_all_reference_cycles() -> None:
     try:
         # given

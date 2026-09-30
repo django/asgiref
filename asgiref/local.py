@@ -2,21 +2,58 @@ import asyncio
 import contextlib
 import contextvars
 import threading
-from typing import Any, Dict, Union
+from typing import Any, Union
+
+
+class _Storage:
+    """Thread-tagged storage for a non-thread-critical ``Local``.
+
+    The data is tagged with the identity of the thread that owns it. This lets
+    ``_CVar`` ignore data that leaked into an unrelated thread.
+
+    Python 3.14 added ``sys.flags.thread_inherit_context``, which is enabled by
+    default on free-threaded builds. When set, a new thread starts with a copy
+    of the spawning thread's context instead of an empty one, so the contextvar
+    backing a ``Local`` would otherwise be visible in any thread spawned from
+    one that had set it -- breaking the documented "thread-local in sync
+    threads" behaviour. asgiref re-homes the storage to the current thread at
+    the points where it *intentionally* moves work between threads (see
+    ``asgiref.sync._restore_context``); data merely inherited by an unrelated
+    thread is never re-homed and so stays isolated.
+    """
+
+    __slots__ = ("thread_id", "data")
+
+    def __init__(self, thread_id: int, data: dict[str, Any]) -> None:
+        self.thread_id = thread_id
+        self.data = data
+
+
+def _rehome(storage: "_Storage") -> "_Storage":
+    """Return a copy of *storage* owned by the current thread."""
+    return _Storage(threading.get_ident(), storage.data)
 
 
 class _CVar:
     """Storage utility for Local."""
 
     def __init__(self) -> None:
-        self._data: "contextvars.ContextVar[Dict[str, Any]]" = contextvars.ContextVar(
+        self._data: "contextvars.ContextVar[_Storage]" = contextvars.ContextVar(
             "asgiref.local"
         )
 
+    def _storage(self) -> "_Storage":
+        # Only return storage that belongs to the current thread. Storage with
+        # a different thread id was inherited by this thread (rather than
+        # intentionally moved here by asgiref) and must not be visible.
+        storage = self._data.get(None)
+        if storage is None or storage.thread_id != threading.get_ident():
+            return _Storage(threading.get_ident(), {})
+        return storage
+
     def __getattr__(self, key):
-        storage_object = self._data.get({})
         try:
-            return storage_object[key]
+            return self._storage().data[key]
         except KeyError:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
@@ -24,15 +61,15 @@ class _CVar:
         if key == "_data":
             return super().__setattr__(key, value)
 
-        storage_object = self._data.get({}).copy()
-        storage_object[key] = value
-        self._data.set(storage_object)
+        data = self._storage().data.copy()
+        data[key] = value
+        self._data.set(_Storage(threading.get_ident(), data))
 
     def __delattr__(self, key: str) -> None:
-        storage_object = self._data.get({}).copy()
-        if key in storage_object:
-            del storage_object[key]
-            self._data.set(storage_object)
+        data = self._storage().data.copy()
+        if key in data:
+            del data[key]
+            self._data.set(_Storage(threading.get_ident(), data))
         else:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
@@ -59,7 +96,7 @@ class Local:
     If `thread_critical` is True, then the local will only be visible per-thread,
     behaving exactly like `threading.local` if the thread is sync, and as
     `contextvars` if the thread is async. This allows genuinely thread-sensitive
-    code (such as DB handles) to be kept stricly to their initial thread and
+    code (such as DB handles) to be kept strictly to their initial thread and
     disable the sharing across `sync_to_async` and `async_to_sync` wrapped calls.
 
     Unlike plain `contextvars` objects, this utility is threadsafe.

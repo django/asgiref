@@ -1,3 +1,66 @@
+3.12.1 (2026-07-14)
+-------------------
+
+* Restored the previous SyncToAsync.__call__ internal code shape, which was
+  relied on by some APM services. (#572)
+
+  Note, this change was available whilst maintaining the underlying fix (from
+  #564). It does not constitute an API stability promise. Ideally APMs are
+  *not* monkey patching internal APIs, and future changes will be made here if
+  needed.
+
+3.12.0 (2026-07-14)
+-------------------
+
+* ``AsyncToSync`` no longer captures the running event loop on
+  instantiation. (#562)
+
+  This resolves a series of deadlocks that users experienced after asgiref 3.9.0,
+  particularly with pytest-asyncio. pytest-asyncio stops the event loop between
+  tests, and long-running unawaited futures could find themselves trying to
+  schedule work onto a stopped loop, and so would never complete. Ideally, code
+  should be structured to await long-running futures before returning, but this
+  change should help users experiencing issues here.
+
+  The loop is now resolved when the callable is invoked rather than when it is
+  created. If ``async_to_sync`` is called from within ``sync_to_async``, the
+  parent event loop is still used, as before.
+
+  The possibility of deadlock therefore remains in some nested patterns. For
+  example, an async function may call a long-running ``sync_to_async`` function
+  that itself uses ``async_to_sync``; if the outer function returns before the
+  sync future completes, the parent event loop may already be stopped, and the
+  nested calls cannot be driven to completion.
+
+  This is not a bug in asgiref — the same patterns deadlock in plain asyncio. As
+  above, restructure your code to await the ``sync_to_async`` future before
+  exiting the driving coroutine.
+
+* Fixed an event loop deadlock when exiting ``ThreadSensitiveContext``
+  while its executor thread was still blocked waiting on the event loop.
+  (#535)
+
+* Dropped support for EOL Python 3.9.
+
+* Fixed ``StatelessServer.run()`` failing on Python 3.14, where
+  ``asyncio.get_event_loop()`` no longer creates an event loop if none
+  exists. It now uses ``asyncio.run()``. (#559)
+
+* Fixed ``Local`` leaking data between unrelated sync threads when
+  ``sys.flags.thread_inherit_context`` is enabled (Python 3.14+), so a newly
+  started thread inherits a copy of the spawning thread's context. This flag is
+  on by default on free-threaded builds and opt-in on the regular GIL build.
+  ``Local`` storage is now tagged with its owning thread and re-homed only when
+  asgiref intentionally moves work across threads (in ``async_to_sync`` /
+  ``sync_to_async``), restoring the documented thread-local behaviour in sync
+  threads.
+
+* asgiref is now tested against the free-threaded builds of Python 3.13 and
+  3.14 in CI.
+
+* The ``tests`` extra no longer installs ``mypy``; a new ``mypy`` extra is
+  available for type-checking the codebase.
+
 3.11.1 (2026-02-03)
 -------------------
 

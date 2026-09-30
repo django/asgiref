@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from typing import Dict, List
 
 #
 # ASGI documentation build configuration file, created by
@@ -32,10 +31,10 @@ from typing import Dict, List
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions: List[str] = []
+extensions: list[str] = []
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path: List[str] = []
+templates_path: list[str] = []
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -95,7 +94,7 @@ html_theme = "sphinx_rtd_theme"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path: List[str] = []
+html_static_path: list[str] = []
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -121,7 +120,7 @@ htmlhelp_basename = "ASGIdoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements: Dict[str, str] = {
+latex_elements: dict[str, str] = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',

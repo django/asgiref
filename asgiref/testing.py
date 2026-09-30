@@ -108,7 +108,7 @@ class ApplicationCommunicator:
         try:
             async with async_timeout(timeout):
                 return await self.output_queue.get()
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             # See if we have another error to raise inside
             if self.future.done():
                 self.future.result()
