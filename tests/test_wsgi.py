@@ -380,3 +380,126 @@ async def test_duplicate_header_limit_disabled():
         "more_body": True,
     }
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+class ClosingIterable:
+    """
+    A WSGI response iterable that records whether close() was called.
+    """
+
+    def __init__(self, chunks):
+        self.chunks = iter(chunks)
+        self.closed = False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.chunks)
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.mark.parametrize("headers", [[], [("Content-Length", "10")]])
+@pytest.mark.asyncio
+async def test_wsgi_closes_response_iterable(headers):
+    """
+    PEP 3333 requires the gateway to call close() on the response iterable once
+    the request is complete.
+    """
+    body = ClosingIterable([b"hello", b"world"])
+
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", headers)
+        return body
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    while (await instance.receive_output(1)) != {"type": "http.response.body"}:
+        pass
+
+    assert body.closed
+
+
+@pytest.mark.asyncio
+async def test_wsgi_closes_response_iterable_when_truncated():
+    """
+    close() is called even though iteration stops early because Content-Length
+    bytes have already been sent.
+    """
+    body = ClosingIterable([b"hello", b"world"])
+
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [("Content-Length", "5")])
+        return body
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    while (await instance.receive_output(1)) != {"type": "http.response.body"}:
+        pass
+
+    assert body.closed
+    # The rest of the iterable was never consumed.
+    assert next(body.chunks) == b"world"
+
+
+@pytest.mark.asyncio
+async def test_wsgi_closes_response_iterable_on_error():
+    """
+    close() is called when the application raises part way through iteration.
+    """
+
+    class ExplodingIterable(ClosingIterable):
+        def __next__(self):
+            chunk = super().__next__()
+            if chunk is None:
+                raise ValueError("application error")
+            return chunk
+
+    body = ExplodingIterable([b"hello", None])
+
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [])
+        return body
+
+    application = WsgiToAsgi(wsgi_application)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+    with pytest.raises(ValueError, match="application error"):
+        while True:
+            await instance.receive_output(1)
+
+    assert body.closed
