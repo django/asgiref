@@ -100,6 +100,9 @@ class ApplicationCommunicator:
     async def receive_output(self, timeout=1):
         """
         Receives a single message from the application, with optional timeout.
+
+        A timeout leaves the application running. Use stop() or wait() to clean
+        up the application when finished.
         """
         # Make sure there's not an exception to raise from the task
         if self.future.done():
@@ -112,12 +115,6 @@ class ApplicationCommunicator:
             # See if we have another error to raise inside
             if self.future.done():
                 self.future.result()
-            else:
-                self.future.cancel()
-                try:
-                    await self.future
-                except asyncio.CancelledError:
-                    pass
             raise e
 
     async def receive_nothing(self, timeout=0.1, interval=0.01):
