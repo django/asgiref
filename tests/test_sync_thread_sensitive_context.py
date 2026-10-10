@@ -312,8 +312,11 @@ async def test_executor_context_leaves_non_thread_sensitive_calls_unchanged() ->
 
 
 @pytest.mark.asyncio
-async def test_executor_context_reuse() -> None:
-    """An executor context can be reused after exit, but not while it is active."""
+async def test_executor_context_is_single_use() -> None:
+    """An executor context cannot be entered while active or after exit.
+
+    Its executor can be given to a new context.
+    """
     with single_worker() as executor:
         context = ThreadSensitiveContext(executor=executor)
         async with context:
@@ -321,8 +324,63 @@ async def test_executor_context_reuse() -> None:
             with pytest.raises(RuntimeError, match="already entered"):
                 async with context:
                     pass
-        async with context:
+        with pytest.raises(RuntimeError, match="cannot be entered again"):
+            async with context:
+                pass
+        async with ThreadSensitiveContext(executor=executor):
             assert await sync_to_async(threading.current_thread)() is first
+
+
+@pytest.mark.asyncio
+async def test_executor_context_rejects_calls_after_exit() -> None:
+    """A task that outlives an executor context cannot make thread-sensitive calls.
+
+    A task that finishes inside the block uses the block's executor.
+    """
+    thread = sync_to_async(threading.current_thread)
+    exited = asyncio.Event()
+
+    async def late() -> threading.Thread:
+        await exited.wait()
+        return await thread()
+
+    with single_worker() as executor:
+        async with ThreadSensitiveContext() as parent:
+            parent_thread = await thread()
+            async with ThreadSensitiveContext(executor=executor) as child:
+                child_thread = await thread()
+                assert await asyncio.create_task(thread()) is child_thread
+                task = asyncio.create_task(late())
+            exited.set()
+            with pytest.raises(RuntimeError, match="has exited"):
+                await task
+            # No executor was created for the exited context.
+            assert child not in SyncToAsync.context_to_thread_executor
+            assert SyncToAsync.thread_sensitive_context.get() is parent
+            assert await thread() is parent_thread
+
+
+@pytest.mark.asyncio
+async def test_plain_context_allows_calls_after_exit() -> None:
+    """A task that outlives a context without an executor gets a new worker.
+
+    Only contexts with an executor reject late calls.
+    """
+    thread = sync_to_async(threading.current_thread)
+    exited = asyncio.Event()
+
+    async def late() -> threading.Thread:
+        await exited.wait()
+        return await thread()
+
+    async with ThreadSensitiveContext() as context:
+        context_thread = await thread()
+        task = asyncio.create_task(late())
+    exited.set()
+    try:
+        assert await task is not context_thread
+    finally:
+        SyncToAsync.context_to_thread_executor.pop(context).shutdown()
 
 
 @pytest.mark.asyncio

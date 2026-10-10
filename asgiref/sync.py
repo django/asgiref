@@ -122,8 +122,9 @@ class ThreadSensitiveContext:
     or an AsyncToSync call. On exit, the parent context is restored. The
     executor must run one call at a time on one thread, for example
     ThreadPoolExecutor(max_workers=1). The caller owns the executor: it is not
-    shut down on exit, so it can be used again. Use a separate instance for each
-    active block with an executor.
+    shut down on exit, so it can be used again. A context with an executor can
+    be entered only once. Tasks created inside it must finish before it exits:
+    their later thread-sensitive calls raise RuntimeError.
 
     Usage:
 
@@ -136,6 +137,9 @@ class ThreadSensitiveContext:
         self._executor = executor
         self.token: contextvars.Token[ThreadSensitiveContext] | None = None
         self._old_executor: CurrentThreadExecutor | None = None
+        # Set when a context with an executor exits. SyncToAsync then rejects
+        # calls from tasks that inherited the context and outlived it.
+        self._exited = False
 
     async def __aenter__(self):
         if self._executor is not None:
@@ -143,6 +147,12 @@ class ThreadSensitiveContext:
             # reusing an enclosing thread-sensitive context.
             if self.token is not None:
                 raise RuntimeError("ThreadSensitiveContext is already entered")
+            if self._exited:
+                # Entering again would route tasks that outlived the first
+                # block to the second.
+                raise RuntimeError(
+                    "ThreadSensitiveContext with an executor cannot be entered again"
+                )
             self.token = SyncToAsync.thread_sensitive_context.set(self)
             SyncToAsync.context_to_thread_executor[self] = self._executor
             # SyncToAsync.__call__ gives an inherited CurrentThreadExecutor priority
@@ -182,6 +192,7 @@ class ThreadSensitiveContext:
         if self._executor is not None:
             AsyncToSync.executors.current = self._old_executor
             self._old_executor = None
+            self._exited = True
             # The caller owns the executor, so it is not shut down here.
             return
         if executor:
@@ -509,6 +520,15 @@ class SyncToAsync(Generic[_P, _R]):
                 # to use a per-context thread pool executor
                 thread_sensitive_context = self.thread_sensitive_context.get()
 
+                if thread_sensitive_context._exited:
+                    # This task inherited a context with an executor and has
+                    # outlived it. Creating an executor here would silently
+                    # move the call to an unrelated thread.
+                    raise RuntimeError(
+                        "ThreadSensitiveContext has exited. Tasks created "
+                        "inside a context with an executor must finish before "
+                        "it exits."
+                    )
                 if thread_sensitive_context in self.context_to_thread_executor:
                     # Re-use thread executor in current context
                     executor = self.context_to_thread_executor[thread_sensitive_context]
