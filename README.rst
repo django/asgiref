@@ -83,9 +83,10 @@ time.
 
 Tasks created inside a block inherit its context. To isolate concurrent tasks,
 each task must enter its own ``ThreadSensitiveContext`` with its own executor.
-Wait for those tasks before leaving the context. Use a separate context manager
-instance for each active block with an executor. ``thread_sensitive=False``
-calls are not affected.
+Wait for those tasks before leaving the context. A thread-sensitive call made
+by such a task after the context has exited raises ``RuntimeError``. A context
+with an executor can be entered only once: create a new one for each block.
+``thread_sensitive=False`` calls are not affected.
 
 This separates thread-critical ``Local`` storage, such as Django's connection
 storage. It does not change normal ``ContextVar`` or non-thread-critical
