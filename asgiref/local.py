@@ -34,13 +34,16 @@ def _rehome(storage: "_Storage") -> "_Storage":
     return _Storage(threading.get_ident(), storage.data)
 
 
+_object_setattr = object.__setattr__
+
+
 class _CVar:
     """Storage utility for Local."""
 
+    _data: "contextvars.ContextVar[_Storage]"
+
     def __init__(self) -> None:
-        self._data: "contextvars.ContextVar[_Storage]" = contextvars.ContextVar(
-            "asgiref.local"
-        )
+        _object_setattr(self, "_data", contextvars.ContextVar("asgiref.local"))
 
     def _storage(self) -> "_Storage":
         # Only return storage that belongs to the current thread. Storage with
@@ -59,7 +62,7 @@ class _CVar:
 
     def __setattr__(self, key: str, value: Any) -> None:
         if key == "_data":
-            return super().__setattr__(key, value)
+            raise AttributeError("Cannot set attribute '_data' on Local")
 
         data = self._storage().data.copy()
         data[key] = value
