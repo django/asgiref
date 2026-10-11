@@ -1,3 +1,9 @@
+UNRELEASED
+----------
+
+* ``asgiref.timeout.timeout`` is deprecated, and will be removed in a future
+  release. Move to use ``asyncio.timeout()`` instead.
+
 3.12.1 (2026-07-14)
 -------------------
 
