@@ -1,6 +1,9 @@
 UNRELEASED
 ----------
 
+* ``StatelessServer`` now keeps application pools within ``max_applications``
+  and rejects nonpositive capacities.
+
 * ``asgiref.timeout.timeout`` is deprecated, and will be removed in a future
   release. Move to use ``asyncio.timeout()`` instead.
 

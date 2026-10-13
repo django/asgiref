@@ -31,7 +31,7 @@ class StatelessServer:
 
     If you try and create an application instance and there are already
     `max_application` instances, the oldest/least recently used one will be
-    reclaimed and shut down to make space.
+    reclaimed and shut down to make space. ``max_applications`` must be at least 1.
 
     Application coroutines that error will be found periodically (every 100ms
     by default) and have their exceptions printed to the console. Override
@@ -44,6 +44,8 @@ class StatelessServer:
     application_checker_interval = 0.1
 
     def __init__(self, application, max_applications=1000):
+        if max_applications < 1:
+            raise ValueError("max_applications must be at least 1")
         # Parameters
         self.application = application
         self.max_applications = max_applications
@@ -97,7 +99,7 @@ class StatelessServer:
             self.application_instances[scope_id]["last_used"] = time.time()
             return self.application_instances[scope_id]["input_queue"]
         # See if we need to delete an old one
-        while len(self.application_instances) > self.max_applications:
+        while len(self.application_instances) >= self.max_applications:
             self.delete_oldest_application_instance()
         # Make an instance of the application
         input_queue = asyncio.Queue()
