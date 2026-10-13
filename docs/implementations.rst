@@ -53,6 +53,15 @@ rather than maintaining separate code paths for each backend.
 Supports HTTP/1, HTTP/2, HTTP/3, WebSockets, and the :doc:`TLS extension <specs/tls>`.
 HTTP/3 support requires the ``h3`` extra (``pip install anycorn[h3]``).
 
+pyvoy
+-----
+
+*Beta* / https://pyvoy.dev
+
+pyvoy is a modern, fast, and stable Python application server built with [Envoy](https://www.envoyproxy.io/).
+
+Supports HTTP/1/2/3, WebSockets, and all the features of Envoy itself.
+
 Uvicorn
 -------
 
