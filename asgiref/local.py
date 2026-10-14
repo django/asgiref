@@ -1,7 +1,7 @@
 import asyncio
 import contextvars
 import threading
-from typing import Any
+from typing import Any, final
 
 
 class _Storage:
@@ -76,6 +76,7 @@ class _CVar:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
 
+@final
 class Local:
     """Local storage for async tasks.
 
@@ -105,6 +106,8 @@ class Local:
     """
 
     def __new__(cls, thread_critical: bool = False) -> "Local":
+        if cls is not Local:
+            raise TypeError("asgiref.local.Local cannot be subclassed")
         # Make `Local(...)` actually instantiate either of the specialized subclasses.
         if thread_critical:
             return object.__new__(_ThreadCriticalLocal)
@@ -126,7 +129,7 @@ class Local:
     def __delattr__(self, key: str) -> Any: ...
 
 
-class _DefaultLocal(Local):
+class _DefaultLocal(Local):  # type: ignore[misc]
     """Local with thread_critical=False: CVar storage protected by a lock."""
 
     def __init__(self, thread_critical: bool = False) -> None:
@@ -160,7 +163,7 @@ class _DefaultLocal(Local):
             self._lock.release()
 
 
-class _ThreadCriticalLocal(Local):
+class _ThreadCriticalLocal(Local):  # type: ignore[misc]
     """Local with thread_critical=True: thread-local storage, CVar in async."""
 
     def __init__(self, thread_critical: bool = False) -> None:

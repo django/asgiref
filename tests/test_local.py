@@ -457,3 +457,11 @@ def test_new_returns_specialized_subclass() -> None:
     assert isinstance(default, Local)
     assert isinstance(tc, Local)
     assert type(tc) is not type(default)  # type: ignore[comparison-overlap]
+
+
+def test_local_cannot_be_subclassed() -> None:
+    class MyLocal(Local):  # type: ignore[misc]
+        pass
+
+    with pytest.raises(TypeError, match="cannot be subclassed"):
+        MyLocal()
