@@ -91,7 +91,9 @@ def test_delattr_thread_critical(
     benchmark(del_cycle)
 
 
-# -- Async, thread_critical=True (thread-local + CVar path) --
+# -- Async paths --
+#
+# Call benchmark inside coroutine to avoid capturing loop setup/teardown.
 
 
 def test_getattr_thread_critical_async(
@@ -99,11 +101,11 @@ def test_getattr_thread_critical_async(
 ) -> None:
     local = Local(thread_critical=True)
 
-    async def do_get() -> Any:
+    async def run() -> None:
         local.x = 1
-        return local.x
+        benchmark(getattr, local, "x")
 
-    benchmark(lambda: event_loop.run_until_complete(do_get()))
+    event_loop.run_until_complete(run())
 
 
 def test_setattr_thread_critical_async(
@@ -111,7 +113,34 @@ def test_setattr_thread_critical_async(
 ) -> None:
     local = Local(thread_critical=True)
 
-    async def do_set() -> None:
-        local.x = 1
+    async def run() -> None:
+        benchmark(setattr, local, "x", 1)
 
-    benchmark(lambda: event_loop.run_until_complete(do_set()))
+    event_loop.run_until_complete(run())
+
+
+def test_delattr_thread_critical_async(
+    benchmark: BenchmarkFixture, event_loop: asyncio.AbstractEventLoop
+) -> None:
+    local = Local(thread_critical=True)
+
+    def del_cycle() -> None:
+        local.x = 1
+        del local.x
+
+    async def run() -> None:
+        benchmark(del_cycle)
+
+    event_loop.run_until_complete(run())
+
+
+def test_getattr_default_async(
+    benchmark: BenchmarkFixture, event_loop: asyncio.AbstractEventLoop
+) -> None:
+    local = Local(thread_critical=False)
+
+    async def run() -> None:
+        local.x = 1
+        benchmark(getattr, local, "x")
+
+    event_loop.run_until_complete(run())
