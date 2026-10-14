@@ -115,6 +115,20 @@ To run tests, make sure you have installed the ``tests`` extra with the package:
     pip install -e .[tests]
     pytest
 
+There is also a micro-benchmark suite for ``asgiref.local`` in
+``tests/test_benchmark_local.py``. It is skipped unless ``pytest-benchmark``
+(or ``pytest-codspeed``) is installed, and is not part of the regular CI run.
+To run it via tox::
+
+    tox -e benchmark
+
+Benchmark numbers are only meaningful when compared on the same machine, so
+the typical workflow is to save a baseline and then compare against it::
+
+    tox -e benchmark -- --benchmark-save=before
+    # ... make changes ...
+    tox -e benchmark -- --benchmark-compare
+
 
 Building the documentation
 ''''''''''''''''''''''''''
