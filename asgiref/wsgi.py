@@ -111,7 +111,8 @@ class WsgiToAsgiInstance:
                 )
             _headers[corrected_name].append(value)
         for name, values in _headers.items():
-            environ[name] = ",".join(values)
+            separator = "; " if name == "HTTP_COOKIE" else ","
+            environ[name] = separator.join(values)
         return environ
 
     def start_response(self, status, response_headers, exc_info=None):

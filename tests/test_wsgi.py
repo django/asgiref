@@ -1,4 +1,5 @@
 import sys
+from http.cookies import SimpleCookie
 
 import pytest
 
@@ -54,6 +55,29 @@ async def test_basic_wsgi():
         "more_body": True,
     }
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.parametrize("http_version", ["2", "3"])
+def test_wsgi_duplicate_cookie_headers(http_version):
+    scope = {
+        "type": "http",
+        "http_version": http_version,
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [
+            (b"cookie", b"theme=light"),
+            (b"cookie", b"session=abc"),
+        ],
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+
+    assert environ["HTTP_COOKIE"] == "theme=light; session=abc"
+    cookies = SimpleCookie(environ["HTTP_COOKIE"])
+    assert cookies["theme"].value == "light"
+    assert cookies["session"].value == "abc"
 
 
 def test_script_name():
