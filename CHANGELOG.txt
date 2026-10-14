@@ -4,6 +4,14 @@ UNRELEASED
 * ``StatelessServer`` now keeps application pools within ``max_applications``
   and rejects nonpositive capacities.
 
+* ``Local`` attribute access is now 2-3x faster. ``Local(...)`` now uses one
+  of two internal specialisations, selected by ``thread_critical``, instead of
+  checking the mode on every access. (#551)
+
+  As a result ``Local`` is now marked ``@final`` and raises ``TypeError`` if
+  subclassed. Subclassing was never supported, and could not have worked
+  correctly with the specialised implementations.
+
 * ``asgiref.timeout.timeout`` is deprecated, and will be removed in a future
   release. Move to use ``asyncio.timeout()`` instead.
 
