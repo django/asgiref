@@ -183,3 +183,36 @@ async def test_server_delete_instance(server):
         await asyncio.gather(client1_multiple_register(), server.arun())
     except Done:
         pass
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("capacity", [1, 2, 3])
+async def test_application_pool_respects_capacity(capacity):
+    async def app(scope, receive, send):
+        await receive()
+
+    server = StatelessServer(app, max_applications=capacity)
+    tasks = []
+    try:
+        for index in range(capacity + 2):
+            scope_id = str(index)
+            queue = server.get_or_create_application_instance(scope_id, {})
+            tasks.append(server.application_instances[scope_id]["future"])
+            server.application_instances[scope_id]["last_used"] = index
+            assert len(server.application_instances) <= capacity
+            assert server.get_or_create_application_instance(scope_id, {}) is queue
+            server.application_instances[scope_id]["last_used"] = index
+
+        assert list(server.application_instances) == [
+            str(index) for index in range(2, capacity + 2)
+        ]
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+@pytest.mark.parametrize("capacity", [0, -1])
+def test_application_pool_rejects_nonpositive_capacity(capacity):
+    with pytest.raises(ValueError, match="max_applications must be at least 1"):
+        StatelessServer(None, max_applications=capacity)
