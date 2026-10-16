@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-import traceback
 
 from .compatibility import guarantee_single_callable
 
@@ -165,8 +164,7 @@ class StatelessServer:
         Called whenever an application coroutine has an exception.
         """
         logging.error(
-            "Exception inside application: %s\n%s%s",
+            "Exception inside application: %s",
             exception,
-            "".join(traceback.format_tb(exception.__traceback__)),
-            f"  {exception}",
+            exc_info=exception,
         )
