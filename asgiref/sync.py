@@ -414,10 +414,10 @@ class SyncToAsync(Generic[_P, _R]):
         contextvars.ContextVar("thread_sensitive_context")
     )
 
-    # Contextvar that is used to detect if the single thread executor
-    # would be awaited on while already being used in the same context
-    deadlock_context: "contextvars.ContextVar[bool]" = contextvars.ContextVar(
-        "deadlock_context"
+    # A shared completion marker lets copied contexts distinguish a live
+    # single-thread invocation from one that has already finished.
+    deadlock_context: "contextvars.ContextVar[threading.Event | None]" = (
+        contextvars.ContextVar("deadlock_context")
     )
 
     # Maintaining a weak reference to the context ensures that thread pools are
@@ -457,6 +457,8 @@ class SyncToAsync(Generic[_P, _R]):
     async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
         loop = asyncio.get_running_loop()
+        parent_deadlock_context = self.deadlock_context.get(None)
+        deadlock_context: threading.Event | None = None
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
@@ -479,14 +481,17 @@ class SyncToAsync(Generic[_P, _R]):
             elif loop in AsyncToSync.loop_thread_executors:
                 # Re-use thread executor for running loop
                 executor = AsyncToSync.loop_thread_executors[loop]
-            elif self.deadlock_context.get(False):
+            elif (
+                parent_deadlock_context is not None
+                and not parent_deadlock_context.is_set()
+            ):
                 raise RuntimeError(
                     "Single thread executor already being used, would deadlock"
                 )
             else:
                 # Otherwise, we run it in a fixed single thread
                 executor = self.single_thread_executor
-                self.deadlock_context.set(True)
+                deadlock_context = threading.Event()
         else:
             # Use the passed in executor, or the loop's default if it is None
             executor = self._executor
@@ -503,7 +508,15 @@ class SyncToAsync(Generic[_P, _R]):
         def func(child: Callable[[], _R]) -> _R:
             def run_child() -> _R:
                 _restore_context(context)
-                return child()
+                if deadlock_context is None:
+                    return child()
+                token = self.deadlock_context.set(deadlock_context)
+                try:
+                    return child()
+                finally:
+                    self.deadlock_context.reset(token)
+                    # Cancellation of the awaiter does not finish this work.
+                    deadlock_context.set()
 
             return context.run(run_child)
 
@@ -544,7 +557,7 @@ class SyncToAsync(Generic[_P, _R]):
         finally:
             if self.context is None:
                 _restore_context(context)
-            self.deadlock_context.set(False)
+            self.deadlock_context.set(parent_deadlock_context)
 
         return ret
 

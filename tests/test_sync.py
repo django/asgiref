@@ -1572,3 +1572,149 @@ def test_async_to_sync_with_stopped_main_loop():
         assert result["value"] == 42
     finally:
         loop.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("explicit_context", [False, True])
+@pytest.mark.parametrize("outer_raises", [False, True])
+async def test_sync_to_async_deadlock_context_expires(explicit_context, outer_raises):
+    """A detached child can reuse the single worker after its parent finishes."""
+    loop = asyncio.get_running_loop()
+    release = asyncio.Event()
+    value = contextvars.ContextVar("value", default="parent")
+    context = contextvars.copy_context() if explicit_context else None
+    if context is not None:
+        context.run(value.set, "explicit")
+    futures = []
+    threads = []
+
+    async def child():
+        await release.wait()
+        return await sync_to_async(lambda: (threading.get_ident(), value.get()))()
+
+    def outer():
+        threads.append(threading.get_ident())
+        value.set("worker")
+        futures.append(asyncio.run_coroutine_threadsafe(child(), loop))
+        if outer_raises:
+            raise ValueError("outer failed")
+
+    try:
+        if outer_raises:
+            with pytest.raises(ValueError, match="outer failed"):
+                await sync_to_async(outer, context=context)()
+        else:
+            await sync_to_async(outer, context=context)()
+        # The synchronous invocation has returned or raised before the child runs.
+        release.set()
+        result = await asyncio.wait_for(asyncio.wrap_future(futures[0]), 3)
+        assert result == (threads[0], "worker")
+        assert value.get() == ("parent" if explicit_context else "worker")
+        if context is not None:
+            assert context.get(value) == "worker"
+    finally:
+        release.set()
+        for future in futures:
+            future.cancel()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("explicit_context", [False, True])
+async def test_sync_to_async_deadlock_context_blocks_recursion(explicit_context):
+    """A worker waiting on its child must not queue work back to itself."""
+    loop = asyncio.get_running_loop()
+    context = contextvars.copy_context() if explicit_context else None
+
+    async def child():
+        return await sync_to_async(lambda: 42)()
+
+    def outer():
+        future = asyncio.run_coroutine_threadsafe(child(), loop)
+        try:
+            return future.result(timeout=2)
+        finally:
+            future.cancel()
+
+    with pytest.raises(RuntimeError, match="would deadlock"):
+        await asyncio.wait_for(sync_to_async(outer, context=context)(), 3)
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_deadlock_context_survives_nested_bridge():
+    """A nested call using CurrentThreadExecutor cannot clear its parent's guard."""
+    loop = asyncio.get_running_loop()
+    threads = []
+
+    async def bridge():
+        threads.append(await sync_to_async(threading.get_ident)())
+
+    async def child():
+        return await sync_to_async(lambda: 42)()
+
+    def outer():
+        threads.append(threading.get_ident())
+        async_to_sync(bridge)()
+        future = asyncio.run_coroutine_threadsafe(child(), loop)
+        try:
+            return future.result(timeout=2)
+        finally:
+            future.cancel()
+
+    with pytest.raises(RuntimeError, match="would deadlock"):
+        await asyncio.wait_for(sync_to_async(outer)(), 3)
+    assert threads[0] == threads[1]
+
+
+@pytest.mark.asyncio
+async def test_sync_to_async_deadlock_context_tracks_cancelled_worker():
+    """Cancelling the awaiter must neither release a live worker nor poison later work."""
+    loop = asyncio.get_running_loop()
+    started = asyncio.Event()
+    check_active = asyncio.Event()
+    check_finished = asyncio.Event()
+    allow_wait = threading.Event()
+    futures = []
+    threads = []
+
+    async def child(gate):
+        await gate.wait()
+        return await sync_to_async(threading.get_ident)()
+
+    def outer():
+        threads.append(threading.get_ident())
+        futures.append(asyncio.run_coroutine_threadsafe(child(check_active), loop))
+        futures.append(asyncio.run_coroutine_threadsafe(child(check_finished), loop))
+        loop.call_soon_threadsafe(started.set)
+        assert allow_wait.wait(3)
+        try:
+            futures[0].result(timeout=2)
+        except RuntimeError:
+            pass
+
+    task = asyncio.create_task(sync_to_async(outer)())
+    try:
+        await asyncio.wait_for(started.wait(), 3)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        # The awaiting task is gone, but the original worker is still occupied.
+        allow_wait.set()
+        check_active.set()
+        with pytest.raises(RuntimeError, match="would deadlock"):
+            await asyncio.wait_for(asyncio.wrap_future(futures[0]), 3)
+        # A call from an unrelated context queues normally and proves the worker
+        # has finished before the second inherited child is allowed to run.
+        assert (
+            await asyncio.wait_for(sync_to_async(threading.get_ident)(), 3)
+            == threads[0]
+        )
+        check_finished.set()
+        assert await asyncio.wait_for(asyncio.wrap_future(futures[1]), 3) == threads[0]
+    finally:
+        allow_wait.set()
+        check_active.set()
+        check_finished.set()
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        for future in futures:
+            future.cancel()
