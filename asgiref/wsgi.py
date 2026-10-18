@@ -130,8 +130,10 @@ class WsgiToAsgiInstance:
         status_code, _ = status.split(" ", 1)
         status_code = int(status_code)
         # Extract headers
+        # Values are latin-1 encoded native strings (PEP 3333), matching how
+        # request headers are decoded in build_environ().
         headers = [
-            (name.lower().encode("ascii"), value.encode("ascii"))
+            (name.lower().encode("ascii"), value.encode("latin-1"))
             for name, value in response_headers
         ]
         # Extract content-length
