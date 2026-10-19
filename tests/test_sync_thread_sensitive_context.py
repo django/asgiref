@@ -172,6 +172,8 @@ def test_executor_context_across_bridges(async_outermost: bool) -> None:
     # A deadlocked worker can also block interpreter shutdown. Run the bridge
     # checks in a separate process so the parent can stop it after a timeout.
     # Spawn avoids inheriting executor state from the parent's worker threads.
+    # The child has no pytest assertion rewriting, so a failed assert is a bare
+    # AssertionError. Its traceback is in the captured stderr of the report.
     process = multiprocessing.get_context("spawn").Process(
         target=executor_context_across_bridges, args=(async_outermost,)
     )
@@ -342,6 +344,8 @@ async def test_executor_context_rejects_calls_after_exit() -> None:
 
     async def late() -> threading.Thread:
         await exited.wait()
+        # The exited check applies only when no bridge executor is inherited.
+        assert AsyncToSync.executors.current is None
         return await thread()
 
     with single_worker() as executor:
@@ -353,7 +357,7 @@ async def test_executor_context_rejects_calls_after_exit() -> None:
                 task = asyncio.create_task(late())
             exited.set()
             with pytest.raises(RuntimeError, match="has exited"):
-                await task
+                await asyncio.wait_for(task, timeout=5)
             # No executor was created for the exited context.
             assert child not in SyncToAsync.context_to_thread_executor
             assert SyncToAsync.thread_sensitive_context.get() is parent
@@ -378,9 +382,14 @@ async def test_plain_context_allows_calls_after_exit() -> None:
         task = asyncio.create_task(late())
     exited.set()
     try:
-        assert await task is not context_thread
+        late_thread = await asyncio.wait_for(task, timeout=5)
     finally:
-        SyncToAsync.context_to_thread_executor.pop(context).shutdown()
+        # The late call created a new executor for the exited context.
+        executor = SyncToAsync.context_to_thread_executor.pop(context)
+    # Assert and shutdown on __exit__.
+    with executor:
+        assert late_thread is not context_thread
+        assert executor.submit(threading.current_thread).result() is late_thread
 
 
 @pytest.mark.asyncio

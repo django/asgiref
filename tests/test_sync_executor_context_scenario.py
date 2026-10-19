@@ -1,9 +1,10 @@
 """Show which executor each task sees before, during, and after a forced scope.
 
-Run with ``python -m pytest -q -s tests/test_sync_executor_context.py`` to see
-an ordered trace. No database is needed. Events control the order; no sleeps
-are used. All tasks run on the same event loop and use normal task creation,
-which copies the creator's context.
+One scenario test, run in a spawned process. The prints are deliberate: run
+``python -m pytest -q -s tests/test_sync_executor_context_scenario.py`` for an
+ordered trace of the checks. No database is needed. Events control the order;
+no sleeps are used. All tasks run on the same event loop and use normal task
+creation, which copies the creator's context.
 """
 
 import asyncio
@@ -23,6 +24,13 @@ from asgiref.sync import (
     async_to_sync,
     sync_to_async,
 )
+
+
+def current_executor() -> CurrentThreadExecutor | None:
+    """Read the bridge executor binding without a type checker narrowing it."""
+    executor = AsyncToSync.executors.current
+    assert executor is None or isinstance(executor, CurrentThreadExecutor)
+    return executor
 
 
 async def check_round_trip(
@@ -133,9 +141,7 @@ async def task_with_forced_scope(
     assert AsyncToSync.executors.current is parent_executor
     with ThreadPoolExecutor(max_workers=1) as executor:
         async with ThreadSensitiveContext(executor=executor) as child_context:
-            # ty keeps the earlier non-None narrowing across __aenter__.
-            # getattr reads the binding without reusing that narrowing.
-            assert getattr(AsyncToSync.executors, "current") is None
+            assert current_executor() is None
             child_thread = await sync_to_async(threading.current_thread)()
             assert child_thread is not parent_thread
             print(
@@ -156,7 +162,7 @@ async def task_with_forced_scope(
             await asyncio.create_task(child_created_inside(), name="inside")
             events["inside_checked"].set()
             await events["after_bridge_entered"].wait()
-            assert getattr(AsyncToSync.executors, "current") is None
+            assert current_executor() is None
             assert SyncToAsync.thread_sensitive_context.get() is child_context
             assert await sync_to_async(threading.current_thread)() is child_thread
             print(
@@ -165,7 +171,7 @@ async def task_with_forced_scope(
             )
             events["after_bridge_checked"].set()
             await events["after_checked"].wait()
-            assert getattr(AsyncToSync.executors, "current") is None
+            assert current_executor() is None
 
         assert AsyncToSync.executors.current is parent_executor
         assert SyncToAsync.thread_sensitive_context.get() is parent_context
@@ -179,10 +185,8 @@ async def task_with_forced_scope(
 def run_executor_context_scenario() -> None:
     """Run a request with older and newer siblings, plus a child of the forced task.
 
-    At the very end of this functiion, we call `async_to_sync`! This simulates
-    the scenario where there is a parent thread (this thread) with a non-null
-    executor setup.
-
+    The whole scenario runs under ``async_to_sync``, so the request inherits a
+    real bridge executor, as a Django view does under a sync caller.
     """
     # Spawn imports this module without pytest's assertion rewriting.
     if sys.flags.optimize:
@@ -197,8 +201,7 @@ def run_executor_context_scenario() -> None:
         assert isinstance(parent_executor, CurrentThreadExecutor)
         parent_context = SyncToAsync.thread_sensitive_context.get()
 
-        # These `Event` objects are for signalling, to make a sequence of
-        # action happen deterministically in a predicatable order.
+        # Events sequence the tasks so each check happens in a known order.
         events = {
             "before_started": asyncio.Event(),
             "scope_entered": asyncio.Event(),
@@ -251,39 +254,22 @@ def run_executor_context_scenario() -> None:
 
 
 def test_force_new_context_keeps_executor_bindings_local_to_each_task() -> None:
-    """Clearing current in one task leaves both older and newer siblings unchanged.
+    """Clearing the bridge executor in one task leaves its siblings unchanged.
 
-    We're trying to validate that in the new code path in `ThreadSensitiveContext`
-    when the new `executor` parameter is passed, our assignment of
+    An executor context sets ``AsyncToSync.executors.current`` to None. That
+    binding lives in a contextvar-backed ``Local``, not a thread-local, so the
+    write is seen only by the task that made it and by tasks created inside the
+    scope, which copy its context. This test checks that experimentally.
 
-    ```
-    AsyncToSync.executors.current = None
-    ```
+    Unlike test_executor_context_siblings_are_isolated, this test times the
+    write to land when each sibling is partway through an ``async_to_sync``
+    callback, with its own bridge executor installed. A leaked write would
+    replace that executor. One sibling is created before the scope opens and
+    one after. A child created inside the scope inherits the cleared binding
+    and uses the same worker.
 
-    doesn't interfere with unrelated concurrent tasks operating within the
-    same thread of the calling (async) context. The thinking behind the
-    concern is "What if there are other async tasks in the caller environment
-    that are also using `AsyncToSync.executors`?"
-
-    Based on reading the code, it seems like perhaps the `AsyncToSync.executors.current`
-    is a thread-local variable, so setting it to `None` in one task might affect
-    other users in the same thread; however it is actually stored in a `Local`
-    backed by a contextvar. By default, each new async task gets a copy of its
-    creator's context, not a clone of the executor. `Local` also copies its stored
-    dictionary when an attribute changes, so setting `current` doesn't change
-    the binding in another task's copy of the context.
-
-    So this test sets up an elaborate system to try to verify the desired
-    behaviour.
-
-    More formally:
-    A child task created inside the forced scope inherits its context and uses
-    the same worker. Each task can make sync/async calls without replacing
-    another task's executor binding.
-
-    We start a brand spanking new process to ensure a clean slate for these
-    tests.
-
+    The scenario runs in a spawned process for a clean slate, and so a deadlock
+    can be killed after a timeout.
     """
     # Bound the whole example, including worker shutdown if a bridge deadlocks.
     process = multiprocessing.get_context("spawn").Process(
@@ -295,7 +281,10 @@ def test_force_new_context_keeps_executor_bindings_local_to_each_task() -> None:
         if process.is_alive():
             pytest.fail("executor context example deadlocked")
         # TaskGroup and the sync/async futures propagate assertion failures.
-        # An unhandled failure gives the child a nonzero exit code.
+        # An unhandled failure gives the child a nonzero exit code. The child
+        # imports this module without pytest's assertion rewriting, so a failed
+        # assert is a bare AssertionError. Its traceback is in the captured
+        # stderr of the failure report.
         if process.exitcode != 0:
             pytest.fail(
                 f"executor context example failed with exit code {process.exitcode}; "
