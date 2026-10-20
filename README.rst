@@ -54,10 +54,37 @@ Thread-sensitive contexts
 -------------------------
 
 ``ThreadSensitiveContext`` gives thread-sensitive ``sync_to_async`` calls a
-shared, single-worker executor for an async block. Nested contexts reuse the
-outer context by default. Pass ``executor=`` to use your own single-worker
-executor for the block, including when the block is reached through
-``async_to_sync``::
+shared, single-worker executor for an async block. This allows you to group
+thread-sensitive calls, for example, per-request in a web application,
+rather than per-process::
+
+    class ASGIHandler(...):
+        ...
+
+        async def __call__(...):
+            ...
+
+            async with ThreadSensitiveContext():
+                await self.handle(...)
+
+By default, only the outermost ``ThreadSensitiveContext`` sets the
+context. Nested calls are a no-op and reuse it.
+
+Nested contexts can be created by passing the explicit ``executor`` keyword
+argument.
+
+* The executor must run one call at a time on one thread, such as
+  ``ThreadPoolExecutor(max_workers=1)``. Recall, it is used for
+  ``sync_to_async(…, thread_sensitive=True)`` calls.
+
+* The calling code is responsible for the executor lifetime:
+  the context does not shut it down. You may use it again for a later block,
+  for example in a pool.
+
+* Do not use one executor for two blocks at the same time.
+
+By providing an executor, nested work can be run on a separate thread from the
+parent context's, including when the block is reached through ``async_to_sync``::
 
     from concurrent.futures import ThreadPoolExecutor
 
@@ -76,31 +103,17 @@ Both child calls run on the worker's thread. After the child block exits, calls
 use the parent thread again. Nested ``sync_to_async`` / ``async_to_sync`` calls
 within the child block also retain its thread affinity.
 
-The executor must run one call at a time on one thread. You own the executor:
-the context does not shut it down, so you can use it again for a later block,
-for example from a pool. Do not use one executor for two blocks at the same
-time.
+Tasks created inside a block inherit its context. Wait for those tasks before
+leaving the context. A thread-sensitive call made by such a task after the
+context has exited raises ``RuntimeError``. To isolate concurrent tasks, each
+must enter its own context with its own executor.
 
-Tasks created inside a block inherit its context. To isolate concurrent tasks,
-each task must enter its own ``ThreadSensitiveContext`` with its own executor.
-Wait for those tasks before leaving the context. A thread-sensitive call made
-by such a task after the context has exited raises ``RuntimeError``. A context
-with an executor can be entered only once: create a new one for each block.
-``thread_sensitive=False`` calls are not affected.
+A context with an executor can be entered only once: create a new one for each
+block.
 
-This separates thread-critical ``Local`` storage, such as Django's connection
-storage. It does not change normal ``ContextVar`` or non-thread-critical
-``Local`` propagation. Look up thread-bound resources inside the worker; do not
-pass a connection or cursor from the parent thread. Close or reset child
-resources on the worker thread before leaving the block, or before you reuse
-the executor. Executor shutdown does not call resource-specific cleanup
-methods.
-
-This is thread isolation, not a transaction API. A transaction that spans
-several sync calls must enter, run, and exit on the same worker. Normal nested
-Django ``atomic()`` blocks should still share their connection and savepoints;
-only an independent transaction scope needs a separate context.
-
+Executor contexts separate thread-critical ``Local`` storage but do not change
+``ContextVar`` or plain ``Local`` propagation. ``thread_sensitive=False`` calls
+are not affected.
 
 Threadlocal replacement
 -----------------------
