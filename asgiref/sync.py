@@ -121,10 +121,12 @@ class ThreadSensitiveContext:
     With an executor, this block uses that executor even inside another context
     or an AsyncToSync call. On exit, the parent context is restored. The
     executor must run one call at a time on one thread, for example
-    ThreadPoolExecutor(max_workers=1). The caller owns the executor: it is not
-    shut down on exit, so it can be used again. A context with an executor can
-    be entered only once. Tasks created inside it must finish before it exits:
-    their later thread-sensitive calls raise RuntimeError.
+    ThreadPoolExecutor(max_workers=1).
+
+    The caller owns the executor: it is not shut down on exit, so the executor
+    can be used again. A context with an executor can be entered only once.
+    Tasks created inside it must finish before it exits. Thread-sensitive calls
+    they make after the exit raise RuntimeError.
 
     Usage:
 
@@ -155,23 +157,14 @@ class ThreadSensitiveContext:
                 )
             self.token = SyncToAsync.thread_sensitive_context.set(self)
             SyncToAsync.context_to_thread_executor[self] = self._executor
-            # SyncToAsync.__call__ gives an inherited CurrentThreadExecutor priority
-            # over this context. Save it in _old_executor and clear its context-local
-            # binding so initial calls use the supplied executor.
-            # We must also consider nesting. Consider this scenario:
-            # 1. A sync call on this worker calls AsyncToSync.
-            # 2. AsyncToSync creates a new CurrentThreadExecutor, then the worker
-            #    waits for the async code to finish.
-            # 3. The async code uses SyncToAsync for a thread-sensitive sync callback.
-            # 4. The new executor lets the waiting worker run that callback.
-            # CurrentThreadExecutor creates no thread. Its callback queue is run
-            # by the waiting worker inside run_until_future(), while the original
-            # sync call is still active.
-            # Putting the callback in the supplied pool's normal queue would deadlock:
-            # its only worker is waiting for the async code, and the async code is
-            # waiting for that callback. The worker cannot take another pool job
-            # until the original sync call returns.
-            # We hide only the inherited executor, so the new one can take priority.
+            # An inherited CurrentThreadExecutor (via a parent AsyncToSync) has
+            # priority over this context in SyncToAsync.__call__. On entering,
+            # hide it to send calls in this block to the supplied executor. Any
+            # nested AsyncToSync call installs a new CurrentThreadExecutor, and
+            # will use that for further thread-sensitive work. (Nested calls
+            # sent to the supplied executor would deadlock: its only worker is
+            # waiting for the async code that's now waiting on the newly
+            # submitted code. See test_executor_context_across_bridges.)
             self._old_executor = getattr(AsyncToSync.executors, "current", None)
             AsyncToSync.executors.current = None
         else:
@@ -473,6 +466,7 @@ class SyncToAsync(Generic[_P, _R]):
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
+    # A supplied executor is owned by the caller and is unaffected.
     context_to_thread_executor: (
         "weakref.WeakKeyDictionary[ThreadSensitiveContext, Executor]"
     ) = weakref.WeakKeyDictionary()
