@@ -465,3 +465,108 @@ def test_local_cannot_be_subclassed() -> None:
 
     with pytest.raises(TypeError, match="cannot be subclassed"):
         MyLocal()
+
+
+def test_local_get_set_reset():
+    """
+    set() stores a value and returns a token; reset(token) restores the
+    whole state of the Local from when the token was taken.
+    """
+    test_local = Local()
+    test_local.foo = 1
+    # get() mirrors attribute access, including the error for missing keys
+    assert test_local.get("foo") == 1
+    with pytest.raises(AttributeError):
+        test_local.get("bar")
+
+    token = test_local.set("bar", 2)
+    assert test_local.bar == 2
+    # Changes made after the token was taken are also reverted
+    test_local.baz = 3
+    test_local.foo = 99
+
+    test_local.reset(token)
+    assert test_local.foo == 1
+    with pytest.raises(AttributeError):
+        test_local.bar
+    with pytest.raises(AttributeError):
+        test_local.baz
+
+
+def test_local_set_reset_restores_overwritten_value():
+    test_local = Local()
+    test_local.foo = "before"
+    token = test_local.set("foo", "after")
+    assert test_local.foo == "after"
+    test_local.reset(token)
+    assert test_local.foo == "before"
+
+
+def test_local_set_reset_nested_tokens():
+    test_local = Local()
+    test_local.value = 0
+    token1 = test_local.set("value", 1)
+    token2 = test_local.set("value", 2)
+    assert test_local.value == 2
+    test_local.reset(token2)
+    assert test_local.value == 1
+    test_local.reset(token1)
+    assert test_local.value == 0
+
+
+def test_local_set_data_name_protected():
+    test_local = Local()
+    with pytest.raises(AttributeError):
+        test_local.set("_data", "user supplied value")
+
+
+@pytest.mark.asyncio
+async def test_local_set_reset_in_task():
+    """
+    set/reset work inside a task, and a token taken in one task does not
+    leak state into a sibling task's context.
+    """
+    test_local = Local()
+
+    async def worker(value):
+        token = test_local.set("value", value)
+        await asyncio.sleep(0)
+        assert test_local.get("value") == value
+        test_local.reset(token)
+        # the token restores the state this context started with, which
+        # inherited the outer value when the task was created
+        assert test_local.value == "outer"
+
+    test_local.value = "outer"
+    await asyncio.gather(worker(1), worker(2))
+    assert test_local.value == "outer"
+
+
+def test_local_thread_critical_set_reset_sync():
+    """
+    For a thread-critical Local in a sync thread (plain threading.local
+    storage), set/reset use a snapshot of the storage.
+    """
+    test_local = Local(thread_critical=True)
+    test_local.foo = 1
+    token = test_local.set("bar", 2)
+    assert test_local.get("bar") == 2
+    test_local.foo = 99
+    test_local.reset(token)
+    assert test_local.foo == 1
+    with pytest.raises(AttributeError):
+        test_local.bar
+
+
+@pytest.mark.asyncio
+async def test_local_thread_critical_set_reset_async():
+    """
+    For a thread-critical Local in an async context (contextvar storage),
+    set/reset behave like the default Local.
+    """
+    test_local = Local(thread_critical=True)
+    test_local.foo = 1
+    token = test_local.set("foo", 2)
+    assert test_local.foo == 2
+    test_local.reset(token)
+    assert test_local.foo == 1

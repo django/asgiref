@@ -75,6 +75,16 @@ class _CVar:
         else:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
+    def _set_with_token(self, key: str, value: Any) -> "contextvars.Token[_Storage]":
+        if key == "_data":
+            raise AttributeError("Cannot set attribute '_data' on Local")
+        data = self._storage().data.copy()
+        data[key] = value
+        return self._data.set(_Storage(threading.get_ident(), data))
+
+    def _reset_with_token(self, token: "contextvars.Token[_Storage]") -> None:
+        self._data.reset(token)
+
 
 @final
 class Local:
@@ -128,6 +138,41 @@ class Local:
 
     def __delattr__(self, key: str) -> Any: ...
 
+    def _set_with_token(self, key: str, value: Any) -> Any:
+        raise NotImplementedError
+
+    def _reset_with_token(self, token: Any) -> None:
+        raise NotImplementedError
+
+    def get(self, key: str) -> Any:
+        """Return the value stored under ``key``.
+
+        Mirrors plain attribute access: raises ``AttributeError`` if there
+        is no value stored under ``key`` in the current context. Provided
+        for symmetry with :meth:`set`.
+        """
+        return getattr(self, key)
+
+    def set(self, key: str, value: Any) -> Any:
+        """Set the value stored under ``key`` and return a token.
+
+        The returned token captures the state of this ``Local`` just before
+        the change; pass it to :meth:`reset` to restore that state. This
+        mirrors the ``ContextVar.set``/``ContextVar.reset`` pair, so the
+        state is restored for the context the token is used in.
+        """
+        return self._set_with_token(key, value)
+
+    def reset(self, token: Any) -> None:
+        """Restore this ``Local`` to the state captured by ``token``.
+
+        ``token`` must be a value previously returned by :meth:`set` on
+        this ``Local``. The whole state is restored, not just the single
+        value that was set: values changed or created after the token was
+        taken are reverted or removed as well.
+        """
+        self._reset_with_token(token)
+
 
 class _DefaultLocal(Local):  # type: ignore[misc]
     """Local with thread_critical=False: CVar storage protected by a lock."""
@@ -159,6 +204,20 @@ class _DefaultLocal(Local):  # type: ignore[misc]
         self._lock.acquire()
         try:
             delattr(self._storage, key)
+        finally:
+            self._lock.release()
+
+    def _set_with_token(self, key, value):
+        self._lock.acquire()
+        try:
+            return self._storage._set_with_token(key, value)
+        finally:
+            self._lock.release()
+
+    def _reset_with_token(self, token):
+        self._lock.acquire()
+        try:
+            self._storage._reset_with_token(token)
         finally:
             self._lock.release()
 
@@ -202,3 +261,22 @@ class _ThreadCriticalLocal(Local):  # type: ignore[misc]
 
     def __delattr__(self, key):
         delattr(self._get_storage(), key)
+
+    def _set_with_token(self, key, value):
+        storage = self._get_storage()
+        if isinstance(storage, _CVar):
+            return storage._set_with_token(key, value)
+        # Sync thread: the storage is a plain threading.local, so the token
+        # is a snapshot of its attribute dictionary.
+        token = dict(vars(storage))
+        setattr(storage, key, value)
+        return token
+
+    def _reset_with_token(self, token):
+        storage = self._get_storage()
+        if isinstance(storage, _CVar):
+            storage._reset_with_token(token)
+            return
+        attributes = vars(storage)
+        attributes.clear()
+        attributes.update(token)
