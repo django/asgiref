@@ -1,5 +1,15 @@
-UNRELEASED
-----------
+3.13.0 (2026-10-23)
+-------------------
+
+* It is now possible to nest ``ThreadSensitiveContext`` by providing an
+  explicit ``executor`` for thread-sensitive tasks. This enables moving a block
+  of such work away from the parent context's shared worker. (#596)
+
+  The provided executor must run  work sequentially and on a single thread, as
+  per ``ThreadPoolExecutor(max_workers=1)``, and the calling code is
+  responsible for managing the executor's lifecycle.
+
+  See the README for more details.
 
 * ``Local`` attribute access is now 2-3x faster. ``Local(...)`` now uses one
   of two internal specialisations, selected by ``thread_critical``, instead of
@@ -11,6 +21,10 @@ UNRELEASED
 
 * ``asgiref.timeout.timeout`` is deprecated, and will be removed in a future
   release. Move to use ``asyncio.timeout()`` instead.
+
+* Added support for Python 3.15.
+
+* Dropped support for EOL Python 3.10.
 
 3.12.1 (2026-07-14)
 -------------------
