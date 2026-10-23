@@ -50,6 +50,71 @@ thread for safety reasons; you can disable this for more performance with
 not rely on anything bound to threads (like database connections) when you do.
 
 
+Thread-sensitive contexts
+-------------------------
+
+``ThreadSensitiveContext`` gives thread-sensitive ``sync_to_async`` calls a
+shared, single-worker executor for an async block. This allows you to group
+thread-sensitive calls, for example, per-request in a web application,
+rather than per-process::
+
+    class ASGIHandler(...):
+        ...
+
+        async def __call__(...):
+            ...
+
+            async with ThreadSensitiveContext():
+                await self.handle(...)
+
+By default, only the outermost ``ThreadSensitiveContext`` sets the
+context. Nested calls are a no-op and reuse it.
+
+Nested contexts can be created by passing the explicit ``executor`` keyword
+argument.
+
+* The executor must run one call at a time on one thread, such as
+  ``ThreadPoolExecutor(max_workers=1)``. Recall, it is used for
+  ``sync_to_async(…, thread_sensitive=True)`` calls.
+
+* The calling code is responsible for the executor lifetime:
+  the context does not shut it down. You may use it again for a later block,
+  for example in a pool.
+
+* Do not use one executor for two blocks at the same time.
+
+By providing an executor, nested work can be run on a separate thread from the
+parent context's, including when the block is reached through ``async_to_sync``::
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    from asgiref.sync import ThreadSensitiveContext, sync_to_async
+
+    worker = ThreadPoolExecutor(max_workers=1)
+
+    async with ThreadSensitiveContext():
+        await sync_to_async(parent_work)()
+        async with ThreadSensitiveContext(executor=worker):
+            await sync_to_async(child_work)()
+            await sync_to_async(more_child_work)()
+        await sync_to_async(parent_work)()
+
+Both child calls run on the worker's thread. After the child block exits, calls
+use the parent thread again. Nested ``sync_to_async`` / ``async_to_sync`` calls
+within the child block also retain its thread affinity.
+
+Tasks created inside a block inherit its context. Wait for those tasks before
+leaving the context. A thread-sensitive call made by such a task after the
+context has exited raises ``RuntimeError``. To isolate concurrent tasks, each
+must enter its own context with its own executor.
+
+A context with an executor can be entered only once: create a new one for each
+block.
+
+Executor contexts separate thread-critical ``Local`` storage but do not change
+``ContextVar`` or plain ``Local`` propagation. ``thread_sensitive=False`` calls
+are not affected.
+
 Threadlocal replacement
 -----------------------
 
