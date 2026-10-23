@@ -11,6 +11,9 @@
 
   See the README for more details.
 
+* ``StatelessServer`` now keeps application pools within ``max_applications``
+  and rejects nonpositive capacities.
+
 * ``Local`` attribute access is now 2-3x faster. ``Local(...)`` now uses one
   of two internal specialisations, selected by ``thread_critical``, instead of
   checking the mode on every access. (#551)
