@@ -92,7 +92,7 @@ class WsgiToAsgiInstance:
         # Go through headers and make them into environ entries
         _headers = defaultdict(list)
         for name, value in self.scope.get("headers", []):
-            name = name.decode("latin1")
+            name = name.decode("latin1").lower()
             if name == "content-length":
                 corrected_name = "CONTENT_LENGTH"
             elif name == "content-type":

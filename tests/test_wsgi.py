@@ -422,3 +422,44 @@ def test_build_environ_server_unix_socket():
     environ = adapter.build_environ(scope, None)
     assert environ["SERVER_NAME"] == "/tmp/uvicorn.sock"
     assert environ["SERVER_PORT"] == "0"
+
+
+@pytest.mark.parametrize("header_case", ["lower", "upper", "title"])
+@pytest.mark.asyncio
+async def test_wsgi_content_headers_case_insensitive(header_case):
+    """Content headers use WSGI's special keys regardless of ASGI header case."""
+
+    def wsgi_application(environ, start_response):
+        assert environ["CONTENT_TYPE"] == "application/json"
+        assert environ["CONTENT_LENGTH"] == "2"
+        assert "HTTP_CONTENT_TYPE" not in environ
+        assert "HTTP_CONTENT_LENGTH" not in environ
+        assert environ["wsgi.input"].read(int(environ["CONTENT_LENGTH"])) == b"{}"
+        start_response("200 OK", [])
+        return [b"ok"]
+
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "POST",
+        "path": "/",
+        "query_string": b"",
+        "headers": [
+            [getattr(b"content-type", header_case)(), b"application/json"],
+            [getattr(b"content-length", header_case)(), b"2"],
+        ],
+    }
+    instance = ApplicationCommunicator(WsgiToAsgi(wsgi_application), scope)
+    await instance.send_input({"type": "http.request", "body": b"{}"})
+    assert await instance.receive_output(1) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [],
+    }
+    assert await instance.receive_output(1) == {
+        "type": "http.response.body",
+        "body": b"ok",
+        "more_body": True,
+    }
+    assert await instance.receive_output(1) == {"type": "http.response.body"}
+    await instance.wait()
