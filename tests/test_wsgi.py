@@ -76,6 +76,32 @@ def test_script_name():
     assert environ["PATH_INFO"] == "/foo/"
 
 
+@pytest.mark.parametrize(
+    "root_path,path,script_name,path_info",
+    [
+        ("/base", "/base", "/base", ""),
+        ("/base", "/base/", "/base", "/"),
+        ("/base", "/basement/foo", "/base", "/basement/foo"),
+        ("", "/foo", "", "/foo"),
+    ],
+)
+def test_script_name_segment_boundary(root_path, path, script_name, path_info):
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "root_path": root_path,
+        "path": path,
+        "query_string": b"",
+        "headers": [],
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SCRIPT_NAME"] == script_name
+    assert environ["PATH_INFO"] == path_info
+
+
 @pytest.mark.asyncio
 async def test_wsgi_path_encoding():
     """

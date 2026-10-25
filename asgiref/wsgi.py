@@ -61,7 +61,9 @@ class WsgiToAsgiInstance:
         """
         script_name = scope.get("root_path", "").encode("utf8").decode("latin1")
         path_info = scope["path"].encode("utf8").decode("latin1")
-        if path_info.startswith(script_name):
+        # Only strip root_path when it matches whole path segments, so that
+        # a root_path of "/app" doesn't turn "/application" into "lication"
+        if path_info == script_name or path_info.startswith(script_name + "/"):
             path_info = path_info[len(script_name) :]
         environ = {
             "REQUEST_METHOD": scope["method"],
