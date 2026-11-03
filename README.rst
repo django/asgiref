@@ -50,6 +50,29 @@ thread for safety reasons; you can disable this for more performance with
 not rely on anything bound to threads (like database connections) when you do.
 
 
+Task identity across wrappers
+-----------------------------
+
+``asgiref.sync.get_current_task()`` returns the current asyncio task. Inside
+synchronous code called through ``sync_to_async``, it returns the task that
+called that wrapper. This allows synchronous code to check ownership of
+resources associated with an async task.
+
+Child tasks have their own identity even when they inherit their parent's
+context. An ``async_to_sync`` call also runs in a new task; synchronous calls
+made from that task see its identity. When a nested bridge returns or raises,
+the enclosing synchronous call sees its original caller again.
+
+Outside a ``sync_to_async`` call, synchronous code receives ``None``. Event
+loop callbacks outside a task also receive ``None``, as with
+``asyncio.current_task()``. Both thread-sensitive and non-thread-sensitive
+wrappers support this function, including wrappers with an explicit context.
+
+Use the returned task for identity comparisons. Task methods are not
+thread-safe; use the task's event loop to schedule operations on it from
+another thread.
+
+
 Thread-sensitive contexts
 -------------------------
 
