@@ -2,27 +2,30 @@ import asyncio
 import contextvars
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 import pytest
 
 from asgiref.sync import async_to_sync, get_current_task, sync_to_async
 
 
-def test_no_task_in_synchronous_code():
+def test_no_task_in_synchronous_code() -> None:
     assert get_current_task() is None
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("thread_sensitive", [True, False])
 @pytest.mark.parametrize("explicit_context", [True, False])
-async def test_calling_task_identity(thread_sensitive, explicit_context):
+async def test_calling_task_identity(
+    thread_sensitive: bool, explicit_context: bool
+) -> None:
     parent = asyncio.current_task()
     context = contextvars.copy_context() if explicit_context else None
     wrapped = sync_to_async(
         get_current_task, thread_sensitive=thread_sensitive, context=context
     )
 
-    async def child():
+    async def child() -> None:
         task = asyncio.current_task()
         assert task is not parent
         assert get_current_task() is task
@@ -35,11 +38,11 @@ async def test_calling_task_identity(thread_sensitive, explicit_context):
 
 
 @pytest.mark.parametrize("fail", [True, False])
-def test_nested_bridges_restore_task(fail):
-    async def outer():
+def test_nested_bridges_restore_task(fail: bool) -> None:
+    async def outer() -> None:
         parent = asyncio.current_task()
 
-        async def inner():
+        async def inner() -> None:
             task = asyncio.current_task()
             assert task is not parent
             assert get_current_task() is task
@@ -47,7 +50,7 @@ def test_nested_bridges_restore_task(fail):
             if fail:
                 raise ValueError("inner failed")
 
-        def synchronous():
+        def synchronous() -> None:
             assert get_current_task() is parent
             if fail:
                 with pytest.raises(ValueError, match="inner failed"):
@@ -66,10 +69,10 @@ def test_nested_bridges_restore_task(fail):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("fail", [True, False])
-async def test_worker_does_not_retain_task(fail):
+async def test_worker_does_not_retain_task(fail: bool) -> None:
     task = asyncio.current_task()
 
-    def synchronous():
+    def synchronous() -> None:
         assert get_current_task() is task
         if fail:
             raise ValueError("sync failed")
@@ -85,13 +88,13 @@ async def test_worker_does_not_retain_task(fail):
 
 
 @pytest.mark.asyncio
-async def test_cancelled_call_retains_identity_until_worker_finishes():
+async def test_cancelled_call_retains_identity_until_worker_finishes() -> None:
     started = asyncio.Event()
     release = threading.Event()
     loop = asyncio.get_running_loop()
-    identities = []
+    identities: list[asyncio.Task[Any] | None] = []
 
-    def synchronous():
+    def synchronous() -> None:
         identities.append(get_current_task())
         loop.call_soon_threadsafe(started.set)
         assert release.wait(5)
@@ -113,17 +116,17 @@ async def test_cancelled_call_retains_identity_until_worker_finishes():
 
 
 @pytest.mark.asyncio
-async def test_event_loop_callback_has_no_task():
+async def test_event_loop_callback_has_no_task() -> None:
     # A loop running inside the sync worker must not report the suspended
     # outer caller's identity in callbacks that are outside any task.
-    async def inner():
+    async def inner() -> None:
         assert get_current_task() is asyncio.current_task()
         loop = asyncio.get_running_loop()
-        result = loop.create_future()
+        result: asyncio.Future[asyncio.Task[Any] | None] = loop.create_future()
         loop.call_soon(lambda: result.set_result(get_current_task()))
         assert await result is None
 
-    def synchronous():
+    def synchronous() -> None:
         parent = get_current_task()
         asyncio.run(inner())
         assert get_current_task() is parent
