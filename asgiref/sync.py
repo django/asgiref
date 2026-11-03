@@ -34,6 +34,22 @@ _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 
+def get_current_task() -> asyncio.Task[Any] | None:
+    """Return the current task, including across a sync_to_async call.
+
+    In synchronous code, return the task calling the innermost active
+    sync_to_async wrapper, or None outside such a call. In an event loop,
+    return asyncio.current_task(), including None in callbacks.
+    """
+    try:
+        return asyncio.current_task()
+    except RuntimeError:
+        task: asyncio.Task[Any] | None = getattr(
+            SyncToAsync.threadlocal, "current_task", None
+        )
+        return task
+
+
 def _restore_context(context: contextvars.Context) -> None:
     # Check for changes in contextvars, and set them to the current
     # context for downstream consumers
@@ -502,6 +518,7 @@ class SyncToAsync(Generic[_P, _R]):
     async def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
         loop = asyncio.get_running_loop()
+        calling_task = asyncio.current_task()
 
         # Work out what thread to run the code in
         if self._thread_sensitive:
@@ -556,8 +573,16 @@ class SyncToAsync(Generic[_P, _R]):
         # there (see _restore_context), and finally calls ``child``.
         def func(child: Callable[[], _R]) -> _R:
             def run_child() -> _R:
-                _restore_context(context)
-                return child()
+                # Capture identity at the bridge, not in a ContextVar that a
+                # child task could inherit from its parent. Restore it after
+                # nested bridges and do not retain tasks on idle workers.
+                previous_task = getattr(self.threadlocal, "current_task", None)
+                self.threadlocal.current_task = calling_task
+                try:
+                    _restore_context(context)
+                    return child()
+                finally:
+                    self.threadlocal.current_task = previous_task
 
             return context.run(run_child)
 
