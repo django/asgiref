@@ -28,6 +28,16 @@ class _Storage:
         self.data = data
 
 
+class _ThreadCriticalStorage(_Storage):
+    """Storage for a thread-critical ``Local`` in an async thread.
+
+    Only the thread that created it can read it, so ``thread_id`` always names
+    that thread and the storage is never re-homed.
+    """
+
+    __slots__ = ()
+
+
 def _rehome(storage: "_Storage") -> "_Storage":
     """Return a copy of *storage* owned by the current thread."""
     return _Storage(threading.get_ident(), storage.data)
@@ -40,6 +50,7 @@ class _CVar:
     """Storage utility for Local."""
 
     _data: "contextvars.ContextVar[_Storage]"
+    _storage_class: type[_Storage] = _Storage
 
     def __init__(self) -> None:
         _object_setattr(self, "_data", contextvars.ContextVar("asgiref.local"))
@@ -65,15 +76,21 @@ class _CVar:
 
         data = self._storage().data.copy()
         data[key] = value
-        self._data.set(_Storage(threading.get_ident(), data))
+        self._data.set(self._storage_class(threading.get_ident(), data))
 
     def __delattr__(self, key: str) -> None:
         data = self._storage().data.copy()
         if key in data:
             del data[key]
-            self._data.set(_Storage(threading.get_ident(), data))
+            self._data.set(self._storage_class(threading.get_ident(), data))
         else:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
+
+
+class _ThreadCriticalCVar(_CVar):
+    """Storage utility for a thread-critical Local in an async thread."""
+
+    _storage_class = _ThreadCriticalStorage
 
 
 @final
@@ -187,7 +204,7 @@ class _ThreadCriticalLocal(Local):  # type: ignore[misc]
 
         # Ensure context exists in the current thread
         if not hasattr(self._storage, "cvar"):
-            self._storage.cvar = _CVar()
+            self._storage.cvar = _ThreadCriticalCVar()
 
         # self._storage is a thread local, so the members
         # can't be accessed in another thread (we don't
