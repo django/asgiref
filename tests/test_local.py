@@ -2,12 +2,13 @@ import asyncio
 import contextvars
 import gc
 import threading
+import weakref
 from threading import Thread
 
 import pytest
 
 from asgiref.local import Local, _DefaultLocal, _ThreadCriticalLocal
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import AsyncSingleThreadContext, async_to_sync, sync_to_async
 
 
 @pytest.mark.asyncio
@@ -263,6 +264,59 @@ def test_local_critical_no_thread_to_task():
     async_to_sync(async_function)()
     # Check the value outside
     assert test_local.foo == 89
+
+
+def test_local_critical_async_to_sync_does_not_leak_into_caller():
+    """
+    Tests that thread-critical data set inside async_to_sync is not left
+    behind in the calling thread's context.
+
+    Each call runs its event loop in a new thread, so nothing can read that
+    data once the call returns.
+    """
+    test_local = Local(thread_critical=True)
+
+    class Value:
+        pass
+
+    values = weakref.WeakSet()
+
+    async def async_function():
+        value = Value()
+        values.add(value)
+        test_local.foo = value
+
+    async_to_sync(async_function)()
+    context_size = len(contextvars.copy_context())
+    for _ in range(10):
+        async_to_sync(async_function)()
+
+    # The calling context does not grow with each call...
+    assert len(contextvars.copy_context()) == context_size
+    # ... and nothing keeps the values alive.
+    gc.collect()
+    assert len(values) == 0
+
+
+def test_local_critical_shared_in_async_single_thread_context():
+    """
+    Tests that thread-critical data is shared by async_to_sync calls that run
+    in the same thread, inside an AsyncSingleThreadContext.
+    """
+    test_local = Local(thread_critical=True)
+    seen = []
+
+    async def async_function():
+        seen.append(getattr(test_local, "foo", None))
+        test_local.foo = len(seen)
+
+    with AsyncSingleThreadContext():
+        for _ in range(3):
+            async_to_sync(async_function)()
+
+    assert seen == [None, 1, 2]
+    # The calling thread still has its own storage.
+    assert not hasattr(test_local, "foo")
 
 
 @pytest.mark.asyncio

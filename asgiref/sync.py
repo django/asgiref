@@ -23,7 +23,7 @@ from typing import (
 )
 
 from .current_thread_executor import CurrentThreadExecutor
-from .local import Local, _rehome, _Storage
+from .local import Local, _rehome, _Storage, _ThreadCriticalStorage
 
 if TYPE_CHECKING:
     # This is not available to import at runtime
@@ -34,16 +34,27 @@ _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 
-def _restore_context(context: contextvars.Context) -> None:
+def _restore_context(
+    context: contextvars.Context, finished_thread: int | None = None
+) -> None:
     # Check for changes in contextvars, and set them to the current
     # context for downstream consumers
     for cvar in context:
         cvalue = context.get(cvar)
-        # asgiref is deliberately moving this context onto the current thread,
-        # so re-home any Local storage to it. This keeps Local data visible
-        # across async_to_sync / sync_to_async boundaries while leaving data
-        # merely inherited by an unrelated thread isolated (see asgiref.local).
-        if isinstance(cvalue, _Storage):
+        if isinstance(cvalue, _ThreadCriticalStorage):
+            # Thread-critical Local storage stays owned by the thread that
+            # created it. It is carried through other threads' contexts so
+            # that it is there when a call comes back to its own thread, but
+            # nothing can read it once that thread is finished: drop it then,
+            # rather than leave it behind in the current context.
+            if cvalue.thread_id == finished_thread:
+                continue
+        elif isinstance(cvalue, _Storage):
+            # asgiref is deliberately moving this context onto the current
+            # thread, so re-home any Local storage to it. This keeps Local data
+            # visible across async_to_sync / sync_to_async boundaries while
+            # leaving data merely inherited by an unrelated thread isolated
+            # (see asgiref.local).
             cvalue = _rehome(cvalue)
         try:
             if cvar.get() is not cvalue:
@@ -304,6 +315,11 @@ class AsyncToSync(Generic[_P, _R]):
         # an asyncio.CancelledError to.
         task_context = getattr(SyncToAsync.threadlocal, "task_context", None)
 
+        # The thread a new event loop runs in, if one is made, and whether
+        # that thread is used for this call only.
+        loop_thread: int | None = None
+        loop_thread_is_single_use = False
+
         # Use call_soon_threadsafe to schedule a synchronous callback on the
         # main event loop's thread if it's there, otherwise make a new loop
         # in this thread.
@@ -322,6 +338,8 @@ class AsyncToSync(Generic[_P, _R]):
             )
 
             async def new_loop_wrap() -> None:
+                nonlocal loop_thread
+                loop_thread = threading.get_ident()
                 loop = asyncio.get_running_loop()
                 self.loop_thread_executors[loop] = current_executor
                 try:
@@ -361,6 +379,7 @@ class AsyncToSync(Generic[_P, _R]):
                 else:
                     # Make our own event loop - in a new thread - and run inside that.
                     loop_executor = ThreadPoolExecutor(max_workers=1)
+                    loop_thread_is_single_use = True
 
                 loop_future = loop_executor.submit(asyncio.run, new_loop_wrap())
                 # Run the CurrentThreadExecutor until the future is done.
@@ -368,7 +387,10 @@ class AsyncToSync(Generic[_P, _R]):
                 # Wait for future and/or allow for exception propagation
                 loop_future.result()
         finally:
-            _restore_context(context[0])
+            _restore_context(
+                context[0],
+                finished_thread=loop_thread if loop_thread_is_single_use else None,
+            )
             # Restore old current thread executor state
             self.executors.current = old_executor
 
