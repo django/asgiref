@@ -52,19 +52,30 @@ class ApplicationCommunicator:
         Waits for the application to stop itself and returns any exceptions.
         """
         try:
-            async with asyncio.timeout(timeout):
-                try:
-                    await self.future
-                    self.future.result()
-                except asyncio.CancelledError:
-                    pass
+            timeout_scope = asyncio.timeout(timeout)
+            try:
+                async with timeout_scope:
+                    try:
+                        await self.future
+                        self.future.result()
+                    except asyncio.CancelledError:
+                        task = asyncio.current_task()
+                        if task is not None and task.cancelling():
+                            raise
+            except TimeoutError:
+                # Only wait()'s own timeout is silent. Let one raised by the
+                # application propagate.
+                if not timeout_scope.expired():
+                    raise
         finally:
             if not self.future.done():
                 self.future.cancel()
                 try:
                     await self.future
                 except asyncio.CancelledError:
-                    pass
+                    task = asyncio.current_task()
+                    if task is not None and task.cancelling():
+                        raise
 
     def stop(self, exceptions=True):
         future = self._future
