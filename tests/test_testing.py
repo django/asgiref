@@ -113,3 +113,78 @@ def test_receive_nothing_lazy_loop():
         assert await instance.receive_nothing(0.01) is True
 
     asyncio.run(test())
+
+
+@pytest.mark.asyncio
+async def test_wait_outer_timeout_propagates():
+    async def application(scope, receive, send):
+        await asyncio.Event().wait()
+
+    instance = ApplicationCommunicator(application, {})
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(instance.wait(), timeout=0.01)
+
+
+@pytest.mark.asyncio
+async def test_wait_asyncio_timeout_propagates():
+    async def application(scope, receive, send):
+        await asyncio.Event().wait()
+
+    instance = ApplicationCommunicator(application, {})
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.01):
+            await instance.wait(timeout=10)
+
+
+@pytest.mark.asyncio
+async def test_wait_external_cancellation_propagates():
+    async def application(scope, receive, send):
+        await asyncio.Event().wait()
+
+    instance = ApplicationCommunicator(application, {})
+    task = asyncio.create_task(instance.wait())
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+@pytest.mark.asyncio
+async def test_wait_application_cancellation_is_silent():
+    async def application(scope, receive, send):
+        raise asyncio.CancelledError
+
+    instance = ApplicationCommunicator(application, {})
+    assert await instance.wait() is None
+
+
+@pytest.mark.asyncio
+async def test_wait_own_timeout_is_silent():
+    async def application(scope, receive, send):
+        await asyncio.Event().wait()
+
+    instance = ApplicationCommunicator(application, {})
+    assert await instance.wait(timeout=0.01) is None
+
+
+@pytest.mark.asyncio
+async def test_wait_application_timeout_error_propagates():
+    async def application(scope, receive, send):
+        raise TimeoutError("application timeout")
+
+    instance = ApplicationCommunicator(application, {})
+    with pytest.raises(TimeoutError, match="application timeout"):
+        await instance.wait()
+
+
+@pytest.mark.asyncio
+async def test_wait_invalid_timeout_cancels_application():
+    async def application(scope, receive, send):
+        await asyncio.Event().wait()
+
+    instance = ApplicationCommunicator(application, {})
+    with pytest.raises(TypeError):
+        await instance.wait(timeout="bad")
+
+    assert instance.future.done()
+    assert instance.future.cancelled()
