@@ -315,3 +315,110 @@ async def test_wsgi_multi_body():
     }
 
     assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+@pytest.mark.asyncio
+async def test_duplicate_header_limit():
+    def wsgi_application(environ, start_response):
+        start_response("200 OK", [])
+        return [b"OK"]
+
+    application = WsgiToAsgi(wsgi_application, duplicate_header_limit=5)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [[b"x-test", b"value"] for _ in range(10)],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 400,
+        "headers": [(b"content-type", b"text/plain")],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"Bad Request: Too many duplicate headers",
+    }
+
+
+@pytest.mark.asyncio
+async def test_duplicate_header_limit_disabled():
+    def wsgi_application(environ, start_response):
+        assert "HTTP_X_TEST" in environ
+        start_response("200 OK", [])
+        return [b"OK"]
+
+    application = WsgiToAsgi(wsgi_application, duplicate_header_limit=None)
+    instance = ApplicationCommunicator(
+        application,
+        {
+            "type": "http",
+            "http_version": "1.0",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [[b"x-test", b"value"] for _ in range(200)],
+        },
+    )
+    await instance.send_input({"type": "http.request"})
+
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.start",
+        "status": 200,
+        "headers": [],
+    }
+    assert (await instance.receive_output(1)) == {
+        "type": "http.response.body",
+        "body": b"OK",
+        "more_body": True,
+    }
+    assert (await instance.receive_output(1)) == {"type": "http.response.body"}
+
+
+def test_build_environ_server_present_but_none():
+    """
+    Regression: Some ASGI servers set scope["server"] = None.
+    build_environ should not crash and should use the fallback.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [],
+        "server": None,
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SERVER_NAME"] == "localhost"
+    assert environ["SERVER_PORT"] == "80"
+
+
+def test_build_environ_server_unix_socket():
+    """
+    ASGI spec: server may be [unix_path, None] for unix sockets.
+    We keep SERVER_NAME as the path and set SERVER_PORT to '0'.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.0",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [],
+        "server": ["/tmp/uvicorn.sock", None],
+    }
+    adapter = WsgiToAsgiInstance(None)
+    adapter.scope = scope
+    environ = adapter.build_environ(scope, None)
+    assert environ["SERVER_NAME"] == "/tmp/uvicorn.sock"
+    assert environ["SERVER_PORT"] == "0"

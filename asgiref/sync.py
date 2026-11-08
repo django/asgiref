@@ -8,29 +8,22 @@ import sys
 import threading
 import warnings
 import weakref
-from concurrent.futures import Future, ThreadPoolExecutor
+from collections.abc import Awaitable, Callable, Coroutine
+from concurrent.futures import Executor, Future, InvalidStateError, ThreadPoolExecutor
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
-    Coroutine,
     Dict,
     Generic,
     List,
     Optional,
+    ParamSpec,
     TypeVar,
-    Union,
     overload,
 )
 
 from .current_thread_executor import CurrentThreadExecutor
-from .local import Local
-
-if sys.version_info >= (3, 10):
-    from typing import ParamSpec
-else:
-    from typing_extensions import ParamSpec
+from .local import Local, _rehome, _Storage
 
 if TYPE_CHECKING:
     # This is not available to import at runtime
@@ -46,8 +39,14 @@ def _restore_context(context: contextvars.Context) -> None:
     # context for downstream consumers
     for cvar in context:
         cvalue = context.get(cvar)
+        # asgiref is deliberately moving this context onto the current thread,
+        # so re-home any Local storage to it. This keeps Local data visible
+        # across async_to_sync / sync_to_async boundaries while leaving data
+        # merely inherited by an unrelated thread isolated (see asgiref.local).
+        if isinstance(cvalue, _Storage):
+            cvalue = _rehome(cvalue)
         try:
-            if cvar.get() != cvalue:
+            if cvar.get() is not cvalue:
                 cvar.set(cvalue)
         except LookupError:
             cvar.set(cvalue)
@@ -118,8 +117,16 @@ class ThreadSensitiveContext:
     The ThreadSensitiveContext() context manager may be used to specify a
     thread pool per context.
 
-    This context manager is re-entrant, so only the outer-most call to
-    ThreadSensitiveContext will set the context.
+    By default, only the outer-most ThreadSensitiveContext sets the context.
+    With an executor, this block uses that executor even inside another context
+    or an AsyncToSync call. On exit, the parent context is restored. The
+    executor must run one call at a time on one thread, for example
+    ThreadPoolExecutor(max_workers=1).
+
+    The caller owns the executor: it is not shut down on exit, so the executor
+    can be used again. A context with an executor can be entered only once.
+    Tasks created inside it must finish before it exits. Thread-sensitive calls
+    they make after the exit raise RuntimeError.
 
     Usage:
 
@@ -128,14 +135,43 @@ class ThreadSensitiveContext:
     ...     await sync_to_async(time.sleep, 1)()
     """
 
-    def __init__(self):
-        self.token = None
+    def __init__(self, *, executor: Executor | None = None) -> None:
+        self._executor = executor
+        self.token: contextvars.Token[ThreadSensitiveContext] | None = None
+        self._old_executor: CurrentThreadExecutor | None = None
+        # Set when a context with an executor exits. SyncToAsync then rejects
+        # calls from tasks that inherited the context and outlived it.
+        self._exited = False
 
     async def __aenter__(self):
-        try:
-            SyncToAsync.thread_sensitive_context.get()
-        except LookupError:
+        if self._executor is not None:
+            # An executor has been given. Use it in a new context rather than
+            # reusing an enclosing thread-sensitive context.
+            if self.token is not None:
+                raise RuntimeError("ThreadSensitiveContext is already entered")
+            if self._exited:
+                # Entering again would route tasks that outlived the first
+                # block to the second.
+                raise RuntimeError(
+                    "ThreadSensitiveContext with an executor cannot be entered again"
+                )
             self.token = SyncToAsync.thread_sensitive_context.set(self)
+            SyncToAsync.context_to_thread_executor[self] = self._executor
+            # An inherited CurrentThreadExecutor (via a parent AsyncToSync) has
+            # priority over this context in SyncToAsync.__call__. On entering,
+            # hide it to send calls in this block to the supplied executor. Any
+            # nested AsyncToSync call installs a new CurrentThreadExecutor, and
+            # will use that for further thread-sensitive work. (Nested calls
+            # sent to the supplied executor would deadlock: its only worker is
+            # waiting for the async code that's now waiting on the newly
+            # submitted code. See test_executor_context_across_bridges.)
+            self._old_executor = getattr(AsyncToSync.executors, "current", None)
+            AsyncToSync.executors.current = None
+        else:
+            try:
+                SyncToAsync.thread_sensitive_context.get()
+            except LookupError:
+                self.token = SyncToAsync.thread_sensitive_context.set(self)
 
         return self
 
@@ -144,9 +180,32 @@ class ThreadSensitiveContext:
             return
 
         executor = SyncToAsync.context_to_thread_executor.pop(self, None)
-        if executor:
-            executor.shutdown()
         SyncToAsync.thread_sensitive_context.reset(self.token)
+        self.token = None
+        if self._executor is not None:
+            AsyncToSync.executors.current = self._old_executor
+            self._old_executor = None
+            self._exited = True
+            # The caller owns the executor, so it is not shut down here.
+            return
+        if executor:
+            # The executor's worker thread may itself be waiting for this
+            # event loop, so a blocking shutdown() here would deadlock it.
+            # Join in a dedicated thread, not the loop's default executor:
+            # work queued there may itself be needed to unpark the worker,
+            # and joins occupying its slots would starve it.
+            future: "Future[None]" = Future()
+
+            def join() -> None:
+                executor.shutdown()
+                try:
+                    future.set_result(None)
+                except InvalidStateError:
+                    # The await below was cancelled while we were joining.
+                    pass
+
+            threading.Thread(target=join, daemon=True).start()
+            await asyncio.wrap_future(future)
 
 
 class AsyncToSync(Generic[_P, _R]):
@@ -174,16 +233,13 @@ class AsyncToSync(Generic[_P, _R]):
         contextvars.ContextVar("async_single_thread_context")
     )
 
-    context_to_thread_executor: "weakref.WeakKeyDictionary[AsyncSingleThreadContext, ThreadPoolExecutor]" = (
-        weakref.WeakKeyDictionary()
-    )
+    context_to_thread_executor: (
+        "weakref.WeakKeyDictionary[AsyncSingleThreadContext, ThreadPoolExecutor]"
+    ) = weakref.WeakKeyDictionary()
 
     def __init__(
         self,
-        awaitable: Union[
-            Callable[_P, Coroutine[Any, Any, _R]],
-            Callable[_P, Awaitable[_R]],
-        ],
+        awaitable: Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]],
         force_new_loop: bool = False,
     ):
         if not callable(awaitable) or (
@@ -201,17 +257,12 @@ class AsyncToSync(Generic[_P, _R]):
         except AttributeError:
             pass
         self.force_new_loop = force_new_loop
-        self.main_event_loop = None
-        try:
-            self.main_event_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # There's no event loop in this thread.
-            pass
 
     def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> _R:
         __traceback_hide__ = True  # noqa: F841
 
-        if not self.force_new_loop and not self.main_event_loop:
+        main_event_loop = None
+        if not self.force_new_loop:
             # There's no event loop in this thread. Look for the threadlocal if
             # we're inside SyncToAsync
             main_event_loop_pid = getattr(
@@ -220,7 +271,7 @@ class AsyncToSync(Generic[_P, _R]):
             # We make sure the parent loop is from the same process - if
             # they've forked, this is not going to be valid any more (#194)
             if main_event_loop_pid and main_event_loop_pid == os.getpid():
-                self.main_event_loop = getattr(
+                main_event_loop = getattr(
                     SyncToAsync.threadlocal, "main_event_loop", None
                 )
 
@@ -278,10 +329,10 @@ class AsyncToSync(Generic[_P, _R]):
                 finally:
                     del self.loop_thread_executors[loop]
 
-            if self.main_event_loop is not None:
+            if main_event_loop is not None:
                 try:
-                    self.main_event_loop.call_soon_threadsafe(
-                        self.main_event_loop.create_task, awaitable
+                    main_event_loop.call_soon_threadsafe(
+                        main_event_loop.create_task, awaitable
                     )
                 except RuntimeError:
                     running_in_main_event_loop = False
@@ -304,9 +355,9 @@ class AsyncToSync(Generic[_P, _R]):
                         ]
                     else:
                         loop_executor = ThreadPoolExecutor(max_workers=1)
-                        self.context_to_thread_executor[
-                            single_thread_context
-                        ] = loop_executor
+                        self.context_to_thread_executor[single_thread_context] = (
+                            loop_executor
+                        )
                 else:
                     # Make our own event loop - in a new thread - and run inside that.
                     loop_executor = ThreadPoolExecutor(max_workers=1)
@@ -336,8 +387,8 @@ class AsyncToSync(Generic[_P, _R]):
         call_result: "Future[_R]",
         exc_info: "OptExcInfo",
         task_context: "Optional[List[asyncio.Task[Any]]]",
-        context: List[contextvars.Context],
-        awaitable: Union[Coroutine[Any, Any, _R], Awaitable[_R]],
+        context: list[contextvars.Context],
+        awaitable: Coroutine[Any, Any, _R] | Awaitable[_R],
     ) -> None:
         """
         Wraps the awaitable with something that puts the result into the
@@ -415,16 +466,17 @@ class SyncToAsync(Generic[_P, _R]):
 
     # Maintaining a weak reference to the context ensures that thread pools are
     # erased once the context goes out of scope. This terminates the thread pool.
-    context_to_thread_executor: "weakref.WeakKeyDictionary[ThreadSensitiveContext, ThreadPoolExecutor]" = (
-        weakref.WeakKeyDictionary()
-    )
+    # A supplied executor is owned by the caller and is unaffected.
+    context_to_thread_executor: (
+        "weakref.WeakKeyDictionary[ThreadSensitiveContext, Executor]"
+    ) = weakref.WeakKeyDictionary()
 
     def __init__(
         self,
         func: Callable[_P, _R],
         thread_sensitive: bool = True,
         executor: Optional["ThreadPoolExecutor"] = None,
-        context: Optional[contextvars.Context] = None,
+        context: contextvars.Context | None = None,
     ) -> None:
         if (
             not callable(func)
@@ -432,9 +484,11 @@ class SyncToAsync(Generic[_P, _R]):
             or iscoroutinefunction(getattr(func, "__call__", func))
         ):
             raise TypeError("sync_to_async can only be applied to sync functions.")
+
+        functools.update_wrapper(self, func)
         self.func = func
         self.context = context
-        functools.update_wrapper(self, func)
+
         self._thread_sensitive = thread_sensitive
         markcoroutinefunction(self)
         if thread_sensitive and executor is not None:
@@ -460,6 +514,15 @@ class SyncToAsync(Generic[_P, _R]):
                 # to use a per-context thread pool executor
                 thread_sensitive_context = self.thread_sensitive_context.get()
 
+                if thread_sensitive_context._exited:
+                    # This task inherited a context with an executor and has
+                    # outlived it. Creating an executor here would silently
+                    # move the call to an unrelated thread.
+                    raise RuntimeError(
+                        "ThreadSensitiveContext has exited. Tasks created "
+                        "inside a context with an executor must finish before "
+                        "it exits."
+                    )
                 if thread_sensitive_context in self.context_to_thread_executor:
                     # Re-use thread executor in current context
                     executor = self.context_to_thread_executor[thread_sensitive_context]
@@ -483,9 +546,22 @@ class SyncToAsync(Generic[_P, _R]):
             executor = self._executor
 
         context = contextvars.copy_context() if self.context is None else self.context
+        # ``child`` is the deferred sync function to be run, with its args
+        # and kwargs bound.
         child = functools.partial(self.func, *args, **kwargs)
-        func = context.run
-        task_context: List[asyncio.Task[Any]] = []
+
+        # On the worker thread, thread_handler runs ``func(child)``. ``func``
+        # enters ``context`` (via context.run); then, inside it, ``run_child``
+        # re-homes any Local storage to the worker thread so it stays visible
+        # there (see _restore_context), and finally calls ``child``.
+        def func(child: Callable[[], _R]) -> _R:
+            def run_child() -> _R:
+                _restore_context(context)
+                return child()
+
+            return context.run(run_child)
+
+        task_context: list[asyncio.Task[Any]] = []
 
         # Run the code in the right thread
         exec_coro = loop.run_in_executor(
@@ -564,40 +640,32 @@ def async_to_sync(
     *,
     force_new_loop: bool = False,
 ) -> Callable[
-    [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
+    [Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]]],
     Callable[_P, _R],
-]:
-    ...
+]: ...
 
 
 @overload
 def async_to_sync(
-    awaitable: Union[
-        Callable[_P, Coroutine[Any, Any, _R]],
-        Callable[_P, Awaitable[_R]],
-    ],
+    awaitable: Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]],
     *,
     force_new_loop: bool = False,
-) -> Callable[_P, _R]:
-    ...
+) -> Callable[_P, _R]: ...
 
 
 def async_to_sync(
-    awaitable: Optional[
-        Union[
-            Callable[_P, Coroutine[Any, Any, _R]],
-            Callable[_P, Awaitable[_R]],
-        ]
-    ] = None,
+    awaitable: None | (
+        Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]]
+    ) = None,
     *,
     force_new_loop: bool = False,
-) -> Union[
+) -> (
     Callable[
-        [Union[Callable[_P, Coroutine[Any, Any, _R]], Callable[_P, Awaitable[_R]]]],
+        [Callable[_P, Coroutine[Any, Any, _R]] | Callable[_P, Awaitable[_R]]],
         Callable[_P, _R],
-    ],
-    Callable[_P, _R],
-]:
+    ]
+    | Callable[_P, _R]
+):
     if awaitable is None:
         return lambda f: AsyncToSync(
             f,
@@ -614,9 +682,8 @@ def sync_to_async(
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-    context: Optional[contextvars.Context] = None,
-) -> Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]:
-    ...
+    context: contextvars.Context | None = None,
+) -> Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]: ...
 
 
 @overload
@@ -625,21 +692,20 @@ def sync_to_async(
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-    context: Optional[contextvars.Context] = None,
-) -> Callable[_P, Coroutine[Any, Any, _R]]:
-    ...
+    context: contextvars.Context | None = None,
+) -> Callable[_P, Coroutine[Any, Any, _R]]: ...
 
 
 def sync_to_async(
-    func: Optional[Callable[_P, _R]] = None,
+    func: Callable[_P, _R] | None = None,
     *,
     thread_sensitive: bool = True,
     executor: Optional["ThreadPoolExecutor"] = None,
-    context: Optional[contextvars.Context] = None,
-) -> Union[
-    Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]],
-    Callable[_P, Coroutine[Any, Any, _R]],
-]:
+    context: contextvars.Context | None = None,
+) -> (
+    Callable[[Callable[_P, _R]], Callable[_P, Coroutine[Any, Any, _R]]]
+    | Callable[_P, Coroutine[Any, Any, _R]]
+):
     if func is None:
         return lambda f: SyncToAsync(
             f,

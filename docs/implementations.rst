@@ -25,6 +25,14 @@ Granian
 A Rust HTTP server for Python applications.
 Supports ASGI/3, RSGI and WSGI interface applications.
 
+Gunicorn
+-------
+
+*stable* / https://gunicorn.org
+
+Gunicorn 'Green Unicorn' is a Python HTTP Server for UNIX. It's a pre-fork worker model ported from Ruby's Unicorn project. The Gunicorn server is broadly compatible with various web frameworks, simply implemented, light on server resource usage, and fairly speedy.
+
+Supports HTTP/1, HTTP/2, and WebSockets.
 
 Hypercorn
 ---------
@@ -32,21 +40,23 @@ Hypercorn
 *Beta* / https://hypercorn.readthedocs.io/
 
 An ASGI server based on the sans-io hyper, h11, h2, and wsproto libraries.
-Supports HTTP/1, HTTP/2, and WebSockets.
+Supports HTTP/1, HTTP/2, HTTP/3, and WebSockets.
+HTTP/3 support requires the ``h3`` extra (``pip install hypercorn[h3]``).
 
+Anycorn
+-------
 
-NGINX Unit
-----------
+*Beta* / https://github.com/davidbrochart/anycorn
 
-*Stable* / https://unit.nginx.org/configuration/#configuration-python
-
-Unit is a lightweight and versatile open-source server that has three core capabilities: it is a web server for static media assets, an application server that runs code in multiple languages, and a reverse proxy.
-
+A fork of Hypercorn that delegates asyncio and Trio compatibility to AnyIO
+rather than maintaining separate code paths for each backend.
+Supports HTTP/1, HTTP/2, HTTP/3, WebSockets, and the :doc:`TLS extension <specs/tls>`.
+HTTP/3 support requires the ``h3`` extra (``pip install anycorn[h3]``).
 
 Uvicorn
 -------
 
-*Stable* / https://www.uvicorn.org/
+*Stable* / https://uvicorn.dev/
 
 A fast ASGI server based on uvloop and httptools.
 Supports HTTP/1 and WebSockets.
@@ -179,7 +189,7 @@ for type conversion. Optional OpenAPI document generation.
 Starlette
 ---------
 
-*Beta* / https://github.com/encode/starlette
+*Stable* / https://starlette.dev/
 
 Starlette is a minimalist ASGI library for writing against basic but powerful
 ``Request`` and ``Response`` classes. Supports HTTP and WebSockets.

@@ -13,19 +13,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version:
-        - 3.9
-        - '3.10'
-        - '3.11'
-        - '3.12'
-        - '3.13'
-        - '3.14'
+        include:
+        - { python-version: '3.11',  toxenv: 'py311-test,py311-mypy' }
+        - { python-version: '3.12',  toxenv: 'py312-test,py312-mypy' }
+        - { python-version: '3.13',  toxenv: 'py313-test,py313-mypy' }
+        - { python-version: '3.14',  toxenv: 'py314-test,py314-mypy' }
+        - { python-version: '3.15',  toxenv: 'py315-test,py315-mypy' }
+        - { python-version: '3.13t', toxenv: 'py313t-test' }
+        - { python-version: '3.14t', toxenv: 'py314t-test' }
+        - { python-version: '3.15t', toxenv: 'py315t-test' }
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
@@ -33,20 +35,20 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --upgrade tox tox-py
+          python -m pip install --upgrade tox
 
-      - name: Run tox targets for ${{ matrix.python-version }}
-        run: tox --py current
+      - name: Run tox env ${{ matrix.toxenv }}
+        run: tox -e ${{ matrix.toxenv }}
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip tox

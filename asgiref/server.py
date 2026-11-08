@@ -56,9 +56,8 @@ class StatelessServer:
         """
         Runs the asyncio event loop with our handler loop.
         """
-        event_loop = asyncio.get_event_loop()
         try:
-            event_loop.run_until_complete(self.arun())
+            asyncio.run(self.arun())
         except KeyboardInterrupt:
             logger.info("Exiting due to Ctrl-C/interrupt")
 

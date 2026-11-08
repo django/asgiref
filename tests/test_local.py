@@ -1,11 +1,12 @@
 import asyncio
+import contextvars
 import gc
 import threading
 from threading import Thread
 
 import pytest
 
-from asgiref.local import Local
+from asgiref.local import Local, _DefaultLocal, _ThreadCriticalLocal
 from asgiref.sync import async_to_sync, sync_to_async
 
 
@@ -26,6 +27,9 @@ async def test_local_task():
     del test_local.foo
     with pytest.raises(AttributeError):
         test_local.foo
+    # Delete again now that it's already gone
+    with pytest.raises(AttributeError):
+        del test_local.foo
 
 
 def test_local_thread():
@@ -231,6 +235,9 @@ async def test_local_critical_no_task_to_thread():
             test_local.foo
         test_local.foo = "secret"
         assert test_local.foo == "secret"
+        del test_local.foo
+        with pytest.raises(AttributeError):
+            del test_local.foo
 
     await sync_to_async(sync_function)()
     # Check the value outside is not touched
@@ -359,6 +366,45 @@ def test_visibility_thread_asgiref() -> None:
     assert test_local.value == 0
 
 
+def test_local_not_inherited_by_new_thread() -> None:
+    """
+    A value set in one sync thread must not be visible in a separately spawned
+    sync thread.
+
+    On Python 3.14+ a new thread inherits a copy of the spawning thread's
+    context when ``sys.flags.thread_inherit_context`` is enabled. That flag
+    defaults to on for free-threaded builds and off for the regular GIL build
+    (where it is opt-in via ``-X thread_inherit_context=1`` /
+    ``PYTHON_THREAD_INHERIT_CONTEXT=1``). When enabled it would otherwise leak
+    non-thread-critical ``Local`` data across unrelated threads.
+    """
+    test_local = Local()
+    test_local.value = "parent"
+
+    # Capture the child's observation in the parent so an in-thread assertion
+    # failure actually fails the test.
+    observed: "dict[str, object]" = {}
+
+    def child() -> None:
+        observed["has_value"] = hasattr(test_local, "value")
+        # The child gets its own isolated storage.
+        test_local.value = "child"
+        observed["child_value"] = test_local.value
+
+    # Force the worst case by running the child in a copy of this thread's
+    # context (mirroring thread_inherit_context), so the test exercises the leak
+    # path on every build regardless of the flag default.
+    parent_context = contextvars.copy_context()
+    thread = Thread(target=lambda: parent_context.run(child))
+    thread.start()
+    thread.join()
+
+    assert observed["has_value"] is False
+    assert observed["child_value"] == "child"
+    # The child's write must not leak back to the parent either.
+    assert test_local.value == "parent"
+
+
 @pytest.mark.asyncio
 async def test_visibility_task() -> None:
     """Check visibility with asyncio tasks."""
@@ -379,7 +425,7 @@ async def test_visibility_task() -> None:
 
 @pytest.mark.asyncio
 async def test_deletion() -> None:
-    """Check visibility with asyncio tasks."""
+    """Check visibility of deletions with asyncio tasks."""
     test_local = Local()
     test_local.value = 123
 
@@ -391,3 +437,31 @@ async def test_deletion() -> None:
 
     await asyncio.create_task(_test())
     assert test_local.value == 123
+
+
+def test_data_name_protected() -> None:
+    test_local = Local()
+    test_local.important = "keep me"
+    # ``_data`` is the name ``_CVar`` uses for its backing ContextVar,
+    # so it may not be set by user code.
+    with pytest.raises(AttributeError):
+        test_local._data = "user supplied value"
+    assert test_local.important == "keep me"
+
+
+def test_new_returns_specialized_subclass() -> None:
+    default = Local()
+    tc = Local(thread_critical=True)
+    assert type(default) is _DefaultLocal
+    assert type(tc) is _ThreadCriticalLocal
+    assert isinstance(default, Local)
+    assert isinstance(tc, Local)
+    assert type(tc) is not type(default)  # type: ignore[comparison-overlap]
+
+
+def test_local_cannot_be_subclassed() -> None:
+    class MyLocal(Local):  # type: ignore[misc]
+        pass
+
+    with pytest.raises(TypeError, match="cannot be subclassed"):
+        MyLocal()
