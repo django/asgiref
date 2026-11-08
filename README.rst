@@ -118,13 +118,75 @@ are not affected.
 Threadlocal replacement
 -----------------------
 
-This is a drop-in replacement for ``threading.local`` that works with both
-threads and asyncio Tasks. Even better, it will proxy values through from a
-task-local context to a thread-local context when you use ``sync_to_async``
-to run things in a threadpool, and vice-versa for ``async_to_sync``.
+``asgiref.local.Local`` provides a namespace for data local to the current
+thread or async task, with attribute access like ``threading.local``. Import
+and create an instance, then set, read, and delete attributes as usual::
 
-If you instead want true thread- and task-safety, you can set
-``thread_critical`` on the Local object to ensure this instead.
+    from asgiref.local import Local
+
+    local = Local()
+    local.user = "alice"
+    assert local.user == "alice"
+    del local.user
+    assert not hasattr(local, "user")
+
+Reading or deleting an attribute that has not been set in the current context
+raises ``AttributeError``. You can use ``getattr(local, "user", None)`` to
+provide a default when reading an unset attribute.
+
+In a synchronous thread (one without a running event loop), attributes are
+local to that thread. In async code, they follow ``contextvars`` semantics:
+code you directly ``await`` sees the same values, and a new task inherits the
+context at the time it is created. Setting or deleting attributes in that
+task does not change the attributes in the parent task::
+
+    import asyncio
+
+    from asgiref.local import Local
+
+    local = Local()
+
+    async def child():
+        assert local.user == "alice"
+        local.user = "bob"
+
+    async def main():
+        local.user = "alice"
+        await asyncio.create_task(child())
+        assert local.user == "alice"
+
+    asyncio.run(main())
+
+Attribute values are not deep-copied: if an attribute holds a mutable object,
+such as a list, an inheriting task can still mutate that same object.
+
+By default, ``sync_to_async`` and ``async_to_sync`` also propagate local values
+across the sync/async boundary, including changes made by the wrapped call::
+
+    import asyncio
+
+    from asgiref.local import Local
+    from asgiref.sync import sync_to_async
+
+    local = Local()
+
+    def update_user():
+        assert local.user == "alice"
+        local.user = "bob"
+
+    async def main():
+        local.user = "alice"
+        await sync_to_async(update_user)()
+        assert local.user == "bob"
+
+    asyncio.run(main())
+
+For values that must stay on their original thread, such as database handles,
+use ``Local(thread_critical=True)``. This disables sharing across threads via
+``sync_to_async`` and ``async_to_sync``. In a synchronous thread, this behaves
+like ``threading.local``; in a thread running an event loop, values are also
+local to the async context, with the task inheritance behaviour described
+above. ``Local`` cannot be subclassed.
 
 
 Server base classes
