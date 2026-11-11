@@ -151,14 +151,23 @@ class StatelessServer:
             await asyncio.sleep(self.application_checker_interval)
             for scope_id, details in list(self.application_instances.items()):
                 if details["future"].done():
-                    exception = details["future"].exception()
-                    if exception:
-                        await self.application_exception(exception, details)
                     try:
-                        del self.application_instances[scope_id]
-                    except KeyError:
-                        # Exception handling might have already got here before us. That's fine.
-                        pass
+                        exception = None
+                        if not details["future"].cancelled():
+                            exception = details["future"].exception()
+                        if exception:
+                            try:
+                                await self.application_exception(exception, details)
+                            except Exception:
+                                logger.exception(
+                                    "Exception inside application_exception()"
+                                )
+                    finally:
+                        try:
+                            del self.application_instances[scope_id]
+                        except KeyError:
+                            # Exception handling might have already got here before us. That's fine.
+                            pass
 
     async def application_exception(self, exception, application_details):
         """
