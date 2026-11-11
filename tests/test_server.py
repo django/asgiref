@@ -84,7 +84,11 @@ async def server():
 
     server = Server(app, 10)
     yield server
+    application_tasks = [
+        details["future"] for details in server.application_instances.values()
+    ]
     server.close()
+    await asyncio.gather(*application_tasks, return_exceptions=True)
 
 
 async def check_client_msg(client, expected_address, expected_msg):
@@ -119,10 +123,14 @@ async def test_stateless_server(server):
         await asyncio.gather(check_client1_behavior(), check_client2_behavior())
         raise Done
 
+    server_task = asyncio.create_task(server.arun())
     try:
-        await asyncio.gather(server.arun(), do_test())
+        await do_test()
     except Done:
         pass
+    finally:
+        server_task.cancel()
+        await asyncio.gather(server_task, return_exceptions=True)
 
 
 def test_stateless_server_run():
@@ -179,7 +187,11 @@ async def test_server_delete_instance(server):
             await check_client_msg(client1, server.address, b"Welcome")
         raise Done
 
+    server_task = asyncio.create_task(server.arun())
     try:
-        await asyncio.gather(client1_multiple_register(), server.arun())
+        await client1_multiple_register()
     except Done:
         pass
+    finally:
+        server_task.cancel()
+        await asyncio.gather(server_task, return_exceptions=True)
