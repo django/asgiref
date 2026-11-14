@@ -304,8 +304,8 @@ metadata (mostly from the HTTP request line and headers):
 * ``asgi["version"]`` (*Unicode string*) -- The version of the ASGI spec.
 
 * ``asgi["spec_version"]`` (*Unicode string*) -- Version of the ASGI
-  HTTP spec this server understands; one of ``"2.0"``, ``"2.1"``, ``"2.2"`` or
-  ``"2.3"``. Optional; if missing assume ``"2.0"``.
+  HTTP spec this server understands; for example: ``"2.0"``, ``"2.1"``, ``"2.2"``,
+  etc. Optional; if missing assume ``"2.0"``.
 
 * ``http_version`` (*Unicode string*) -- One of ``"1.1"``, ``"2"`` or
   ``"3"``. Optional; if missing default is ``"1.1"``.
