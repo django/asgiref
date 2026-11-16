@@ -1,6 +1,7 @@
 import asyncio
 import contextvars
 import gc
+from concurrent.futures import ThreadPoolExecutor
 import threading
 from threading import Thread
 
@@ -488,7 +489,5 @@ def test_thread_critical_local_does_not_leak_context_across_async_to_sync():
         )
 
     # Run in a dedicated thread so unrelated pytest context does not interfere.
-    with __import__("concurrent.futures", fromlist=["ThreadPoolExecutor"]).ThreadPoolExecutor(
-        max_workers=1
-    ) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(run_calls).result()
