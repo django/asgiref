@@ -465,3 +465,30 @@ def test_local_cannot_be_subclassed() -> None:
 
     with pytest.raises(TypeError, match="cannot be subclassed"):
         MyLocal()
+
+
+def test_thread_critical_local_does_not_leak_context_across_async_to_sync():
+    """
+    Regression for #610: each fresh event-loop thread must not leave its
+    thread-critical Local's ContextVar in the synchronous caller's context.
+    """
+    local = Local(thread_critical=True)
+
+    async def touch_local():
+        local.connection = object()
+        assert local.connection is not None
+
+    def run_calls():
+        before = set(contextvars.copy_context())
+        for _ in range(10):
+            async_to_sync(touch_local)()
+        after = set(contextvars.copy_context())
+        assert after == before, (
+            "async_to_sync leaked thread-critical ContextVars into its caller"
+        )
+
+    # Run in a dedicated thread so unrelated pytest context does not interfere.
+    with __import__("concurrent.futures", fromlist=["ThreadPoolExecutor"]).ThreadPoolExecutor(
+        max_workers=1
+    ) as executor:
+        executor.submit(run_calls).result()
