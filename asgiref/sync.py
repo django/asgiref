@@ -44,6 +44,10 @@ def _restore_context(context: contextvars.Context) -> None:
         # across async_to_sync / sync_to_async boundaries while leaving data
         # merely inherited by an unrelated thread isolated (see asgiref.local).
         if isinstance(cvalue, _Storage):
+            # Thread-critical Local storage must never escape its owner thread.
+            # Do not copy an event-loop thread's DB handles to a sync caller.
+            if cvalue.thread_critical and cvalue.thread_id != threading.get_ident():
+                continue
             cvalue = _rehome(cvalue)
         try:
             if cvar.get() is not cvalue:

@@ -21,16 +21,19 @@ class _Storage:
     thread is never re-homed and so stays isolated.
     """
 
-    __slots__ = ("thread_id", "data")
+    __slots__ = ("thread_id", "data", "thread_critical")
 
-    def __init__(self, thread_id: int, data: dict[str, Any]) -> None:
+    def __init__(
+        self, thread_id: int, data: dict[str, Any], thread_critical: bool = False
+    ) -> None:
         self.thread_id = thread_id
         self.data = data
+        self.thread_critical = thread_critical
 
 
 def _rehome(storage: "_Storage") -> "_Storage":
     """Return a copy of *storage* owned by the current thread."""
-    return _Storage(threading.get_ident(), storage.data)
+    return _Storage(threading.get_ident(), storage.data, storage.thread_critical)
 
 
 _object_setattr = object.__setattr__
@@ -41,8 +44,9 @@ class _CVar:
 
     _data: "contextvars.ContextVar[_Storage]"
 
-    def __init__(self) -> None:
+    def __init__(self, thread_critical: bool = False) -> None:
         _object_setattr(self, "_data", contextvars.ContextVar("asgiref.local"))
+        _object_setattr(self, "_thread_critical", thread_critical)
 
     def _storage(self) -> "_Storage":
         # Only return storage that belongs to the current thread. Storage with
@@ -50,7 +54,7 @@ class _CVar:
         # intentionally moved here by asgiref) and must not be visible.
         storage = self._data.get(None)
         if storage is None or storage.thread_id != threading.get_ident():
-            return _Storage(threading.get_ident(), {})
+            return _Storage(threading.get_ident(), {}, self._thread_critical)
         return storage
 
     def __getattr__(self, key):
@@ -65,13 +69,13 @@ class _CVar:
 
         data = self._storage().data.copy()
         data[key] = value
-        self._data.set(_Storage(threading.get_ident(), data))
+        self._data.set(_Storage(threading.get_ident(), data, self._thread_critical))
 
     def __delattr__(self, key: str) -> None:
         data = self._storage().data.copy()
         if key in data:
             del data[key]
-            self._data.set(_Storage(threading.get_ident(), data))
+            self._data.set(_Storage(threading.get_ident(), data, self._thread_critical))
         else:
             raise AttributeError(f"{self!r} object has no attribute {key!r}")
 
@@ -187,7 +191,7 @@ class _ThreadCriticalLocal(Local):  # type: ignore[misc]
 
         # Ensure context exists in the current thread
         if not hasattr(self._storage, "cvar"):
-            self._storage.cvar = _CVar()
+            self._storage.cvar = _CVar(thread_critical=True)
 
         # self._storage is a thread local, so the members
         # can't be accessed in another thread (we don't
