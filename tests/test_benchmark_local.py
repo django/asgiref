@@ -1,6 +1,6 @@
 import asyncio
+import sys
 from collections.abc import Callable, Generator
-from importlib.util import find_spec
 from typing import Any, Protocol
 
 import pytest
@@ -12,8 +12,14 @@ class BenchmarkFixture(Protocol):
     def __call__(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> None: ...
 
 
-if not (find_spec("pytest_benchmark") or find_spec("pytest_codspeed")):
-    pytest.skip("pytest-benchmark or pytest-codspeed required", allow_module_level=True)
+# Installed-but-inactive is not enough. PYTEST_DISABLE_PLUGIN_AUTOLOAD leaves the
+# package importable while the benchmark fixture is unregistered, and collection
+# then errors instead of skipping.
+if "pytest_benchmark" not in sys.modules and "pytest_codspeed" not in sys.modules:
+    pytest.skip(
+        "pytest-benchmark or pytest-codspeed plugin must be active",
+        allow_module_level=True,
+    )
 
 
 # -- Sync, thread_critical=False (lock + CVar path) --
