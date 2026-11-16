@@ -491,3 +491,21 @@ def test_thread_critical_local_does_not_leak_context_across_async_to_sync():
     # Run in a dedicated thread so unrelated pytest context does not interfere.
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.submit(run_calls).result()
+
+
+def test_thread_critical_local_keeps_async_task_isolation():
+    """Thread-critical storage remains shared within a task, not across tasks."""
+    local = Local(thread_critical=True)
+
+    async def check():
+        local.value = "parent"
+
+        async def child():
+            assert local.value == "parent"
+            local.value = "child"
+            assert local.value == "child"
+
+        await asyncio.create_task(child())
+        assert local.value == "parent"
+
+    async_to_sync(check)()
