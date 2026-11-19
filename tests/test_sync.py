@@ -648,6 +648,44 @@ def test_async_single_thread_context_success_share_context():
     assert connection.get() == 2
 
 
+def test_async_to_sync_context_published_before_result(monkeypatch):
+    """
+    Regression test for #620: main_wrap must copy the context back before
+    completing the result future. Completing it first wakes the waiting sync
+    thread, which then restores the stale context and loses any contextvar
+    changes the coroutine made.
+    """
+    import concurrent.futures
+
+    from asgiref import sync as sync_module
+
+    var = contextvars.ContextVar("var")
+
+    async def set_var(value):
+        var.set(value)
+
+    def sync_middle(value):
+        # Runs in a thread under sync_to_async, so async_to_sync schedules
+        # set_var back onto the outer event loop.
+        async_to_sync(set_var)(value)
+        return var.get(None)
+
+    class SlowFuture(concurrent.futures.Future):
+        def set_result(self, result):
+            super().set_result(result)
+            # Hold the loop thread after waking the sync thread, so the sync
+            # thread reliably restores the context before main_wrap's finally
+            # block would have copied it (on the unfixed code).
+            time.sleep(0.05)
+
+    monkeypatch.setattr(sync_module, "Future", SlowFuture)
+
+    async def main():
+        return await sync_to_async(sync_middle)(42)
+
+    assert asyncio.run(main()) == 42
+
+
 @pytest.mark.asyncio
 async def test_async_single_thread_context_matches_from_async_thread():
     """

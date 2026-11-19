@@ -415,13 +415,18 @@ class AsyncToSync(Generic[_P, _R]):
             else:
                 result = await awaitable
         except BaseException as e:
+            # Publish the context before completing call_result: the waiting
+            # sync thread restores context[0] as soon as call_result is done,
+            # so copying it afterwards (e.g. in a finally block) races with
+            # the sync thread and can restore the stale context instead.
+            context[0] = contextvars.copy_context()
             call_result.set_exception(e)
         else:
+            context[0] = contextvars.copy_context()
             call_result.set_result(result)
         finally:
             if current_task is not None and task_context is not None:
                 task_context.remove(current_task)
-            context[0] = contextvars.copy_context()
 
 
 class SyncToAsync(Generic[_P, _R]):
