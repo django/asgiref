@@ -777,6 +777,56 @@ def test_thread_sensitive_context_exit_does_not_block_event_loop():
     assert process.exitcode == 0
 
 
+@pytest.mark.asyncio
+async def test_cancelled_sync_to_async_does_not_restore_running_thread_context():
+    """
+    Tests that a cancelled sync_to_async call does not copy context back from
+    a thread that is still running. (#621)
+
+    If the task is cancelled before the event loop runs the create_task
+    callback enqueued by async_to_sync, sync_to_async stops waiting for the
+    thread, which stays parked in AsyncToSync with its CurrentThreadExecutor
+    set in its context. Copying that context back made later thread-sensitive
+    calls in the same task run nested inside the abandoned sync code.
+    """
+    worker_started = threading.Event()
+    thread_state = threading.local()
+
+    async def inner():
+        await asyncio.sleep(0.2)
+
+    def sync_code():
+        thread_state.in_sync_code = True
+        try:
+            worker_started.set()
+            async_to_sync(inner)()
+        finally:
+            thread_state.in_sync_code = False
+
+    def later_sync_code():
+        return getattr(thread_state, "in_sync_code", False)
+
+    async def cancelled_then_calls_again():
+        try:
+            await sync_to_async(sync_code, thread_sensitive=True)()
+        except asyncio.CancelledError:
+            pass
+        return await sync_to_async(later_sync_code, thread_sensitive=True)()
+
+    async with ThreadSensitiveContext():
+        task = asyncio.create_task(cancelled_then_calls_again())
+        # Let the executor pick up sync_code, then hold the event loop
+        # with sync sleeps so the call_soon_threadsafe callback enqueued
+        # by async_to_sync is still queued when the cancellation lands.
+        await asyncio.sleep(0)
+        assert worker_started.wait(5)
+        time.sleep(0.1)
+        task.cancel()
+        ran_inside_sync_code = await task
+
+    assert not ran_inside_sync_code
+
+
 def starve_default_executor_exiting_thread_sensitive_context():
     """
     Wedges two shutdown joins and the work they depend on into a two-slot

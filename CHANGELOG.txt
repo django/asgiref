@@ -1,3 +1,15 @@
+UNRELEASED
+----------
+
+* ``sync_to_async`` no longer copies context variables back from its worker
+  thread when the call is cancelled while the thread is still running.
+
+  Previously, a task cancelled just after its sync code entered
+  ``async_to_sync`` inherited that thread's ``CurrentThreadExecutor``. Later
+  thread-sensitive ``sync_to_async`` calls in the same task then ran nested
+  inside the abandoned sync code, or raised ``RuntimeError:
+  CurrentThreadExecutor already quit or is broken``. (#621)
+
 3.13.0 (2026-10-23)
 -------------------
 

@@ -596,7 +596,11 @@ class SyncToAsync(Generic[_P, _R]):
                 exec_coro.cancel()
             ret = await exec_coro
         finally:
-            if self.context is None:
+            # Only copy the thread's context back once the thread has finished.
+            # After a cancellation it may still be running, and its context
+            # holds state that is only valid there, such as the
+            # CurrentThreadExecutor of an in-progress async_to_sync call.
+            if self.context is None and exec_coro.done() and not exec_coro.cancelled():
                 _restore_context(context)
             self.deadlock_context.set(False)
 
