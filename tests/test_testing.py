@@ -48,6 +48,29 @@ async def test_receive_nothing():
     assert await instance.receive_nothing(0.01) is True
 
 
+@pytest.mark.asyncio
+async def test_receive_output_timeout_restores_cancellation_count():
+    """
+    A handled timeout must not leave the calling task in a cancelling state.
+    """
+
+    async def application(scope, receive, send):
+        await asyncio.Event().wait()
+
+    instance = ApplicationCommunicator(application, {})
+    task = asyncio.current_task()
+    assert task is not None
+    before = task.cancelling()
+
+    try:
+        with pytest.raises(TimeoutError):
+            await instance.receive_output(timeout=0.01)
+        assert task.cancelling() == before
+    finally:
+        while task.cancelling() > before:
+            task.uncancel()
+
+
 def test_receive_nothing_lazy_loop():
     """
     Tests ApplicationCommunicator.receive_nothing to return the correct value.

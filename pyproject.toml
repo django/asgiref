@@ -35,6 +35,7 @@ Changelog = "https://github.com/django/asgiref/blob/master/CHANGELOG.txt"
 
 [project.optional-dependencies]
 tests = [
+  "packaging",
   "pytest",
   "pytest-asyncio",
 ]

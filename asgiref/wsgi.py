@@ -78,9 +78,10 @@ class WsgiToAsgiInstance:
             "wsgi.run_once": False,
         }
         # Get server name and port - required in WSGI, not in ASGI
-        if "server" in scope:
-            environ["SERVER_NAME"] = scope["server"][0]
-            environ["SERVER_PORT"] = str(scope["server"][1])
+        server = scope.get("server")
+        if server is not None:
+            environ["SERVER_NAME"] = server[0]
+            environ["SERVER_PORT"] = str(server[1] if server[1] is not None else 0)
         else:
             environ["SERVER_NAME"] = "localhost"
             environ["SERVER_PORT"] = "80"

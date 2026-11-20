@@ -20,7 +20,6 @@ from asgiref.sync import (
     iscoroutinefunction,
     sync_to_async,
 )
-from asgiref.timeout import timeout
 
 
 @pytest.mark.asyncio
@@ -1081,7 +1080,7 @@ async def test_sync_to_async_with_blocker_thread_sensitive():
 
     try:
         # wait on the event waiter, which is now blocking the event setter.
-        async with timeout(delay + 1):
+        async with asyncio.timeout(delay + 1):
             assert await async_process_waiting_on_event() == 42
     except TimeoutError:
         # In case of timeout, set the event to unblock things, else
@@ -1116,7 +1115,7 @@ async def test_sync_to_async_with_blocker_non_thread_sensitive():
 
     try:
         # wait on the event waiter, which is now blocking the event setter.
-        async with timeout(delay + 1):
+        async with asyncio.timeout(delay + 1):
             assert await async_process_waiting_on_event() == 42
     except TimeoutError:
         # In case of timeout, set the event to unblock things, else

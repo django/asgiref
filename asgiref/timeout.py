@@ -26,6 +26,8 @@ class timeout:
 
     timeout - value in seconds or None to disable timeout logic
     loop - asyncio compatible event loop
+
+    Deprecated: use asyncio.timeout() instead.
     """
 
     def __init__(
@@ -34,6 +36,11 @@ class timeout:
         *,
         loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
+        warnings.warn(
+            "asgiref.timeout.timeout is deprecated. Use asyncio.timeout() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._timeout = timeout
         if loop is None:
             loop = asyncio.get_running_loop()
